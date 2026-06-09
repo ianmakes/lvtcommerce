@@ -20,7 +20,7 @@ const SUPER_ADMIN_UID = "avIScAH5NQMWN2zf6Z3YwEEQw302";
 
 function App() {
   // Page routing and layout
-  const [view, setView] = useState<'store' | 'product-details' | 'checkout' | 'success' | 'admin' | 'account'>('store');
+  const [view, setView] = useState<'landing' | 'store' | 'product-details' | 'checkout' | 'success' | 'admin' | 'account'>('landing');
   const [settings, setSettings] = useState<ShopSettings>({
     shopName: "GoldenCare Market",
     phone: "",
@@ -296,28 +296,188 @@ function App() {
       {/* Main Views router */}
       <main style={{ flexGrow: 1, paddingBottom: '60px' }}>
         
+        {/* VIEW G: Landing Page */}
+        {view === 'landing' && (
+          <div>
+            {/* Typographic Hero */}
+            <section className="hero" style={{ backgroundColor: '#000000', color: '#FFFFFF', padding: '100px 24px', textAlign: 'center' }}>
+              <div className="container" style={{ animation: 'fadeInUp 0.6s ease' }}>
+                <span style={{ fontSize: '0.9rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-primary)', fontWeight: 'bold', display: 'block', marginBottom: '16px' }}>
+                  GoldenCare Market &bull; Est. 2026
+                </span>
+                <h1 style={{ fontSize: '3.5rem', fontWeight: 900, lineHeight: 1.1, color: '#FFFFFF', marginBottom: '24px', textTransform: 'uppercase', letterSpacing: '-1px' }}>
+                  Wellness Redefined.<br />Minimal Design. Maximum Function.
+                </h1>
+                <p style={{ maxWidth: '680px', margin: '0 auto 40px', color: '#D1D5DB', fontSize: '1.2rem', lineHeight: 1.6 }}>
+                  Curated daily recovery and lifestyle design objects built with 3K Carbon Fiber, AeroGel insulation, and integrated Bluetooth sensors.
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                  <button 
+                    className="btn" 
+                    onClick={() => setView('store')}
+                    style={{ fontSize: '1.1rem', padding: '16px 36px', backgroundColor: '#FFFFFF', color: '#000000', border: '1px solid #FFFFFF', minHeight: '52px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    Shop the Collection
+                  </button>
+                  <button 
+                    className="btn" 
+                    onClick={() => {
+                      const visionEl = document.getElementById('brand-vision');
+                      if (visionEl) visionEl.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    style={{ fontSize: '1.1rem', padding: '16px 36px', borderColor: '#FFFFFF', color: '#FFFFFF', backgroundColor: 'transparent', border: '1px solid #FFFFFF', minHeight: '52px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    Our Philosophy
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Brand Vision / Philosophy */}
+            <section id="brand-vision" style={{ padding: '80px 24px', backgroundColor: '#FFFFFF', borderBottom: '1px solid #000000' }}>
+              <div className="container">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px' }}>
+                  <div>
+                    <h3 style={{ textTransform: 'uppercase', fontSize: '1.2rem', color: '#000000', borderBottom: '2px solid #000000', paddingBottom: '12px', marginBottom: '20px' }}>
+                      01. Material Focus
+                    </h3>
+                    <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+                      We craft tools using structural 3K carbon fiber, medical-grade AeroGel insulation, and aerospace aluminum. Built to perform, finished to inspire.
+                    </p>
+                  </div>
+                  <div>
+                    <h3 style={{ textTransform: 'uppercase', fontSize: '1.2rem', color: '#000000', borderBottom: '2px solid #000000', paddingBottom: '12px', marginBottom: '20px' }}>
+                      02. Invisible Utility
+                    </h3>
+                    <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+                      Integrated Bluetooth connectivity, touch-capacitive LEDs, and smart alarm alerts are built directly into clean, minimalist silhouettes.
+                    </p>
+                  </div>
+                  <div>
+                    <h3 style={{ textTransform: 'uppercase', fontSize: '1.2rem', color: '#000000', borderBottom: '2px solid #000000', paddingBottom: '12px', marginBottom: '20px' }}>
+                      03. Modern Dignity
+                    </h3>
+                    <p style={{ fontSize: '0.95rem', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+                      Supporting active routines with premium, high-design objects that seamlessly integrate into a modern home or professional workspace.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Featured Products */}
+            <section style={{ padding: '80px 24px', backgroundColor: '#F9FAFB', borderBottom: '1px solid #000000' }}>
+              <div className="container">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', borderBottom: '2px solid #000000', paddingBottom: '16px' }}>
+                  <h2 style={{ textTransform: 'uppercase', fontSize: '2rem', margin: 0 }}>Featured Systems</h2>
+                  <button onClick={() => setView('store')} style={{ background: 'none', border: 'none', textDecoration: 'underline', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', color: '#000' }}>
+                    View All Products &rarr;
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
+                  {products.slice(0, 3).map(prod => (
+                    <div key={prod.id} className="card" style={{ padding: '0', display: 'flex', flexDirection: 'column', height: '100%', border: '2px solid #000000', backgroundColor: '#FFFFFF', boxShadow: 'none' }}>
+                      <div style={{ height: '220px', width: '100%', overflow: 'hidden', borderBottom: '2px solid #000000', position: 'relative' }}>
+                        {prod.badge && (
+                          <span style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: '#000000', color: '#FFFFFF', padding: '4px 8px', fontSize: '0.7rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                            {prod.badge}
+                          </span>
+                        )}
+                        <img src={prod.image} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                        <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#666', fontWeight: 'bold', marginBottom: '6px', display: 'block' }}>{prod.category}</span>
+                        <h4 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 12px 0', color: '#000' }}>{prod.name}</h4>
+                        <p style={{ color: '#555', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '20px', flexGrow: 1 }}>{prod.description}</p>
+                        
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid #eee', paddingTop: '16px' }}>
+                          <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#000' }}>KSh {prod.basePrice.toLocaleString()}</span>
+                          <button 
+                            className="btn btn-primary btn-small"
+                            onClick={() => {
+                              setSelectedProduct(prod);
+                              setView('product-details');
+                            }}
+                            style={{ minHeight: '38px', padding: '6px 16px' }}
+                          >
+                            Explore
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Testimonials */}
+            <section style={{ padding: '80px 24px', backgroundColor: '#000000', color: '#FFFFFF', textAlign: 'center', borderBottom: '1px solid #FFFFFF' }}>
+              <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                <h2 style={{ textTransform: 'uppercase', color: '#FFFFFF', fontSize: '1.8rem', letterSpacing: '0.1em' }}>Design Critics</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '40px' }}>
+                  <div>
+                    <p style={{ fontSize: '1.3rem', fontStyle: 'italic', color: '#D1D5DB', marginBottom: '12px' }}>
+                      "A masterclass in modern functional design. GoldenCare treats support objects as serious design projects."
+                    </p>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--gold-primary)' }}>— Design Today</span>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '1.3rem', fontStyle: 'italic', color: '#D1D5DB', marginBottom: '12px' }}>
+                      "Stark, minimalist wellness items you actually want to display in your living room. An absolute triumph."
+                    </p>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--gold-primary)' }}>— Grid Magazine</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Newsletter */}
+            <section style={{ padding: '80px 24px', backgroundColor: '#FFFFFF', textAlign: 'center' }}>
+              <div className="container" style={{ maxWidth: '560px' }}>
+                <h3 style={{ textTransform: 'uppercase', fontSize: '1.5rem', marginBottom: '12px' }}>Join the Newsletter</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                  Subscribe to receive design releases, structural upgrades, and exclusive pre-order discounts.
+                </p>
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleShowToast("Subscribed successfully!", "success");
+                    (e.target as HTMLFormElement).reset();
+                  }}
+                  style={{ display: 'flex', gap: '10px' }}
+                >
+                  <input 
+                    type="email" 
+                    placeholder="Enter email address" 
+                    className="form-input" 
+                    style={{ flexGrow: 1, minHeight: '48px', border: '2px solid #000000', padding: '10px 16px' }}
+                    required 
+                  />
+                  <button type="submit" className="btn btn-primary" style={{ minHeight: '48px', padding: '0 24px' }}>
+                    Subscribe
+                  </button>
+                </form>
+              </div>
+            </section>
+          </div>
+        )}
+
         {/* VIEW A: Storefront */}
         {view === 'store' && (
           <div>
-            {/* Calming Welcome Hero */}
-            <section className="hero">
+            {/* Stark typographic hero for Shop page */}
+            <section className="hero" style={{ backgroundColor: '#000000', color: '#FFFFFF', padding: '60px 24px', textAlign: 'center', marginBottom: '40px' }}>
               <div className="container">
-                <h1>GoldenCare Products</h1>
-                <p>
-                  Welcome! We provide simple, high-quality, and easy-to-use daily aids, mobility tools, and wellness items to make living comfortable and safe.
+                <span style={{ fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-primary)', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
+                  Curated Catalog
+                </span>
+                <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#FFFFFF', textTransform: 'uppercase', margin: '0 0 12px 0' }}>
+                  Systems Shop
+                </h1>
+                <p style={{ maxWidth: '600px', margin: '0 auto', color: '#9CA3AF', fontSize: '1rem' }}>
+                  Explore our engineered wellness objects. Pure geometry, carbon fiber construction, and smart alert integrations.
                 </p>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => {
-                      const gridEl = document.getElementById('products-section');
-                      if (gridEl) gridEl.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    style={{ fontSize: '1.25rem', padding: '16px 32px' }}
-                  >
-                    Start Browsing Products
-                  </button>
-                </div>
               </div>
             </section>
 

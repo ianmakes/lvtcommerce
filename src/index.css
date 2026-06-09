@@ -7,45 +7,45 @@
   /* Font size scale */
   --font-scale: 1rem;
   
-  /* Premium Palette - Warm Luxury Alabaster, Soft Cream, Emerald & Muted Gold */
-  --bg-primary: #FBFBFA;       /* Warm luxury alabaster */
-  --bg-secondary: #F4F2EE;     /* Soft luxury cream */
+  /* Modern High-Contrast Palette - Zero Rounded Corners, Edgy Layouts */
+  --bg-primary: #F9FAFB;       /* Stark light gray background */
+  --bg-secondary: #F3F4F6;     /* Clean neutral secondary */
   --bg-card: #FFFFFF;
-  --bg-backdrop: rgba(251, 251, 250, 0.75);
-  --border-color: rgba(0, 0, 0, 0.05); /* Extremely subtle neutral borders */
-  --border-strong: #E2DBD0;    /* Slightly darker border for active states */
+  --bg-backdrop: rgba(249, 250, 251, 0.85);
+  --border-color: #000000;     /* Stark, solid black borders */
+  --border-strong: #000000;
   
-  --text-primary: #121613;     /* Rich deep charcoal */
-  --text-secondary: #525E56;   /* Premium slate forest green */
+  --text-primary: #000000;     /* Absolute solid black */
+  --text-secondary: #374151;   /* Dark charcoal text */
   --text-inverse: #FFFFFF;
   
-  --accent-primary: #1A3B2B;   /* Deep luxury emerald green */
-  --accent-hover: #10251B;
-  --accent-light: #E8EFEA;
+  --accent-primary: #000000;   /* Stark solid black accent */
+  --accent-hover: #1F2937;
+  --accent-light: #F3F4F6;
   
-  --gold-primary: #C5A880;     /* Muted luxury brass/gold */
-  --gold-hover: #B0946E;
-  --gold-light: #F7F5F1;
+  --gold-primary: #000000;     /* Monochrome accents for ratings */
+  --gold-hover: #1F2937;
+  --gold-light: #F3F4F6;
   
-  --warning-color: #A93226;    /* Deep premium crimson */
-  --warning-light: #FDF2F2;
+  --warning-color: #DC2626;    /* Modern crimson red */
+  --warning-light: #FEE2E2;
   
-  --success-color: #218F52;    /* Muted emerald success green */
-  --success-light: #EEF8F3;
+  --success-color: #10B981;    /* Clean emerald green */
+  --success-light: #D1FAE5;
   
-  /* Layered Shadows - Extremely soft, blurred, luxurious shadows */
-  --shadow-sm: 0 1px 2px rgba(26, 59, 43, 0.02), 0 2px 4px rgba(0, 0, 0, 0.015);
-  --shadow-md: 0 4px 12px rgba(26, 59, 43, 0.03), 0 16px 32px rgba(26, 59, 43, 0.04), 0 24px 50px rgba(0, 0, 0, 0.02);
-  --shadow-lg: 0 8px 20px rgba(26, 59, 43, 0.04), 0 24px 48px rgba(26, 59, 43, 0.06), 0 48px 96px rgba(26, 59, 43, 0.05);
+  /* Edgy Block Shadows - Solid, non-blurred offsets */
+  --shadow-sm: 2px 2px 0px 0px #000000;
+  --shadow-md: 4px 4px 0px 0px #000000;
+  --shadow-lg: 8px 8px 0px 0px #000000;
   
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
   
-  /* Transitions - Sleek spring-like ease curves */
-  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-normal: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-slow: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Transitions - Instant/snappy modern transitions */
+  --transition-fast: 0.1s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
 }
 
 /* Styled scrollbars for a premium touch */
@@ -70,6 +70,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  border-radius: 0px !important;
 }
 
 body {
@@ -619,41 +620,43 @@ a:hover {
 
 /* Paystack Gateway Mock design */
 .paystack-iframe-mock {
-  background-color: #0b1e16;
+  background-color: #000000;
   color: white;
   width: 100%;
-  border-radius: 12px;
+  border-radius: 0px !important;
   overflow: hidden;
   box-shadow: var(--shadow-lg);
-  border: 1px solid #1a3026;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  border: 2px solid #000000;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .paystack-header {
   background-color: #ffffff;
-  color: #333333;
+  color: #000000;
   padding: 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #eeeeee;
+  border-bottom: 2px solid #000000;
 }
 .paystack-merchant {
   display: flex;
   flex-direction: column;
 }
 .paystack-merchant-name {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 16px;
+  text-transform: uppercase;
 }
 .paystack-amount {
-  font-weight: 700;
-  font-size: 16px;
-  color: #3ac582;
+  font-weight: 900;
+  font-size: 18px;
+  color: #000000;
 }
 .paystack-body {
-  background-color: #f6f8fa;
-  color: #333333;
+  background-color: #ffffff;
+  color: #000000;
   padding: 30px 24px;
+  border-bottom: 2px solid #000000;
 }
 .paystack-sidebar {
   display: flex;
@@ -661,37 +664,43 @@ a:hover {
   margin-bottom: 24px;
 }
 .paystack-channel {
-  background-color: white;
-  border: 1px solid #dcdcdc;
+  background-color: #ffffff;
+  border: 2px solid #000000;
   padding: 12px 16px;
-  border-radius: 6px;
+  border-radius: 0px !important;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
   flex-grow: 1;
+  text-transform: uppercase;
+  color: #000000;
+  transition: all var(--transition-fast);
 }
 .paystack-channel.active {
-  border-color: #3ac582;
-  box-shadow: 0 0 0 2px rgba(58, 197, 130, 0.2);
+  background-color: #000000;
+  color: #ffffff;
+  border-color: #000000;
 }
 .paystack-pay-btn {
-  background-color: #3ac582;
+  background-color: #000000;
   color: white;
   font-weight: 700;
   font-size: 16px;
   padding: 16px;
-  border-radius: 6px;
+  border-radius: 0px !important;
   width: 100%;
-  border: none;
+  border: 2px solid #000000;
   cursor: pointer;
   margin-top: 16px;
-  transition: background-color 0.2s;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .paystack-pay-btn:hover {
-  background-color: #2b9d67;
+  background-color: #1f2937;
 }
 
 /* 5. Admin Dashboard Panel Styling */
@@ -707,48 +716,68 @@ a:hover {
   }
 }
 .admin-sidebar {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 24px 16px;
-  height: fit-content;
+  background-color: #1d2327 !important; /* WP Admin dark menu */
+  border: 1px solid #1d2327 !important;
+  color: #f0f0f1 !important;
+  padding: 16px 0 !important;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  box-shadow: var(--shadow-sm);
+  gap: 2px !important;
+  box-shadow: none !important;
+  height: fit-content;
+}
+.admin-sidebar h3 {
+  color: #a7aaad !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  padding: 10px 20px !important;
+  margin-bottom: 8px !important;
+  border-bottom: 1px solid #2c3338 !important;
 }
 .admin-nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
+  padding: 12px 20px !important;
   text-decoration: none;
-  font-weight: 700;
-  font-family: 'Outfit', sans-serif;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
+  font-weight: 500 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  color: #f0f0f1 !important;
+  background: transparent !important;
+  border: none !important;
+  border-left: 4px solid transparent !important;
   width: 100%;
   cursor: pointer;
   text-align: left;
   min-height: 46px;
-  transition: all var(--transition-fast);
+  transition: none !important;
+}
+.admin-nav-item svg {
+  color: #a7aaad !important;
 }
 .admin-nav-item:hover {
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
+  background-color: #101416 !important;
+  color: #72aee6 !important;
+}
+.admin-nav-item:hover svg {
+  color: #72aee6 !important;
 }
 .admin-nav-item.active {
-  background-color: var(--accent-primary);
-  color: var(--text-inverse);
+  background-color: #0a0c0d !important;
+  color: #ffffff !important;
+  border-left: 4px solid #2271b1 !important; /* WP Blue Active indicator */
+}
+.admin-nav-item.active svg {
+  color: #ffffff !important;
 }
 .admin-content {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 32px;
-  box-shadow: var(--shadow-sm);
+  background-color: #f0f2f5 !important; /* WP light gray canvas */
+  border: 1px solid #c3c4c7 !important;
+  padding: 32px !important;
+  box-shadow: none !important;
+  color: #2c3338 !important;
 }
 
 .metrics-grid {
@@ -1073,3 +1102,65 @@ a:hover {
   }
 }
 
+/* WordPress Meta Box Styles */
+.admin-content .card {
+  background-color: #ffffff !important;
+  border: 1px solid #c3c4c7 !important;
+  box-shadow: none !important;
+  padding: 24px !important;
+  margin-bottom: 24px;
+}
+.admin-content .card h3 {
+  border-bottom: 1px solid #f0f0f1;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-weight: 600;
+  color: #1d2327;
+}
+.admin-content .btn-primary {
+  background-color: #2271b1 !important;
+  border-color: #2271b1 !important;
+  color: #ffffff !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+.admin-content .btn-primary:hover {
+  background-color: #135e96 !important;
+  border-color: #135e96 !important;
+}
+.admin-content .btn-secondary {
+  background-color: #f6f7f7 !important;
+  border-color: #dcdcde !important;
+  color: #2271b1 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+.admin-content .btn-secondary:hover {
+  background-color: #f0f0f1 !important;
+  border-color: #c3c4c7 !important;
+}
+
+/* WP style metrics cards */
+.metrics-grid .card {
+  background-color: #ffffff !important;
+  border: 1px solid #c3c4c7 !important;
+  border-top: 4px solid #2271b1 !important; /* WP Blue border on top */
+  padding: 24px !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.metrics-grid .card span {
+  font-size: 13px !important;
+  color: #646970 !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+}
+.metrics-grid .card h3 {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: #1d2327 !important;
+  margin: 0 !important;
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}

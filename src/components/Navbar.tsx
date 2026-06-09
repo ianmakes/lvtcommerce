@@ -6,8 +6,8 @@ import { ShopSettings, CartItem } from '../types';
 interface NavbarProps {
   settings: ShopSettings;
   cart: CartItem[];
-  currentView: 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account';
-  onNavigate: (view: 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account', initialTab?: string) => void;
+  currentView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account';
+  onNavigate: (view: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account', initialTab?: string) => void;
   onOpenCart: () => void;
   currentUser: FirebaseUser | null;
   isAdminAuthenticated: boolean;
@@ -35,7 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();
     onSearchChange('');
-    onNavigate('store');
+    onNavigate('landing');
   };
 
   return (
@@ -75,11 +75,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Action Links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button
+            className={`btn btn-small ${currentView === 'landing' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => onNavigate('landing')}
+            style={{ fontWeight: 800 }}
+          >
+            Home
+          </button>
+
+          <button
             className={`btn btn-small ${currentView === 'store' || currentView === 'product-details' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => onNavigate('store')}
             style={{ fontWeight: 800 }}
           >
-            Browse Store
+            Shop
           </button>
           
           {/* Wishlist Button (Heart badge) */}

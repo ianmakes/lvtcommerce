@@ -18,46 +18,46 @@ const DEFAULT_SETTINGS: ShopSettings = {
 const SEED_PRODUCTS: Product[] = [
   {
     id: "prod-cane",
-    name: "Premium Ergonomic Walking Cane",
-    description: "An adjustable walking cane featuring a comfortable, contoured ergonomic handle that reduces hand fatigue. Built-in bright LED light for safe night walking and a slip-resistant pivot base for all-terrain stability.",
-    category: "Mobility Aids",
+    name: "GC-01 Carbon Fiber Walking Staff",
+    description: "An ultra-lightweight carbon fiber walking staff designed for active recovery, hiking, and daily support. Features a sweat-wicking cork ergonomic grip, shock-absorbing shaft, and interchangeable all-terrain rubber boots.",
+    category: "Mobility & Support",
     image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
     basePrice: 15000,
     rating: 4.8,
     reviewCount: 3,
-    badge: "Best Seller",
+    badge: "New Release",
     images: [
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample.jpg",
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-4.jpg"
     ],
     specifications: {
-      "Weight Capacity": "120 kg",
-      "Adjustability Range": "32 to 38 inches (81 - 96 cm)",
-      "Material": "Aircraft-grade Anodized Aluminum",
-      "Grip Style": "Comfort Contoured Handle (Anti-Slip)",
-      "Safety Features": "120-Lumen Swivel LED Light, Safety Wrist Strap",
-      "Base Type": "360° Pivoting Quad Base",
-      "Warranty": "2-Year Limited Manufacturer Warranty"
+      "Weight Capacity": "130 kg",
+      "Staff Weight": "220 grams",
+      "Material": "100% 3K Carbon Fiber",
+      "Grip Style": "Ergonomic Sweat-Wicking Cork Grip",
+      "Adjustability Range": "Twist-Lock Telescopic (80cm - 110cm)",
+      "Base Type": "All-Terrain Carbide Tip & Shock Rubber Boot",
+      "Warranty": "3-Year Structural Warranty"
     },
     attributes: [
-      { name: "Handle Grip", options: ["Contoured Foam", "Solid Walnut Wood"] },
-      { name: "Color", options: ["Classic Bronze", "Midnight Black", "Royal Silver"] }
+      { name: "Handle Grip", options: ["Premium Cork", "Contoured EVA Foam"] },
+      { name: "Color", options: ["Stealth Black", "Matte Carbon", "Cyber Silver"] }
     ],
     variants: [
-      { id: "var-cane-foam-bronze", options: { "Handle Grip": "Contoured Foam", "Color": "Classic Bronze" }, price: 15000, stock: 12, sku: "GC-CANE-FB" },
-      { id: "var-cane-foam-black", options: { "Handle Grip": "Contoured Foam", "Color": "Midnight Black" }, price: 15000, stock: 8, sku: "GC-CANE-FK" },
-      { id: "var-cane-foam-silver", options: { "Handle Grip": "Contoured Foam", "Color": "Royal Silver" }, price: 15000, stock: 15, sku: "GC-CANE-FS" },
-      { id: "var-cane-wood-bronze", options: { "Handle Grip": "Solid Walnut Wood", "Color": "Classic Bronze" }, price: 18500, stock: 5, sku: "GC-CANE-WB" },
-      { id: "var-cane-wood-black", options: { "Handle Grip": "Solid Walnut Wood", "Color": "Midnight Black" }, price: 18500, stock: 4, sku: "GC-CANE-WK" },
-      { id: "var-cane-wood-silver", options: { "Handle Grip": "Solid Walnut Wood", "Color": "Royal Silver" }, price: 18500, stock: 6, sku: "GC-CANE-WS" }
+      { id: "var-cane-cork-black", options: { "Handle Grip": "Premium Cork", "Color": "Stealth Black" }, price: 18500, stock: 12, sku: "GC-CANE-CB" },
+      { id: "var-cane-cork-carbon", options: { "Handle Grip": "Premium Cork", "Color": "Matte Carbon" }, price: 18500, stock: 8, sku: "GC-CANE-CC" },
+      { id: "var-cane-cork-silver", options: { "Handle Grip": "Premium Cork", "Color": "Cyber Silver" }, price: 18500, stock: 15, sku: "GC-CANE-CS" },
+      { id: "var-cane-foam-black", options: { "Handle Grip": "Contoured EVA Foam", "Color": "Stealth Black" }, price: 15000, stock: 5, sku: "GC-CANE-FB" },
+      { id: "var-cane-foam-carbon", options: { "Handle Grip": "Contoured EVA Foam", "Color": "Matte Carbon" }, price: 15000, stock: 4, sku: "GC-CANE-FC" },
+      { id: "var-cane-foam-silver", options: { "Handle Grip": "Contoured EVA Foam", "Color": "Cyber Silver" }, price: 15000, stock: 6, sku: "GC-CANE-FS" }
     ]
   },
   {
     id: "prod-pill",
-    name: "Easy-Read Pill Organizer",
-    description: "A large-compartment 7-day pill organizer with a built-in alarm clock, blinking LED alerts. Massive labels for morning, afternoon, evening, and bedtime.",
-    category: "Daily Care",
+    name: "GC-02 Smart Modular Capsule Pod",
+    description: "A modular, sleek 7-day capsule pod with integrated Bluetooth app alerts, sound alarms, and blinking LEDs. Features high-contrast labeling, a modern OLED backlit clock display, and a USB-C rechargeable battery.",
+    category: "Smart Wellness",
     image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-5.jpg",
     basePrice: 12000,
     rating: 4.5,
@@ -68,27 +68,27 @@ const SEED_PRODUCTS: Product[] = [
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-2.jpg"
     ],
     specifications: {
-      "Number of Days": "7 Days (Monday to Sunday)",
-      "Compartments per Day": "4 (Morning, Noon, Evening, Bedtime)",
-      "Alarm Mode": "Loud Audio Alert + Blinking Red LED Light",
-      "Display Type": "Backlit LCD Digital Clock Face",
-      "Power Source": "2 x AAA Batteries (Included)",
+      "Number of Modules": "7 Detachable Days (Mon - Sun)",
+      "Compartments per Module": "4 (Morning, Noon, Evening, Night)",
+      "Wireless Connectivity": "Bluetooth 5.2 (iOS / Android Notifications)",
+      "Alert System": "Loud Audio Chime + Blinking Red LED Bar",
+      "Power Source": "USB-C Rechargeable Li-Ion (30-Day Charge)",
       "Dimensions": "10.5 x 2.3 x 1.8 inches",
-      "Warranty": "1-Year Warranty"
+      "Warranty": "2-Year Warranty"
     },
     attributes: [
-      { name: "Alert Sound", options: ["Beep Only", "Beep + Ring Alert"] }
+      { name: "Alert Sound", options: ["Digital Chime", "Standard Beep"] }
     ],
     variants: [
-      { id: "var-pill-beep", options: { "Alert Sound": "Beep Only" }, price: 12000, stock: 20, sku: "GC-PILL-BO" },
-      { id: "var-pill-voice", options: { "Alert Sound": "Beep + Ring Alert" }, price: 14500, stock: 10, sku: "GC-PILL-VG" }
+      { id: "var-pill-chime", options: { "Alert Sound": "Digital Chime" }, price: 14500, stock: 20, sku: "GC-PILL-DC" },
+      { id: "var-pill-beep", options: { "Alert Sound": "Standard Beep" }, price: 12000, stock: 10, sku: "GC-PILL-SB" }
     ]
   },
   {
     id: "prod-wrap",
-    name: "Ultra-Soft Heated Joint Therapy Wrap",
-    description: "Soothing thermal wrap featuring extra-large digital controls that are highly visible. Soft, plush microfiber cover is washable. Auto-shutoff timer ensures complete safety if you fall asleep.",
-    category: "Wellness & Comfort",
+    name: "GC-03 AeroGel Heated Recovery Wrap",
+    description: "An advanced thermal compression wrap powered by lightweight AeroGel insulation. Includes highly visible digital controls, multiple heat settings, and a washable high-tech fleece cover.",
+    category: "Thermal Therapy",
     image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-3.jpg",
     basePrice: 22000,
     rating: 4.7,
@@ -101,8 +101,8 @@ const SEED_PRODUCTS: Product[] = [
     specifications: {
       "Heat Settings": "4 Heat Intensity Modes (Warm, Low, Med, High)",
       "Safety Timer": "2-Hour Safety Auto-Shutoff System",
+      "Core Insulation": "Medical-Grade AeroGel Thermal Lining",
       "Material": "Washable Plush Fleece and Microfiber Fabric",
-      "Secure Straps": "Adjustable Elastic Velcro Wrap-around Belts",
       "Target Joints": "Knees, Elbows, Shoulders, Lower Back",
       "Voltage": "220V - 240V AC Adaptor",
       "Warranty": "1-Year Warranty"
@@ -117,21 +117,21 @@ const SEED_PRODUCTS: Product[] = [
   },
   {
     id: "prod-magnify",
-    name: "Handheld Page Magnifier with LED Lights",
-    description: "A rectangular magnifying glass designed to read newspapers, books, and medicine bottles easily. 3X primary magnification with a 10X spot lens. Heavy-duty easy-grip handle and 12 anti-glare LEDs.",
-    category: "Daily Care",
+    name: "GC-04 Ultra-Thin LED Page Reader",
+    description: "An ultra-thin magnifying lens designed for books, blue-prints, and fine details. Rectangular acrylic design with 12 anti-glare touch dimmable LEDs and comfort ribbed handle.",
+    category: "Daily Tools",
     image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035259/samples/zoom.avif",
     basePrice: 8500,
     rating: 4.3,
     reviewCount: 1,
-    badge: "Staff Pick",
+    badge: "Design Award",
     images: [
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035259/samples/zoom.avif"
     ],
     specifications: {
       "Lens Magnification": "3X Main Lens, 10X Spot Secondary Lens",
       "Lens Material": "Shatterproof Optical Acrylic",
-      "Illumination": "12 Anti-Glare energy-efficient LED Lights",
+      "Illumination": "12 Touch-Dimmable energy-efficient LEDs",
       "Brightness Modes": "Dual Adjustable Intensity (Low, High)",
       "Handle Type": "Ribbed Comfort Rubber Easy-Grip Handle",
       "Batteries": "3 x AAA Batteries (Not Included)",
@@ -149,7 +149,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-cane",
     buyerName: "Patrick Njoroge",
     rating: 5,
-    comment: "This cane has been a lifesaver. The LED light is extremely bright for early morning walks and the double walnut grip feels premium and solid.",
+    comment: "This staff has been a game-changer. The carbon fiber is incredibly light and the cork grip looks beautiful and feels premium.",
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -157,7 +157,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-cane",
     buyerName: "Grace Kemunto",
     rating: 4,
-    comment: "Very comfortable grip and excellent stability. The height adjustment is easy to lock in place. Highly recommended.",
+    comment: "Beautiful matte finish and highly adjustable. Love the twist-lock design.",
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -165,7 +165,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-cane",
     buyerName: "Samuel Githinji",
     rating: 5,
-    comment: "Excellent design! The slip-resistant pivoting base makes walking on loose gravel and uneven pavements feel very safe.",
+    comment: "Excellent design! Very sleek tech-wellness item, highly support active hiking.",
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -173,7 +173,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-pill",
     buyerName: "Jane Atieno",
     rating: 5,
-    comment: "No more forgotten meds! The blinking LED and ring alarm alerts are loud enough to hear from the next room. Setting it up was simple.",
+    comment: "Never forget reminders now! The OLED digital face looks great on my desk, and the USB-C recharge means no battery waste.",
     createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -181,7 +181,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-pill",
     buyerName: "David Ochieng",
     rating: 4,
-    comment: "Big slots, morning/noon/evening compartments are easy to read. Excellent for anyone who takes multiple daily supplements.",
+    comment: "Excellent modular pods. Perfect for travel and daily capsules.",
     createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -189,7 +189,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-wrap",
     buyerName: "Mary Muthoni",
     rating: 5,
-    comment: "The heat levels are perfect. Relieves shoulder tension instantly. The microfiber material is incredibly soft and easy to hand wash.",
+    comment: "The AeroGel lining works perfectly. Relieves muscle tension instantly. Clean, modern look.",
     createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -197,7 +197,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-wrap",
     buyerName: "Joseph Mwangi",
     rating: 4,
-    comment: "Heats up very quickly. The automatic safety shut-off feature is a great relief. The visible controls are a big plus.",
+    comment: "Heats up very quickly. The digital safety timer works perfectly.",
     createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
   },
   {
@@ -205,7 +205,7 @@ const SEED_REVIEWS: ProductReview[] = [
     productId: "prod-magnify",
     buyerName: "Esther Wanjiku",
     rating: 4,
-    comment: "Makes reading the newspaper much easier. The 12 LEDs provide great brightness without glare. Solid, comfortable handle.",
+    comment: "Touch dimming LEDs provide perfect brightness. Borderless clean glass design.",
     createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString()
   }
 ];
@@ -220,15 +220,15 @@ const SEED_ORDERS: Order[] = [
     items: [
       {
         productId: "prod-cane",
-        name: "Premium Ergonomic Walking Cane",
-        variantDetails: "Handle Grip: Solid Walnut Wood, Color: Classic Bronze",
+        name: "GC-01 Carbon Fiber Walking Staff",
+        variantDetails: "Handle Grip: Premium Cork, Color: Stealth Black",
         price: 18500,
         quantity: 1
       },
       {
         productId: "prod-magnify",
-        name: "Handheld Page Magnifier with LED Lights",
-        variantDetails: "Standard",
+        name: "GC-04 Ultra-Thin LED Page Reader",
+        variantDetails: "Standard Option",
         price: 8500,
         quantity: 1
       }
