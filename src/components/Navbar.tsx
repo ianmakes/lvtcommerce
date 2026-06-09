@@ -1,6 +1,6 @@
 import React from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ShoppingCart, ShoppingBag, ShieldCheck, LogOut, User, Search, Heart } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, Search, Heart } from 'lucide-react';
 import { ShopSettings, CartItem } from '../types';
 
 interface NavbarProps {
@@ -39,125 +39,141 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="header">
-      <div className="container header-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-        {/* Logo */}
-        <a href="#" className="logo" onClick={handleLogoClick} aria-label={`${settings.shopName} home`} style={{ flexShrink: 0 }}>
-          <ShoppingBag size={32} strokeWidth={2.5} style={{ color: 'var(--accent-primary)' }} />
-          <span style={{ letterSpacing: '-0.5px' }}>{settings.shopName}</span>
+    <header style={{ width: '100%' }}>
+      {/* 1. Nike Utility Bar */}
+      <div className="utility-bar">
+        <span style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
+          FREE SHIPPING ON ORDERS OVER KSh 30,000
+        </span>
+        <div className="utility-bar-links">
+          <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('store'); }}>Shop</a>
+          <span className="divider">|</span>
+          <a href="#" onClick={(e) => { e.preventDefault(); alert("Contact GoldenCare: +254 700 000 000 | support@goldencare.com"); }}>Help</a>
+          <span className="divider">|</span>
+          {currentUser ? (
+            <>
+              <span style={{ fontWeight: 600, color: 'var(--text-ink)' }}>
+                Hi, {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email?.split('@')[0])}
+              </span>
+              <span className="divider">|</span>
+              <a href="#" onClick={(e) => { e.preventDefault(); onSignOut(); }} style={{ color: 'var(--color-sale)' }}>Sign Out</a>
+            </>
+          ) : (
+            <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('account'); }}>Sign In</a>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Nike Primary Nav */}
+      <div className="primary-nav">
+        {/* Left: Logo */}
+        <a href="#" className="logo" onClick={handleLogoClick} aria-label={`${settings.shopName} home`}>
+          <ShoppingBag size={22} strokeWidth={2.5} />
+          <span style={{ fontSize: '18px', fontWeight: 800 }}>{settings.shopName}</span>
         </a>
 
-        {/* Search Bar (Centered, Amazon style) */}
-        {(currentView === 'store' || currentView === 'product-details') && (
-          <div className="nav-search-container" style={{ flexGrow: 1, maxWidth: '420px', margin: '0 24px', position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search GoldenCare (e.g. cane, organizer)..."
-              value={searchQuery}
-              onChange={e => onSearchChange(e.target.value)}
-              className="form-input nav-search-input"
-              style={{ minHeight: '40px', padding: '8px 16px 8px 40px', fontSize: '0.9rem', borderRadius: '24px' }}
-            />
-            <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            {searchQuery && (
-              <button 
-                type="button"
-                onClick={() => onSearchChange('')} 
-                style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: 0 }}
-                aria-label="Clear search"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Action Links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <button
-            className={`btn btn-small ${currentView === 'landing' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => onNavigate('landing')}
-            style={{ fontWeight: 800 }}
+        {/* Center: Navigation Links */}
+        <nav className="nav-center-links">
+          <a
+            href="#"
+            className={`nav-center-link ${currentView === 'landing' ? 'active' : ''}`}
+            onClick={(e) => { e.preventDefault(); onNavigate('landing'); }}
           >
             Home
-          </button>
-
-          <button
-            className={`btn btn-small ${currentView === 'store' || currentView === 'product-details' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => onNavigate('store')}
-            style={{ fontWeight: 800 }}
+          </a>
+          <a
+            href="#"
+            className={`nav-center-link ${currentView === 'store' || currentView === 'product-details' ? 'active' : ''}`}
+            onClick={(e) => { e.preventDefault(); onNavigate('store'); }}
           >
             Shop
-          </button>
-          
-          {/* Wishlist Button (Heart badge) */}
+          </a>
           {currentUser && !isAdminAuthenticated && (
-            <button
-              className={`btn btn-small ${currentView === 'account' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => onNavigate('account', 'wishlist')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800 }}
-              title="View my Wishlist"
+            <a
+              href="#"
+              className={`nav-center-link ${currentView === 'account' ? 'active' : ''}`}
+              onClick={(e) => { e.preventDefault(); onNavigate('account'); }}
             >
-              <Heart size={18} fill={wishlistCount > 0 ? "var(--warning-color)" : "none"} style={{ color: wishlistCount > 0 ? "var(--warning-color)" : "inherit" }} />
-              <span>Wishlist ({wishlistCount})</span>
-            </button>
+              My Account
+            </a>
           )}
-
-          {/* Buyer Account Button */}
-          {currentUser && !isAdminAuthenticated && (
-            <button
-              className={`btn btn-small ${currentView === 'account' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => onNavigate('account', 'orders')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800 }}
+          {isAdminAuthenticated && (
+            <a
+              href="#"
+              className={`nav-center-link ${currentView === 'admin' ? 'active' : ''}`}
+              onClick={(e) => { e.preventDefault(); onNavigate('admin'); }}
             >
-              <User size={18} />
-              <span>My Account</span>
-            </button>
+              Admin Dashboard
+            </a>
           )}
+        </nav>
 
-          <button
-            className={`btn btn-small ${currentView === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => onNavigate('admin')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800 }}
-          >
-            <ShieldCheck size={18} />
-            <span>Admin</span>
-          </button>
-
-          {/* Sign Out Button for Buyer or Admin */}
-          {currentUser && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email?.split('@')[0])}
-              </span>
-              <button
-                className="btn btn-secondary btn-small"
-                onClick={onSignOut}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: 'var(--warning-color)', borderColor: 'var(--warning-color)', minHeight: '38px', padding: '6px 12px' }}
-                title={isAdminAuthenticated ? "Sign Out as Admin" : "Sign Out"}
-              >
-                <LogOut size={14} />
-                <span>Sign Out</span>
-              </button>
+        {/* Right side: Search, Wishlist, Cart */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Search Pill */}
+          {(currentView === 'store' || currentView === 'product-details') && (
+            <div className="search-pill-container">
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={e => onSearchChange(e.target.value)}
+                className="search-pill"
+              />
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange('')}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', padding: 0 }}
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           )}
 
-          {/* Cart Trigger */}
+          {/* Wishlist Button (Circular Icon Button) */}
+          {currentUser && !isAdminAuthenticated && (
+            <button
+              type="button"
+              className="btn-icon-circular"
+              onClick={() => onNavigate('account', 'wishlist')}
+              title={`View Wishlist (${wishlistCount})`}
+            >
+              <Heart size={20} fill={wishlistCount > 0 ? "var(--color-sale)" : "none"} style={{ color: wishlistCount > 0 ? "var(--color-sale)" : "var(--color-ink)" }} />
+            </button>
+          )}
+
+          {/* Cart Bag Icon Button */}
           <button
-            className="btn btn-primary btn-small"
+            type="button"
+            className="btn-icon-circular"
             onClick={onOpenCart}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px', 
-              minWidth: '130px',
-              backgroundColor: 'var(--accent-primary)',
-              color: 'var(--text-inverse)',
-              border: '2px solid transparent'
-            }}
+            title={`View Cart (${totalItems})`}
+            style={{ position: 'relative' }}
           >
-            <ShoppingCart size={18} />
-            <span style={{ fontWeight: 900 }}>Cart ({totalItems})</span>
+            <ShoppingCart size={20} />
+            {totalItems > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                backgroundColor: 'var(--color-ink)',
+                color: 'var(--color-canvas)',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                borderRadius: '50%',
+                width: '18px',
+                height: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {totalItems}
+              </span>
+            )}
           </button>
         </div>
       </div>

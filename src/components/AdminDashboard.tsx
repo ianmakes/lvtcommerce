@@ -87,6 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAdminData();
   }, []);
 
@@ -199,7 +200,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdVariants(generateCartesianVariants(nextAttrs));
   };
 
-  const handleVariantFieldChange = (idx: number, field: keyof ProductVariant, val: any) => {
+  const handleVariantFieldChange = (idx: number, field: keyof ProductVariant, val: string | number) => {
     const nextVars = [...prodVariants];
     nextVars[idx] = {
       ...nextVars[idx],
@@ -334,7 +335,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   return (
     <div className="container">
       {isLoading && (
-        <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 9999, backgroundColor: 'var(--accent-primary)', color: 'white', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 9999, backgroundColor: 'var(--accent-primary)', color: 'white', padding: '8px 16px', borderRadius: 'var(--radius-none)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
           <span>Syncing Database...</span>
         </div>
@@ -515,7 +516,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {products.map(p => (
                       <tr key={p.id}>
                         <td>
-                          <img src={p.image} alt={p.name} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }} />
+                          <img src={p.image} alt={p.name} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: 'var(--radius-none)' }} />
                         </td>
                         <td style={{ fontWeight: 'bold' }}>{p.name}</td>
                         <td>{p.category}</td>
@@ -652,7 +653,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {/* Items table */}
             <h4 style={{ marginBottom: '8px' }}>Items Ordered:</h4>
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', marginBottom: '24px' }}>
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-none)', overflow: 'hidden', marginBottom: '24px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.95rem' }}>
                 <thead style={{ backgroundColor: 'var(--bg-secondary)' }}>
                   <tr>
@@ -769,7 +770,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {/* Cloudinary Dynamic Upload */}
-              <div className="form-group" style={{ border: '2px dashed var(--border-color)', padding: '20px', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', marginBottom: '20px' }}>
+              <div className="form-group" style={{ border: '1px solid var(--color-hairline)', padding: '20px', borderRadius: 'var(--radius-none)', backgroundColor: 'var(--bg-secondary)', marginBottom: '20px' }}>
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <Upload size={20} />
                   <span>Upload Image to Cloudinary:</span>
@@ -814,7 +815,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     overflowX: 'auto', 
                     padding: '8px 0', 
                     border: '1px solid var(--border-color)', 
-                    borderRadius: '8px', 
+                    borderRadius: 'var(--radius-none)', 
                     backgroundColor: '#fff' 
                   }}
                 >
@@ -828,12 +829,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         cursor: 'pointer', 
                         textAlign: 'center',
                         border: prodImg === sample.url ? '2px solid var(--accent-primary)' : '1px solid transparent',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--radius-none)',
                         padding: '4px',
                         backgroundColor: '#fafafa'
                       }}
                     >
-                      <img src={sample.url} alt={sample.name} style={{ width: '100%', height: '48px', objectFit: 'cover', borderRadius: '4px' }} />
+                      <img src={sample.url} alt={sample.name} style={{ width: '100%', height: '48px', objectFit: 'cover', borderRadius: 'var(--radius-none)' }} />
                       <div style={{ fontSize: '10px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', marginTop: '2px', color: '#666' }}>{sample.name}</div>
                     </div>
                   ))}
@@ -850,7 +851,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {/* Display Current Attributes */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '16px 0' }}>
                   {prodAttrs.map((attr, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '10px 16px', borderRadius: '8px' }}>
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '10px 16px', borderRadius: 'var(--radius-none)' }}>
                       <div>
                         <strong>{attr.name}</strong>: {attr.options.join(', ')}
                       </div>
@@ -903,7 +904,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <span>SKU</span>
                     </div>
                     {prodVariants.map((v, idx) => {
-                      const label = Object.entries(v.options).map(([_, optVal]) => `${optVal}`).join(' / ');
+                      const label = Object.values(v.options).map(optVal => `${optVal}`).join(' / ');
                       return (
                         <div className="variant-matrix-row" key={v.id}>
                           <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{label}</span>

@@ -93,32 +93,39 @@ export const Cart: React.FC<CartProps> = ({
       <div className="cart-drawer" onClick={e => e.stopPropagation()}>
         {/* Cart Header */}
         <div className="cart-header">
-          <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontSize: '18px', fontWeight: 600 }}>
             <span>Shopping Cart</span>
-            <span style={{ fontSize: '1.1rem', backgroundColor: 'var(--accent-light)', color: 'var(--accent-primary)', padding: '4px 10px', borderRadius: '12px' }}>
+            <span style={{ fontSize: '13px', backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', padding: '4px 10px', borderRadius: 'var(--radius-lg)' }}>
               {totalItems} items
             </span>
           </h2>
           <button className="modal-close" style={{ position: 'static' }} onClick={onClose} aria-label="Close cart">
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Free Shipping Progress Indicator (Amazon style) */}
+        {/* Demo Mode Notice */}
+        {settings.demoMode && (
+          <div style={{ padding: '8px 24px', backgroundColor: 'var(--color-soft-cloud)', borderBottom: '1px solid var(--color-hairline-soft)', fontSize: '11px', color: 'var(--color-sale)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Demo Mode Active (Payments are simulated)
+          </div>
+        )}
+
+        {/* Free Shipping Indicator */}
         {cart.length > 0 && (
-          <div style={{ padding: '16px 24px', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+          <div style={{ padding: '16px 24px', backgroundColor: 'var(--color-canvas)', borderBottom: '1px solid var(--color-hairline-soft)', fontSize: '13px' }}>
             {totalPrice >= freeShippingLimit ? (
-              <p style={{ color: 'var(--success-color)', fontWeight: 'bold', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <p style={{ color: 'var(--color-success)', fontWeight: 600, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <ShieldCheck size={16} />
                 <span>You've unlocked FREE Shipping!</span>
               </p>
             ) : (
-              <p style={{ margin: '0 0 6px', fontWeight: 'bold' }}>
-                Add <span style={{ color: 'var(--accent-primary)' }}>KSh {amtNeeded.toLocaleString()}</span> more to unlock FREE Shipping!
+              <p style={{ margin: '0 0 8px', fontWeight: 600 }}>
+                Add <span style={{ color: 'var(--color-sale)' }}>KSh {amtNeeded.toLocaleString()}</span> more to unlock FREE Shipping!
               </p>
             )}
-            <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--border-strong)', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ width: `${progressPercent}%`, height: '100%', backgroundColor: 'var(--success-color)', transition: 'width 0.3s ease' }} />
+            <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--color-soft-cloud)', borderRadius: 'var(--radius-none)', overflow: 'hidden' }}>
+              <div style={{ width: `${progressPercent}%`, height: '100%', backgroundColor: 'var(--color-success)', transition: 'width 0.3s ease' }} />
             </div>
           </div>
         )}
@@ -126,10 +133,10 @@ export const Cart: React.FC<CartProps> = ({
         {/* Cart Items List */}
         <div className="cart-items">
           {cart.length === 0 ? (
-            <div style={{ textAlign: 'center', margin: 'auto 0', color: 'var(--text-secondary)' }}>
-              <p style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '8px' }}>Your Cart is Empty</p>
-              <p>Add some health or mobility aids to get started.</p>
-              <button className="btn btn-secondary mt-24" onClick={onClose}>
+            <div style={{ textAlign: 'center', margin: 'auto 0', padding: '0 24px' }}>
+              <p className="font-heading-lg" style={{ marginBottom: '8px' }}>Your Bag is Empty.</p>
+              <p style={{ fontSize: '14px', color: 'var(--text-mute)', marginBottom: '24px' }}>Once you add products to your cart, they will appear here.</p>
+              <button className="btn btn-secondary btn-full" onClick={onClose}>
                 Continue Shopping
               </button>
             </div>
@@ -149,17 +156,17 @@ export const Cart: React.FC<CartProps> = ({
                   <div className="cart-item-info">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <h4 className="cart-item-title" style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>{item.product.name}</h4>
-                        <p className="cart-item-variant" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{variantDetails}</p>
+                        <h4 className="cart-item-title">{item.product.name}</h4>
+                        <p className="cart-item-variant">{variantDetails}</p>
                       </div>
                       
                       <button 
                         onClick={() => handleRemove(item.id, item.product.name)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--warning-color)', padding: '4px' }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-sale)', padding: '4px' }}
                         title={`Remove ${item.product.name}`}
                         aria-label={`Remove ${item.product.name} from cart`}
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
 
@@ -169,22 +176,20 @@ export const Cart: React.FC<CartProps> = ({
                           className="qty-btn" 
                           onClick={() => handleUpdateQty(item.id, item.product.name, item.quantity, -1, maxStock)}
                           aria-label="Decrease quantity"
-                          style={{ width: '28px', height: '28px' }}
                         >
-                          <Minus size={14} />
+                          <Minus size={12} />
                         </button>
-                        <span className="qty-num" style={{ fontSize: '0.9rem' }}>{item.quantity}</span>
+                        <span className="qty-num">{item.quantity}</span>
                         <button 
                           className="qty-btn" 
                           onClick={() => handleUpdateQty(item.id, item.product.name, item.quantity, 1, maxStock)}
                           aria-label="Increase quantity"
-                          style={{ width: '28px', height: '28px' }}
                         >
-                          <Plus size={14} />
+                          <Plus size={12} />
                         </button>
                       </div>
 
-                      <span style={{ fontWeight: 900, color: 'var(--accent-primary)', fontSize: '1.1rem' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--color-ink)', fontSize: '15px' }}>
                         KSh {(activePrice * item.quantity).toLocaleString()}
                       </span>
                     </div>
@@ -197,52 +202,52 @@ export const Cart: React.FC<CartProps> = ({
 
         {/* Cart Footer */}
         {cart.length > 0 && (
-          <div className="cart-footer" style={{ padding: '20px 24px', backgroundColor: 'var(--bg-secondary)' }}>
+          <div className="cart-footer">
             
             {/* Promo Code Coupon Input Box */}
             <form onSubmit={handleApplyCoupon} style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               <input
                 type="text"
-                placeholder="Promo Code (e.g. GOLDENCARE)"
+                placeholder="Promo Code"
                 value={couponInput}
                 onChange={e => setCouponInput(e.target.value)}
                 className="form-input"
-                style={{ minHeight: '36px', height: '36px', padding: '6px 12px', fontSize: '0.85rem', flexGrow: 1, borderRadius: 'var(--radius-sm)' }}
+                style={{ minHeight: '36px', height: '36px', padding: '6px 12px', fontSize: '13px', flexGrow: 1, borderRadius: 'var(--radius-none)' }}
               />
-              <button type="submit" className="btn btn-secondary btn-small" style={{ minHeight: '36px', height: '36px', padding: '0 16px' }}>
+              <button type="submit" className="btn btn-secondary btn-small" style={{ minHeight: '36px', height: '36px', padding: '0 16px', borderRadius: 'var(--radius-lg)' }}>
                 Apply
               </button>
             </form>
 
             {/* Order Note */}
             <div style={{ marginBottom: '16px' }}>
-              <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px' }}>Order Notes (Optional):</label>
+              <label className="form-label" style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Order Notes (Optional)</label>
               <textarea
                 value={orderNote}
                 onChange={e => onUpdateOrderNote(e.target.value)}
                 placeholder="Special instructions for delivery..."
                 className="form-input"
-                style={{ minHeight: '52px', padding: '8px 12px', fontSize: '0.85rem', borderRadius: 'var(--radius-sm)', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.4 }}
+                style={{ minHeight: '52px', padding: '8px 12px', fontSize: '13px', borderRadius: 'var(--radius-none)', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.4 }}
               />
             </div>
 
             {/* Totals Breakdown */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid var(--border-strong)', paddingTop: '12px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Subtotal:</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '12px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                <span style={{ color: 'var(--text-mute)' }}>Subtotal:</span>
                 <span>KSh {totalPrice.toLocaleString()}</span>
               </div>
               
               {discountAmount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--success-color)', fontWeight: 'bold' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--color-success)', fontWeight: 600 }}>
                   <span>Coupon Discount:</span>
                   <span>-KSh {discountAmount.toLocaleString()}</span>
                 </div>
               )}
 
-              <div className="cart-total-row" style={{ margin: '8px 0 0', paddingTop: '8px', borderTop: '1px solid var(--border-strong)', fontSize: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: '18px', margin: '8px 0 0', paddingTop: '8px', borderTop: '1px solid var(--color-hairline-soft)' }}>
                 <span>Total Amount:</span>
-                <span style={{ color: 'var(--accent-primary)' }}>KSh {finalPrice.toLocaleString()}</span>
+                <span style={{ color: 'var(--color-ink)' }}>KSh {finalPrice.toLocaleString()}</span>
               </div>
             </div>
             
@@ -250,16 +255,14 @@ export const Cart: React.FC<CartProps> = ({
               <button 
                 className="btn btn-primary btn-full"
                 onClick={handleCheckoutClick}
-                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', minHeight: '48px' }}
               >
                 <span>Proceed to Checkout</span>
-                <ArrowRight size={20} />
+                <ArrowRight size={18} />
               </button>
               
               <button 
                 className="btn btn-secondary btn-full btn-small" 
                 onClick={onClose}
-                style={{ minHeight: '38px' }}
               >
                 Keep Shopping
               </button>

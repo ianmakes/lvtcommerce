@@ -35,11 +35,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
         await signOut(auth);
         setErrorMsg("Access Denied: You are not authorized as the Super Admin.");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Login error:", error);
+      const firebaseError = error as { code?: string; message?: string };
       let message = "Invalid email or password. Please try again.";
-      if (error.code === 'auth/invalid-email') message = "Please enter a valid email address.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      if (firebaseError.code === 'auth/invalid-email') message = "Please enter a valid email address.";
+      if (firebaseError.code === 'auth/user-not-found' || firebaseError.code === 'auth/wrong-password') {
         message = "Incorrect email or password.";
       }
       setErrorMsg(message);
@@ -82,7 +83,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
               color: 'var(--warning-color)', 
               backgroundColor: 'var(--warning-light)', 
               padding: '16px', 
-              borderRadius: 'var(--radius-sm)',
+              borderRadius: 'var(--radius-none)',
               border: '1px solid var(--warning-color)',
               marginBottom: '24px',
               fontWeight: 'bold',

@@ -18,64 +18,64 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   };
 
   return (
-    <div className="container" style={{ maxWidth: '600px', padding: '40px 24px', textAlign: 'center' }}>
+    <div className="container" style={{ maxWidth: '600px', padding: '40px 0', textAlign: 'center' }}>
       
       {/* Icon Card */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-        <CheckCircle size={72} style={{ color: 'var(--success-color)' }} />
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', border: '1px solid var(--color-hairline)', padding: '32px' }}>
+        <CheckCircle size={64} style={{ color: 'var(--color-success)' }} />
         
         <div>
-          <h1 style={{ color: 'var(--success-color)', marginBottom: '8px', fontSize: '2rem' }}>Payment Successful!</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>We have received your payment and are packaging your order.</p>
+          <h1 className="font-heading-lg" style={{ color: 'var(--color-success)', marginBottom: '8px', textTransform: 'uppercase' }}>Payment Successful</h1>
+          <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px' }}>We have received your payment for your order at {settings.shopName || "GoldenCare Market"} and are preparing it.</p>
         </div>
 
         {/* Invoice detail sheet */}
         <div 
           style={{ 
             width: '100%', 
-            border: '2px dashed var(--border-color)', 
-            borderRadius: 'var(--radius-md)', 
+            border: '1px solid var(--color-hairline-soft)', 
+            borderRadius: 'var(--radius-none)', 
             padding: '24px', 
-            backgroundColor: 'var(--bg-primary)',
+            backgroundColor: 'var(--color-soft-cloud)',
             textAlign: 'left',
             marginTop: '12px'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '12px', marginBottom: '16px' }}>
             <div>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>ORDER NUMBER:</span>
-              <div style={{ fontWeight: '900', fontSize: '1.25rem' }}>{order.id}</div>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)', display: 'block', fontWeight: 600 }}>ORDER NUMBER:</span>
+              <div style={{ fontWeight: 700, fontSize: '16px' }}>{order.id}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>PAYMENT DATE:</span>
-              <div style={{ fontWeight: 'bold' }}>{new Date(order.createdAt).toLocaleDateString()}</div>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)', display: 'block', fontWeight: 600 }}>PAYMENT DATE:</span>
+              <div style={{ fontWeight: 600, fontSize: '14px' }}>{new Date(order.createdAt).toLocaleDateString()}</div>
             </div>
           </div>
 
           {/* Delivery section */}
-          <div style={{ marginBottom: '16px' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>DELIVER TO:</span>
-            <div style={{ fontWeight: 'bold' }}>{order.customerName}</div>
-            <div style={{ fontSize: '0.95rem' }}>{order.customerAddress}</div>
-            <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Phone: {order.customerPhone}</div>
+          <div style={{ marginBottom: '16px', fontSize: '14px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-mute)', display: 'block', fontWeight: 600, marginBottom: '2px' }}>DELIVER TO:</span>
+            <div style={{ fontWeight: 600 }}>{order.customerName}</div>
+            <div>{order.customerAddress}</div>
+            <div style={{ color: 'var(--text-mute)', marginTop: '2px' }}>Phone: {order.customerPhone}</div>
           </div>
 
           {/* Notes section */}
           {order.notes && (
-            <div style={{ marginBottom: '16px', borderTop: '1px dashed var(--border-color)', paddingTop: '12px' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>DELIVERY NOTES:</span>
-              <div style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-primary)' }}>"{order.notes}"</div>
+            <div style={{ marginBottom: '16px', borderTop: '1px dashed var(--color-hairline)', paddingTop: '12px', fontSize: '14px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)', display: 'block', fontWeight: 600, marginBottom: '2px' }}>DELIVERY NOTES:</span>
+              <div style={{ fontStyle: 'italic', color: 'var(--text-charcoal)' }}>"{order.notes}"</div>
             </div>
           )}
 
           {/* Items */}
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>ITEMS BOUGHT:</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '16px', marginBottom: '16px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-mute)', display: 'block', fontWeight: 600, marginBottom: '8px' }}>ITEMS BOUGHT:</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
               {order.items.map((it, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                  <span>{it.name} <span style={{ color: 'var(--text-secondary)' }}>({it.variantDetails}) x{it.quantity}</span></span>
-                  <span style={{ fontWeight: 'bold' }}>KSh {(it.price * it.quantity).toLocaleString()}</span>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{it.name} <span style={{ color: 'var(--text-mute)' }}>({it.variantDetails}) x{it.quantity}</span></span>
+                  <span style={{ fontWeight: 600 }}>KSh {(it.price * it.quantity).toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -84,14 +84,14 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           {/* Total paid */}
           <div 
             style={{ 
-              borderTop: '2px solid var(--border-color)', 
+              borderTop: '1px solid var(--color-hairline)', 
               paddingTop: '12px', 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center',
-              fontWeight: 900,
-              fontSize: '1.35rem',
-              color: 'var(--accent-primary)'
+              fontWeight: 600,
+              fontSize: '18px',
+              color: 'var(--color-ink)'
             }}
           >
             <span>Total Paid:</span>
@@ -106,7 +106,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
             onClick={handlePrint}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
-            <Printer size={20} />
+            <Printer size={16} />
             <span>Print Receipt</span>
           </button>
           
@@ -115,7 +115,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
             onClick={onReturnToStore}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
-            <ShoppingBag size={20} />
+            <ShoppingBag size={16} />
             <span>Return to Shop</span>
           </button>
         </div>

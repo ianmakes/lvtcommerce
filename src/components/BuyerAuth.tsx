@@ -36,16 +36,17 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         await signInWithEmailAndPassword(auth, email, password);
       }
       onSuccess();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Authentication error:", error);
-      let message = error.message || "An error occurred. Please try again.";
-      if (error.code === 'auth/invalid-email') message = "Please enter a valid email address.";
-      if (error.code === 'auth/email-already-in-use') message = "This email is already registered. Please Sign In instead.";
-      if (error.code === 'auth/weak-password') message = "Password should be at least 6 characters.";
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      const firebaseError = error as { code?: string; message?: string };
+      let message = firebaseError.message || "An error occurred. Please try again.";
+      if (firebaseError.code === 'auth/invalid-email') message = "Please enter a valid email address.";
+      if (firebaseError.code === 'auth/email-already-in-use') message = "This email is already registered. Please Sign In instead.";
+      if (firebaseError.code === 'auth/weak-password') message = "Password should be at least 6 characters.";
+      if (firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/user-not-found') {
         message = "Incorrect email or password.";
       }
-      if (error.code === 'auth/invalid-credential') {
+      if (firebaseError.code === 'auth/invalid-credential') {
         message = "Invalid credentials. Please verify your email and password.";
       }
       setErrorMsg(message);
@@ -115,7 +116,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
               color: 'var(--warning-color)', 
               backgroundColor: 'var(--warning-light)', 
               padding: '12px 16px', 
-              borderRadius: 'var(--radius-sm)',
+              borderRadius: 'var(--radius-none)',
               border: '1px solid var(--warning-color)',
               marginBottom: '20px',
               fontWeight: 'bold',

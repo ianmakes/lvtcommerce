@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser, updateProfile, updatePassword } from 'firebase/auth';
-import { ShoppingBag, MapPin, User, Bell, Lock, CheckCircle, Loader2, Calendar, DollarSign, Heart, Trash2, ShoppingCart } from 'lucide-react';
+import { ShoppingBag, MapPin, User, Bell, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart } from 'lucide-react';
 import { Order, BuyerProfile, Product, CartItem } from '../types';
 import { getOrders, getBuyerProfile, saveBuyerProfile } from '../db';
-import { auth } from '../firebase';
 
 interface BuyerAccountProps {
   currentUser: FirebaseUser;
@@ -48,7 +47,8 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   // Sync activeTab when initialTab prop changes
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab as any);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab(initialTab as typeof activeTab);
     }
   }, [initialTab]);
 
@@ -56,19 +56,16 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Load orders and filter by user email
       const allOrders = await getOrders();
       const userOrders = allOrders.filter(
         o => o.buyerEmail === currentUser.email || o.customerPhone === profile.phone
       );
       setOrders(userOrders);
 
-      // Load profile preferences from Firestore
       const userProfile = await getBuyerProfile(currentUser.uid);
       if (userProfile) {
         setProfile(userProfile);
       } else {
-        // Create initial profile record if not found
         const initialProfile: BuyerProfile = {
           uid: currentUser.uid,
           fullName: currentUser.displayName || '',
@@ -90,7 +87,9 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   const handleSaveShipping = async (e: React.FormEvent) => {
@@ -117,17 +116,14 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     setErrorMsg('');
 
     try {
-      // 1. Update display name in Auth
       if (profile.fullName.trim() !== (currentUser.displayName || '')) {
         await updateProfile(currentUser, {
           displayName: profile.fullName.trim()
         });
       }
 
-      // 2. Save profile in Firestore
       await saveBuyerProfile(profile);
 
-      // 3. Update password if filled
       if (newPassword) {
         if (newPassword !== confirmPassword) {
           throw new Error("Passwords do not match.");
@@ -141,9 +137,9 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       }
 
       setSuccessMsg("Profile settings updated successfully!");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Failed to update profile settings.");
+      setErrorMsg(err instanceof Error ? err.message : "Failed to update profile settings.");
     } finally {
       setIsLoading(false);
     }
@@ -167,23 +163,23 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   };
 
   return (
-    <div className="container" style={{ padding: '40px 24px' }}>
+    <div className="container" style={{ padding: '30px 0' }}>
       
       {isLoading && (
-        <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 9999, backgroundColor: 'var(--accent-primary)', color: 'white', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 9999, backgroundColor: 'var(--color-ink)', color: 'var(--color-canvas)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600 }}>
           <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
           <span>Syncing Account...</span>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '2.4rem', margin: 0 }}>My Account</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
+          <h1 className="font-heading-xl" style={{ margin: 0 }}>My Account</h1>
+          <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', marginTop: '4px' }}>
             Manage your profile, shipping addresses, and track active orders.
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={onReturnToStore}>
+        <button className="btn btn-secondary btn-small" onClick={onReturnToStore}>
           Back to Store
         </button>
       </div>
@@ -191,19 +187,19 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       {successMsg && (
         <div 
           style={{ 
-            color: 'var(--success-color)', 
-            backgroundColor: 'var(--success-light)', 
+            color: 'var(--color-success)', 
+            backgroundColor: '#f0fbf5', 
             padding: '16px', 
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--success-color)',
+            border: '1px solid var(--color-success)',
             marginBottom: '24px',
-            fontWeight: 'bold',
+            fontWeight: 500,
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            fontSize: '14px'
           }}
         >
-          <CheckCircle size={20} />
+          <CheckCircle size={18} />
           <span>{successMsg}</span>
         </div>
       )}
@@ -211,13 +207,13 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       {errorMsg && (
         <div 
           style={{ 
-            color: 'var(--warning-color)', 
-            backgroundColor: 'var(--warning-light)', 
+            color: 'var(--color-sale)', 
+            backgroundColor: '#fff5f5', 
             padding: '16px', 
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--warning-color)',
+            border: '1px solid var(--color-sale)',
             marginBottom: '24px',
-            fontWeight: 'bold'
+            fontWeight: 500,
+            fontSize: '14px'
           }}
         >
           {errorMsg}
@@ -227,70 +223,75 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       <div className="admin-container">
         
         {/* Sidebar Nav */}
-        <aside className="admin-sidebar">
+        <aside className="admin-sidebar" style={{ border: '1px solid var(--color-hairline-soft)' }}>
           <button 
             className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`}
             onClick={() => { setActiveTab('orders'); setSuccessMsg(''); setErrorMsg(''); }}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
           >
-            <ShoppingBag size={20} />
-            <span>Order History ({orders.length})</span>
+            <ShoppingBag size={18} />
+            <span>Orders ({orders.length})</span>
           </button>
           
           <button 
             className={`admin-nav-item ${activeTab === 'wishlist' ? 'active' : ''}`}
             onClick={() => { setActiveTab('wishlist'); setSuccessMsg(''); setErrorMsg(''); }}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
           >
-            <Heart size={20} />
-            <span>My Wishlist ({wishlist.length})</span>
+            <Heart size={18} />
+            <span>Wishlist ({wishlist.length})</span>
           </button>
 
           <button 
             className={`admin-nav-item ${activeTab === 'shipping' ? 'active' : ''}`}
             onClick={() => { setActiveTab('shipping'); setSuccessMsg(''); setErrorMsg(''); }}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
           >
-            <MapPin size={20} />
-            <span>Shipping Address</span>
+            <MapPin size={18} />
+            <span>Shipping Info</span>
           </button>
           
           <button 
             className={`admin-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => { setActiveTab('profile'); setSuccessMsg(''); setErrorMsg(''); }}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
           >
-            <User size={20} />
+            <User size={18} />
             <span>Profile Settings</span>
           </button>
           
           <button 
             className={`admin-nav-item ${activeTab === 'notifications' ? 'active' : ''}`}
             onClick={() => { setActiveTab('notifications'); setSuccessMsg(''); setErrorMsg(''); }}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
           >
-            <Bell size={20} />
+            <Bell size={18} />
             <span>Notifications</span>
           </button>
         </aside>
 
         {/* Content Panel */}
-        <main className="admin-content">
+        <main className="admin-content" style={{ border: '1px solid var(--color-hairline-soft)', backgroundColor: 'var(--color-canvas)', padding: '24px' }}>
           
           {/* TAB 1: Order History */}
           {activeTab === 'orders' && (
             <div>
-              <h2>Order History</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Track shipment progress and inspect purchase invoice receipts.</p>
+              <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Order History</h2>
+              <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', marginBottom: '24px' }}>Track shipment progress and inspect purchase invoice receipts.</p>
 
               {orders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)', border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                  <ShoppingBag size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                  <h3>No Orders Found</h3>
-                  <p>You haven't purchased any items yet. Browse our store to make your first order.</p>
-                  <button className="btn btn-primary" onClick={onReturnToStore} style={{ marginTop: '20px' }}>
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-mute)', border: '1px solid var(--color-hairline-soft)' }}>
+                  <ShoppingBag size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                  <h3 className="font-heading-md">No Orders Found</h3>
+                  <p style={{ fontSize: '14px' }}>You haven't purchased any items yet. Browse our store to make your first order.</p>
+                  <button className="btn btn-primary mt-24" onClick={onReturnToStore}>
                     Start Shopping
                   </button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   {orders.map(order => (
-                    <div key={order.id} className="card" style={{ padding: '0', overflow: 'hidden' }}>
+                    <div key={order.id} className="card" style={{ border: '1px solid var(--color-hairline-soft)', padding: 0 }}>
                       {/* Order summary bar */}
                       <div 
                         style={{ 
@@ -298,54 +299,54 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                           justifyContent: 'space-between', 
                           flexWrap: 'wrap', 
                           gap: '16px', 
-                          backgroundColor: 'var(--bg-secondary)', 
+                          backgroundColor: 'var(--color-soft-cloud)', 
                           padding: '16px 24px', 
-                          borderBottom: '1px solid var(--border-color)' 
+                          borderBottom: '1px solid var(--color-hairline-soft)' 
                         }}
                       >
-                        <div style={{ display: 'flex', gap: '24px' }}>
+                        <div style={{ display: 'flex', gap: '24px', fontSize: '13px' }}>
                           <div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>ORDER NUMBER</span>
-                            <span style={{ fontWeight: 'bold' }}>{order.id}</span>
+                            <span style={{ color: 'var(--text-mute)', display: 'block', fontSize: '11px', fontWeight: 600 }}>ORDER NUMBER</span>
+                            <span style={{ fontWeight: 600 }}>{order.id}</span>
                           </div>
                           <div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>DATE PLACED</span>
-                            <span style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Calendar size={14} />
+                            <span style={{ color: 'var(--text-mute)', display: 'block', fontSize: '11px', fontWeight: 600 }}>DATE PLACED</span>
+                            <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Calendar size={12} />
                               <span>{new Date(order.createdAt).toLocaleDateString()}</span>
                             </span>
                           </div>
                           <div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>TOTAL AMOUNT</span>
-                            <span style={{ fontWeight: '900', color: 'var(--accent-primary)' }}>KSh {order.totalAmount.toLocaleString()}</span>
+                            <span style={{ color: 'var(--text-mute)', display: 'block', fontSize: '11px', fontWeight: 600 }}>TOTAL AMOUNT</span>
+                            <span style={{ fontWeight: 600, color: 'var(--color-ink)' }}>KSh {order.totalAmount.toLocaleString()}</span>
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span className={`status-badge ${order.orderStatus.toLowerCase()}`} style={{ fontSize: '0.9rem', padding: '6px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span className={`status-badge ${order.orderStatus.toLowerCase()}`} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: 'var(--radius-lg)' }}>
                             {order.orderStatus}
                           </span>
                         </div>
                       </div>
 
                       {/* Order Details Body */}
-                      <div style={{ padding: '24px' }}>
-                        <h4 style={{ marginBottom: '12px' }}>Items Purchased:</h4>
+                      <div style={{ padding: '20px', fontSize: '14px' }}>
+                        <h4 style={{ fontWeight: 600, marginBottom: '12px' }}>Items Purchased</h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {order.items.map((item, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: idx < order.items.length - 1 ? '1px dashed var(--border-color)' : 'none' }}>
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: idx < order.items.length - 1 ? '1px dashed var(--color-hairline-soft)' : 'none' }}>
                               <div>
-                                <span style={{ fontWeight: 'bold' }}>{item.name}</span>
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginLeft: '12px' }}>
+                                <span style={{ fontWeight: 600 }}>{item.name}</span>
+                                <span style={{ color: 'var(--text-mute)', fontSize: '13px', marginLeft: '12px' }}>
                                   ({item.variantDetails}) x{item.quantity}
                                 </span>
                               </div>
-                              <span style={{ fontWeight: 'bold' }}>KSh {(item.price * item.quantity).toLocaleString()}</span>
+                              <span style={{ fontWeight: 600 }}>KSh {(item.price * item.quantity).toLocaleString()}</span>
                             </div>
                           ))}
                         </div>
 
-                        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--color-hairline-soft)', fontSize: '13px', color: 'var(--text-mute)' }}>
                           <strong>Shipping To:</strong> {order.customerName} &bull; {order.customerAddress} &bull; Phone: {order.customerPhone}
                         </div>
                       </div>
@@ -359,13 +360,13 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
           {/* TAB 2: Shipping Address */}
           {activeTab === 'shipping' && (
             <form onSubmit={handleSaveShipping}>
-              <h2>Default Shipping Address</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Configure your primary shipment info to speed up future checkouts.</p>
+              <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Shipping Address</h2>
+              <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', marginBottom: '24px' }}>Configure your primary shipment info to speed up future checkouts.</p>
 
-              <div className="card">
+              <div className="card" style={{ border: 'none', padding: 0 }}>
                 {/* Contact Phone */}
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ship-phone">Contact Phone Number:</label>
+                  <label className="form-label" htmlFor="ship-phone">Contact Phone Number</label>
                   <input 
                     id="ship-phone"
                     type="tel" 
@@ -378,18 +379,18 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
 
                 {/* Default Address */}
                 <div className="form-group" style={{ marginBottom: '24px' }}>
-                  <label className="form-label" htmlFor="ship-address">Default Delivery Address:</label>
+                  <label className="form-label" htmlFor="ship-address">Default Delivery Address</label>
                   <textarea 
                     id="ship-address"
                     className="form-input" 
                     placeholder="House number, apartment, street address, and region in Kenya..."
                     value={profile.address}
                     onChange={e => setProfile({ ...profile, address: e.target.value })}
-                    style={{ minHeight: '120px', fontFamily: 'inherit' }}
+                    style={{ minHeight: '100px', fontFamily: 'inherit', resize: 'vertical' }}
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ minHeight: '44px' }}>
+                <button type="submit" className="btn btn-primary">
                   Save Shipping Address
                 </button>
               </div>
@@ -399,13 +400,13 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
           {/* TAB 3: Profile Settings */}
           {activeTab === 'profile' && (
             <form onSubmit={handleSaveProfile}>
-              <h2>Profile & Account Security</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Update your user display name and secure account password.</p>
+              <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Profile Settings</h2>
+              <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', marginBottom: '24px' }}>Update your user display name and secure account password.</p>
 
-              <div className="card">
+              <div className="card" style={{ border: 'none', padding: 0 }}>
                 {/* Full Name */}
                 <div className="form-group">
-                  <label className="form-label" htmlFor="pref-fullname">Shopper Full Name:</label>
+                  <label className="form-label" htmlFor="pref-fullname">Shopper Full Name</label>
                   <input 
                     id="pref-fullname"
                     type="text" 
@@ -418,7 +419,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
 
                 {/* Email (Disabled) */}
                 <div className="form-group" style={{ opacity: 0.7 }}>
-                  <label className="form-label">Email Address (Cannot be modified):</label>
+                  <label className="form-label">Email Address</label>
                   <input 
                     type="email" 
                     className="form-input" 
@@ -428,16 +429,16 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                 </div>
 
                 {/* Password Change Divider */}
-                <h3 style={{ marginTop: '32px', marginBottom: '16px', fontSize: '1.2rem', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
+                <h3 className="font-heading-md" style={{ marginTop: '32px', marginBottom: '8px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '24px', textTransform: 'uppercase' }}>
                   Change Password
                 </h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
+                <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '13px', marginBottom: '16px' }}>
                   Leave these fields blank if you do not want to modify your password.
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pref-newpass">New Password:</label>
+                    <label className="form-label" htmlFor="pref-newpass">New Password</label>
                     <input 
                       id="pref-newpass"
                       type="password" 
@@ -448,7 +449,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pref-confirmpass">Confirm Password:</label>
+                    <label className="form-label" htmlFor="pref-confirmpass">Confirm Password</label>
                     <input 
                       id="pref-confirmpass"
                       type="password" 
@@ -460,7 +461,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                   </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ minHeight: '44px', marginTop: '16px' }}>
+                <button type="submit" className="btn btn-primary" style={{ marginTop: '16px' }}>
                   Save Profile Settings
                 </button>
               </div>
@@ -470,63 +471,63 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
           {/* TAB 4: Notifications */}
           {activeTab === 'notifications' && (
             <form onSubmit={handleSaveNotifications}>
-              <h2>Notification Preferences</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Configure how you would like us to send order fulfillment alerts and invoices.</p>
+              <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Notifications</h2>
+              <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', marginBottom: '24px' }}>Configure how you would like us to send order fulfillment alerts and invoices.</p>
 
-              <div className="card">
+              <div className="card" style={{ border: 'none', padding: 0 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   
                   {/* Email Notifications */}
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', cursor: 'pointer' }}>
                     <input 
                       type="checkbox" 
-                      style={{ width: '24px', height: '24px', cursor: 'pointer', flexShrink: 0, marginTop: '2px' }}
+                      style={{ width: '20px', height: '20px', cursor: 'pointer', flexShrink: 0, marginTop: '2px' }}
                       checked={profile.notifyEmail}
                       onChange={e => setProfile({ ...profile, notifyEmail: e.target.checked })}
                     />
                     <div>
-                      <span style={{ fontWeight: 'bold', fontSize: '1.05rem', display: 'block' }}>Email Order Confirmations</span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      <span className="font-body-strong" style={{ fontSize: '15px', display: 'block' }}>Email Order Confirmations</span>
+                      <span className="font-caption-sm" style={{ display: 'block', marginTop: '2px' }}>
                         Send invoices and shipping status alerts directly to your registered email address.
                       </span>
                     </div>
                   </label>
 
                   {/* SMS Notifications */}
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '20px' }}>
                     <input 
                       type="checkbox" 
-                      style={{ width: '24px', height: '24px', cursor: 'pointer', flexShrink: 0, marginTop: '2px' }}
+                      style={{ width: '20px', height: '20px', cursor: 'pointer', flexShrink: 0, marginTop: '2px' }}
                       checked={profile.notifySms}
                       onChange={e => setProfile({ ...profile, notifySms: e.target.checked })}
                     />
                     <div>
-                      <span style={{ fontWeight: 'bold', fontSize: '1.05rem', display: 'block' }}>SMS Shipment Alerts</span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        Receive text message updates when courier riders dispatch your items. (Standard SMS rates may apply).
+                      <span className="font-body-strong" style={{ fontSize: '15px', display: 'block' }}>SMS Shipment Alerts</span>
+                      <span className="font-caption-sm" style={{ display: 'block', marginTop: '2px' }}>
+                        Receive text message updates when courier riders dispatch your items.
                       </span>
                     </div>
                   </label>
 
                   {/* Promotions */}
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginBottom: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', cursor: 'pointer', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '20px' }}>
                     <input 
                       type="checkbox" 
-                      style={{ width: '24px', height: '24px', cursor: 'pointer', flexShrink: 0, marginTop: '2px' }}
+                      style={{ width: '20px', height: '20px', cursor: 'pointer', flexShrink: 0, marginTop: '2px' }}
                       checked={profile.notifyPromos}
                       onChange={e => setProfile({ ...profile, notifyPromos: e.target.checked })}
                     />
                     <div>
-                      <span style={{ fontWeight: 'bold', fontSize: '1.05rem', display: 'block' }}>Exclusive Health & Mobility Offers</span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        Send weekly newsletters, healthy lifestyle tips, and coupon codes for wellness tools.
+                      <span className="font-body-strong" style={{ fontSize: '15px', display: 'block' }}>Exclusive Health & Mobility Offers</span>
+                      <span className="font-caption-sm" style={{ display: 'block', marginTop: '2px' }}>
+                        Send weekly newsletters, recovery guides, and pre-order drops notifications.
                       </span>
                     </div>
                   </label>
 
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ minHeight: '44px', marginTop: '16px' }}>
+                <button type="submit" className="btn btn-primary" style={{ marginTop: '24px' }}>
                   Save Preferences
                 </button>
               </div>
@@ -536,22 +537,22 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
           {/* TAB 5: Wishlist */}
           {activeTab === 'wishlist' && (
             <div>
-              <h2>My Wishlist</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>My Wishlist</h2>
+              <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', marginBottom: '24px' }}>
                 Your saved items. You can quickly add them to your shopping cart or remove them.
               </p>
 
               {wishlist.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)', border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
-                  <Heart size={48} style={{ margin: '0 auto 16px', opacity: 0.5, color: 'var(--warning-color)' }} />
-                  <h3>Your Wishlist is Empty</h3>
-                  <p>Browse our catalog and tap the heart icon on any product to save it here.</p>
-                  <button className="btn btn-primary" onClick={onReturnToStore} style={{ marginTop: '20px' }}>
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-mute)', border: '1px solid var(--color-hairline-soft)' }}>
+                  <Heart size={40} style={{ margin: '0 auto 16px', opacity: 0.5, color: 'var(--color-sale)' }} />
+                  <h3 className="font-heading-md">Your Wishlist is Empty</h3>
+                  <p style={{ fontSize: '14px' }}>Browse our catalog and tap the heart icon on any product to save it here.</p>
+                  <button className="btn btn-primary mt-24" onClick={onReturnToStore}>
                     Browse Products
                   </button>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
                   {wishlist.map(prodId => {
                     const prod = products.find(p => p.id === prodId);
                     if (!prod) return null;
@@ -562,7 +563,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                     const handleAddWishItemToCart = () => {
                       const hasVars = prod.attributes && prod.attributes.length > 0;
                       const matchedVar = hasVars && prod.variants && prod.variants.length > 0
-                        ? prod.variants[0] // Add first variant by default
+                        ? prod.variants[0]
                         : null;
 
                       const cartId = matchedVar 
@@ -582,39 +583,42 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                     return (
                       <div 
                         key={prod.id} 
-                        className="card animate-fade-in" 
-                        style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', border: '1px solid var(--border-color)' }}
+                        className="prod-card" 
+                        style={{ margin: 0 }}
                       >
-                        <div style={{ height: '150px', width: '100%', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-                          <img src={prod.image} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div className="prod-img-container">
+                          <img src={prod.image} alt={prod.name} className="prod-img" />
                         </div>
                         
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold', margin: '0 0 6px 0', flexGrow: 1 }}>{prod.name}</h4>
-                        <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '12px', display: 'block' }}>{prodPrice}</span>
+                        <div className="prod-card-metadata">
+                          <span className="prod-card-category">{prod.category}</span>
+                          <h4 className="prod-card-title" style={{ fontSize: '14px' }}>{prod.name}</h4>
+                          <span style={{ fontWeight: 600, fontSize: '14px', marginTop: '2px', display: 'block' }}>{prodPrice}</span>
 
-                        <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-small"
-                            onClick={handleAddWishItemToCart}
-                            style={{ flex: 1, minHeight: '36px', display: 'flex', gap: '4px', padding: '0 8px', fontSize: '0.8rem' }}
-                          >
-                            <ShoppingCart size={14} />
-                            <span>Add to Cart</span>
-                          </button>
-                          
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-small"
-                            onClick={() => {
-                              onRemoveWishlist(prod.id);
-                              onShowToast(`Removed ${prod.name} from wishlist.`, 'success');
-                            }}
-                            style={{ width: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                            title="Remove from Wishlist"
-                          >
-                            <Trash2 size={14} style={{ color: 'var(--warning-color)' }} />
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-small"
+                              onClick={handleAddWishItemToCart}
+                              style={{ flex: 1, height: '36px', minHeight: '36px', fontSize: '12px', padding: '0 8px' }}
+                            >
+                              <ShoppingCart size={13} />
+                              <span>Add to Cart</span>
+                            </button>
+                            
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-small"
+                              onClick={() => {
+                                onRemoveWishlist(prod.id);
+                                onShowToast(`Removed ${prod.name} from wishlist.`, 'success');
+                              }}
+                              style={{ width: '36px', height: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                              title="Remove from Wishlist"
+                            >
+                              <Trash2 size={13} style={{ color: 'var(--color-sale)' }} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
