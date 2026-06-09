@@ -22,6 +22,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   const isDemo = settings.demoMode || !settings.paystackPublicKey;
   const [payChannel, setPayChannel] = useState<'card' | 'mobile_money'>('mobile_money');
   const [paymentInitiated, setPaymentInitiated] = useState(false);
+  const [refCode, setRefCode] = useState('');
   
   // Input states for Demo Mode
   const [cardNumber, setCardNumber] = useState('');
@@ -36,12 +37,19 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
 
   // Clean form values
   const totalCents = amount * 100; // Paystack KES uses cents
-  const refCode = `GC-REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
+
+  const handleStartPayment = () => {
+    setRefCode(`GC-REF-${Math.floor(100000000 + Math.random() * 900000000)}`);
+    setDemoState('input');
+    setOtpValue('');
+    setOtpError('');
+    setPaymentInitiated(true);
+  };
 
   // Load Real Paystack Inline SDK if not in Demo mode and payment has been initiated
   useEffect(() => {
     if (isDemo) return;
-    if (!paymentInitiated) return;
+    if (!paymentInitiated || !refCode) return;
 
     // Load Paystack script dynamically
     const scriptId = 'paystack-inline-js';
@@ -64,42 +72,43 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
                 display_name: "Customer Name",
                 variable_name: "customer_name",
                 value: customerName
-              },
-              {
-                display_name: "Customer Phone",
-                variable_name: "customer_phone",
-                value: customerPhone
-              }
-            ]
-          },
-          callback: function (response: any) {
-            onSuccess(response.reference);
-          },
-          onClose: function () {
-            setPaymentInitiated(false);
-            onCancel();
-          }
-        });
-        handler.openIframe();
-      }
-    };
-
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://js.paystack.co/v1/inline.js';
-      script.async = true;
-      script.onload = initializePaystack;
-      document.body.appendChild(script);
-    } else {
-      script.onload = initializePaystack;
-      initializePaystack();
-    }
-
-    return () => {
-      // Keep script loaded
-    };
-  }, [isDemo, paymentInitiated, settings, customerPhone, totalCents, refCode, customerName, onSuccess, onCancel]);
+               },
+               {
+                 display_name: "Customer Phone",
+                 variable_name: "customer_phone",
+                 value: customerPhone
+               }
+             ]
+           },
+           callback: function (response: any) {
+             console.log("Paystack Payment Successful! Transaction reference code:", response.reference);
+             onSuccess(response.reference);
+           },
+           onClose: function () {
+             setPaymentInitiated(false);
+             onCancel();
+           }
+         });
+         handler.openIframe();
+       }
+     };
+ 
+     if (!script) {
+       script = document.createElement('script');
+       script.id = scriptId;
+       script.src = 'https://js.paystack.co/v1/inline.js';
+       script.async = true;
+       script.onload = initializePaystack;
+       document.body.appendChild(script);
+     } else {
+       script.onload = initializePaystack;
+       initializePaystack();
+     }
+ 
+     return () => {
+       // Keep script loaded
+     };
+   }, [isDemo, paymentInitiated, settings, customerPhone, totalCents, refCode, customerName, onSuccess, onCancel]);
 
   // Handle Demo Mode card formatting
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +164,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
       
       setTimeout(() => {
         setDemoState('success');
+        console.log("Simulated Paystack checkout successful! Reference code:", refCode);
         setTimeout(() => {
           onSuccess(refCode);
         }, 1500);
@@ -194,7 +204,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
 
         <button 
           className="btn btn-primary btn-full" 
-          onClick={() => setPaymentInitiated(true)}
+          onClick={handleStartPayment}
           style={{ fontSize: '1.1rem', gap: '8px', minHeight: '56px' }}
         >
           <CreditCard size={20} />

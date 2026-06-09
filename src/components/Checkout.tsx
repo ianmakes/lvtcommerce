@@ -115,6 +115,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   };
 
   const handlePaymentSuccess = (reference: string) => {
+    console.log("Successful payment received! Paystack Reference ID:", reference);
     // Construct Order items list
     const orderItems: OrderItem[] = cart.map(item => ({
       productId: item.product.id,
@@ -140,9 +141,14 @@ export const Checkout: React.FC<CheckoutProps> = ({
       paymentReference: reference,
       orderStatus: 'Paid',
       createdAt: new Date().toISOString(),
-      buyerEmail: currentUser?.email || undefined,
-      notes: orderNote || undefined,
     };
+
+    if (currentUser?.email) {
+      newOrder.buyerEmail = currentUser.email;
+    }
+    if (orderNote) {
+      newOrder.notes = orderNote;
+    }
 
     onSubmitOrder(newOrder);
   };
