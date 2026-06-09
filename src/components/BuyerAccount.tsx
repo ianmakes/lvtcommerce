@@ -1,20 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser, updateProfile, updatePassword } from 'firebase/auth';
-import { ShoppingBag, MapPin, User, Bell, Lock, CheckCircle, Loader2, Calendar, DollarSign } from 'lucide-react';
-import { Order, BuyerProfile } from '../types';
+import { ShoppingBag, MapPin, User, Bell, Lock, CheckCircle, Loader2, Calendar, DollarSign, Heart, Trash2, ShoppingCart } from 'lucide-react';
+import { Order, BuyerProfile, Product, CartItem } from '../types';
 import { getOrders, getBuyerProfile, saveBuyerProfile } from '../db';
 import { auth } from '../firebase';
 
 interface BuyerAccountProps {
   currentUser: FirebaseUser;
   onReturnToStore: () => void;
+  wishlist: string[];
+  products: Product[];
+  onRemoveWishlist: (productId: string) => void;
+  onAddToCart: (item: CartItem) => void;
+  onShowToast: (msg: string, type?: 'success' | 'warning') => void;
+  initialTab?: string;
 }
 
 export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   currentUser,
   onReturnToStore,
+  wishlist,
+  products,
+  onRemoveWishlist,
+  onAddToCart,
+  onShowToast,
+  initialTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<'orders' | 'shipping' | 'profile' | 'notifications'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'shipping' | 'profile' | 'notifications' | 'wishlist'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [profile, setProfile] = useState<BuyerProfile>({
     uid: currentUser.uid,
@@ -32,6 +44,13 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Sync activeTab when initialTab prop changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab as any);
+    }
+  }, [initialTab]);
 
   // Load account data (orders and profile settings)
   const loadData = async () => {
@@ -217,6 +236,14 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
             <span>Order History ({orders.length})</span>
           </button>
           
+          <button 
+            className={`admin-nav-item ${activeTab === 'wishlist' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('wishlist'); setSuccessMsg(''); setErrorMsg(''); }}
+          >
+            <Heart size={20} />
+            <span>My Wishlist ({wishlist.length})</span>
+          </button>
+
           <button 
             className={`admin-nav-item ${activeTab === 'shipping' ? 'active' : ''}`}
             onClick={() => { setActiveTab('shipping'); setSuccessMsg(''); setErrorMsg(''); }}
@@ -504,6 +531,97 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                 </button>
               </div>
             </form>
+          )}
+
+          {/* TAB 5: Wishlist */}
+          {activeTab === 'wishlist' && (
+            <div>
+              <h2>My Wishlist</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                Your saved items. You can quickly add them to your shopping cart or remove them.
+              </p>
+
+              {wishlist.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)', border: '2px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                  <Heart size={48} style={{ margin: '0 auto 16px', opacity: 0.5, color: 'var(--warning-color)' }} />
+                  <h3>Your Wishlist is Empty</h3>
+                  <p>Browse our catalog and tap the heart icon on any product to save it here.</p>
+                  <button className="btn btn-primary" onClick={onReturnToStore} style={{ marginTop: '20px' }}>
+                    Browse Products
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+                  {wishlist.map(prodId => {
+                    const prod = products.find(p => p.id === prodId);
+                    if (!prod) return null;
+                    const prodPrice = prod.variants && prod.variants.length > 0
+                      ? `From KSh ${prod.basePrice.toLocaleString()}`
+                      : `KSh ${prod.basePrice.toLocaleString()}`;
+
+                    const handleAddWishItemToCart = () => {
+                      const hasVars = prod.attributes && prod.attributes.length > 0;
+                      const matchedVar = hasVars && prod.variants && prod.variants.length > 0
+                        ? prod.variants[0] // Add first variant by default
+                        : null;
+
+                      const cartId = matchedVar 
+                        ? `${prod.id}-${matchedVar.id}` 
+                        : `${prod.id}-base`;
+
+                      const item: CartItem = {
+                        id: cartId,
+                        product: prod,
+                        selectedVariant: matchedVar,
+                        quantity: 1
+                      };
+                      onAddToCart(item);
+                      onShowToast(`Added 1 of ${prod.name} to cart.`, 'success');
+                    };
+
+                    return (
+                      <div 
+                        key={prod.id} 
+                        className="card animate-fade-in" 
+                        style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', border: '1px solid var(--border-color)' }}
+                      >
+                        <div style={{ height: '150px', width: '100%', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+                          <img src={prod.image} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                        
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold', margin: '0 0 6px 0', flexGrow: 1 }}>{prod.name}</h4>
+                        <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '12px', display: 'block' }}>{prodPrice}</span>
+
+                        <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-small"
+                            onClick={handleAddWishItemToCart}
+                            style={{ flex: 1, minHeight: '36px', display: 'flex', gap: '4px', padding: '0 8px', fontSize: '0.8rem' }}
+                          >
+                            <ShoppingCart size={14} />
+                            <span>Add to Cart</span>
+                          </button>
+                          
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-small"
+                            onClick={() => {
+                              onRemoveWishlist(prod.id);
+                              onShowToast(`Removed ${prod.name} from wishlist.`, 'success');
+                            }}
+                            style={{ width: '36px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                            title="Remove from Wishlist"
+                          >
+                            <Trash2 size={14} style={{ color: 'var(--warning-color)' }} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
         </main>

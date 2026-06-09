@@ -907,3 +907,169 @@ a:hover {
   .prod-footer { flex-direction: column; align-items: stretch; text-align: center; }
   .metrics-grid { grid-template-columns: 1fr; }
 }
+
+/* Storefront Controls & Category Pills */
+.store-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.category-pill {
+  padding: 8px 20px;
+  border-radius: 24px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: 'Outfit', sans-serif;
+}
+
+.category-pill:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background-color: var(--accent-light);
+}
+
+.category-pill.active {
+  background-color: var(--accent-primary);
+  color: var(--text-inverse);
+  border-color: var(--accent-primary);
+}
+
+.sort-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sort-select {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color var(--transition-fast);
+}
+
+.sort-select:focus {
+  border-color: var(--accent-primary);
+}
+
+/* Nav Search Input Focus State */
+.nav-search-input {
+  transition: all var(--transition-fast);
+  border: 1px solid var(--border-strong);
+}
+
+.nav-search-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  background-color: var(--bg-card);
+  outline: none;
+}
+
+/* Wishlist Toggle Hover */
+.wishlist-toggle-btn:hover {
+  transform: scale(1.1);
+  background-color: #ffffff !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.wishlist-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.wishlist-toggle-btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* Custom Toast Alerts Container & Items */
+.toast-overlay {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 320px;
+  max-width: 480px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  box-shadow: var(--shadow-lg);
+  animation: slideInRight var(--transition-normal) forwards;
+}
+
+.toast-item.success {
+  background-color: var(--accent-primary);
+  color: var(--text-inverse);
+  border-left: 5px solid var(--gold-primary);
+}
+
+.toast-item.warning {
+  background-color: var(--warning-color);
+  color: var(--text-inverse);
+  border-left: 5px solid #FADBD8;
+}
+
+.toast-close-btn {
+  background: none;
+  border: none;
+  color: currentColor;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--transition-fast);
+}
+
+.toast-close-btn:hover {
+  opacity: 1;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%) translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+

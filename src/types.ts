@@ -20,6 +20,26 @@ export interface Product {
   basePrice: number;
   attributes: Attribute[];
   variants: ProductVariant[];
+  rating?: number;
+  reviewCount?: number;
+  specifications?: Record<string, string>;
+  images?: string[]; // Alternate gallery images
+  badge?: string; // e.g. "Best Seller", "Free Shipping"
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  buyerName: string;
+  rating: number; // 1-5
+  comment: string;
+  createdAt: string;
+}
+
+export interface Coupon {
+  code: string;
+  discountPercent: number; // e.g. 10 for 10%
+  flatDiscount?: number; // e.g. 500 for KSh 500
 }
 
 export interface CartItem {
@@ -49,6 +69,7 @@ export interface Order {
   orderStatus: 'Pending' | 'Paid' | 'Dispatched' | 'Delivered' | 'Cancelled';
   createdAt: string;
   buyerEmail?: string;
+  notes?: string; // Optional delivery notes
 }
 
 export interface BuyerProfile {

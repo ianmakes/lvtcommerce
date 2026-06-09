@@ -60,6 +60,14 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
             <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Phone: {order.customerPhone}</div>
           </div>
 
+          {/* Notes section */}
+          {order.notes && (
+            <div style={{ marginBottom: '16px', borderTop: '1px dashed var(--border-color)', paddingTop: '12px' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>DELIVERY NOTES:</span>
+              <div style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--text-primary)' }}>"{order.notes}"</div>
+            </div>
+          )}
+
           {/* Items */}
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginBottom: '16px' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>ITEMS BOUGHT:</span>

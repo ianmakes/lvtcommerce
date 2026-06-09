@@ -12,6 +12,9 @@ interface CheckoutProps {
   currentUser: FirebaseUser | null;
   onCancel: () => void;
   onSubmitOrder: (order: Order) => void;
+  discountPercent: number;
+  flatDiscount: number;
+  orderNote: string;
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({
@@ -20,6 +23,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
   currentUser,
   onCancel,
   onSubmitOrder,
+  discountPercent,
+  flatDiscount,
+  orderNote,
 }) => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
@@ -79,9 +85,16 @@ export const Checkout: React.FC<CheckoutProps> = ({
     return acc + price * item.quantity;
   }, 0);
 
+  let discountAmount = 0;
+  if (discountPercent > 0) {
+    discountAmount = (itemsSubtotal * discountPercent) / 100;
+  } else if (flatDiscount > 0) {
+    discountAmount = Math.min(flatDiscount, itemsSubtotal);
+  }
+
   // Delivery calculations: Free delivery if items > 30,000 NGN, else flat 1500 NGN
   const deliveryFee = itemsSubtotal >= 30000 ? 0 : 1500;
-  const grandTotal = itemsSubtotal + deliveryFee;
+  const grandTotal = Math.max(0, itemsSubtotal - discountAmount) + deliveryFee;
 
   const handleStep1Submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +141,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       orderStatus: 'Paid',
       createdAt: new Date().toISOString(),
       buyerEmail: currentUser?.email || undefined,
+      notes: orderNote || undefined,
     };
 
     onSubmitOrder(newOrder);
@@ -299,10 +313,24 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   <span>KSh {itemsSubtotal.toLocaleString()}</span>
                 </div>
                 
+                {discountAmount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success-color)', fontWeight: 'bold' }}>
+                    <span>Coupon Discount:</span>
+                    <span>-KSh {discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Delivery Fee:</span>
                   <span>{deliveryFee === 0 ? "FREE" : `KSh ${deliveryFee.toLocaleString()}`}</span>
                 </div>
+
+                {orderNote && (
+                  <div style={{ borderTop: '1px dashed var(--border-strong)', paddingTop: '8px', marginTop: '4px', fontSize: '0.85rem' }}>
+                    <span style={{ fontWeight: 'bold', display: 'block', color: 'var(--text-secondary)' }}>Order Delivery Notes:</span>
+                    <span style={{ fontStyle: 'italic', color: 'var(--text-primary)' }}>"{orderNote}"</span>
+                  </div>
+                )}
 
                 <div 
                   style={{ 
