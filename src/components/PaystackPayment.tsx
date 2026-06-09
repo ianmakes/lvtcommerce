@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Landmark, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
+import { CreditCard, Smartphone, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
 import { ShopSettings } from '../types';
 
 interface PaystackPaymentProps {
   settings: ShopSettings;
-  amount: number; // In Naira (NGN)
+  amount: number; // In Kenyan Shillings (KES)
   customerName: string;
   customerPhone: string;
   onSuccess: (reference: string) => void;
@@ -20,12 +20,13 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   onCancel,
 }) => {
   const isDemo = settings.demoMode || !settings.paystackPublicKey;
-  const [payChannel, setPayChannel] = useState<'card' | 'transfer'>('card');
+  const [payChannel, setPayChannel] = useState<'card' | 'mobile_money'>('mobile_money');
   
-  // Card input states for Demo Mode
+  // Input states for Demo Mode
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
+  const [mpesaNumber, setMpesaNumber] = useState(customerPhone);
   
   // Demo processing states
   const [demoState, setDemoState] = useState<'input' | 'processing' | 'otp' | 'verifying' | 'success'>('input');
@@ -33,7 +34,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   const [otpError, setOtpError] = useState('');
 
   // Clean form values
-  const totalKobo = amount * 100;
+  const totalCents = amount * 100; // Paystack KES uses cents
   const refCode = `GC-REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
 
   // Load Real Paystack Inline SDK if not in Demo mode
@@ -50,9 +51,10 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         // @ts-ignore
         const handler = window.PaystackPop.setup({
           key: settings.paystackPublicKey,
-          email: `${customerPhone}@goldencare.com`, // Paystack requires email, create mock email from phone
-          amount: totalKobo,
-          currency: 'NGN',
+          email: `${customerPhone.replace(/[^\d]/g, '') || 'customer'}@goldencare.com`, // Paystack requires email format
+          amount: totalCents,
+          currency: 'KES', // Kenya Shillings
+          channels: ['mobile_money', 'card'], // Mobile Money (M-Pesa) default, then Card
           ref: refCode,
           metadata: {
             custom_fields: [
@@ -87,11 +89,12 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
       script.onload = initializePaystack;
       document.body.appendChild(script);
     } else {
+      script.onload = initializePaystack;
       initializePaystack();
     }
 
     return () => {
-      // Keep script loaded but don't re-initialize
+      // Keep script loaded
     };
   }, [isDemo]);
 
@@ -111,8 +114,8 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     setCardExpiry(formatted.substring(0, 5));
   };
 
-  // Demo form submissions
-  const handleDemoPaySubmit = (e: React.FormEvent) => {
+  // Demo Card Pay submission
+  const handleDemoCardPaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (cardNumber.length < 16 || cardExpiry.length < 5 || cardCvv.length < 3) {
       alert("Please fill in valid card details. You can copy the test card on screen.");
@@ -121,6 +124,22 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     
     setDemoState('processing');
 
+    setTimeout(() => {
+      setDemoState('otp');
+    }, 2000);
+  };
+
+  // Demo M-Pesa Pay submission
+  const handleDemoMpesaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mpesaNumber.replace(/\D/g, '').length < 8) {
+      alert("Please enter a valid phone number to send the M-Pesa STK Push.");
+      return;
+    }
+
+    setDemoState('processing');
+
+    // Simulate sending STK Push
     setTimeout(() => {
       setDemoState('otp');
     }, 2000);
@@ -138,19 +157,12 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         }, 1500);
       }, 2000);
     } else {
-      setOtpError("Incorrect OTP. Please enter '1234' for this demo checkout.");
+      setOtpError(
+        payChannel === 'mobile_money'
+          ? "Incorrect PIN/code. Please enter '1234' to complete this simulated payment."
+          : "Incorrect OTP. Please enter '1234' to complete this simulated payment."
+      );
     }
-  };
-
-  const handleDemoTransferConfirm = () => {
-    setDemoState('processing');
-
-    setTimeout(() => {
-      setDemoState('success');
-      setTimeout(() => {
-        onSuccess(refCode);
-      }, 1500);
-    }, 3000);
   };
 
   // If live mode, render a loading state since Paystack Inline SDK will overlay its own beautiful UI
@@ -159,7 +171,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
       <div className="card text-center" style={{ padding: '40px' }}>
         <Loader2 className="voice-wave" size={48} style={{ margin: '0 auto 20px', color: 'var(--accent-primary)', animation: 'spin 1.5s linear infinite' }} />
         <h3>Loading Paystack Secure Gateway</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>A secure payment window is loading. Please complete your payment there.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Connecting to Paystack (M-Pesa / Card)...</p>
         <button className="btn btn-secondary mt-12" onClick={onCancel}>
           Cancel Payment
         </button>
@@ -177,7 +189,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
           <span style={{ fontSize: '12px', color: '#666' }}>{customerName} ({customerPhone})</span>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <span className="paystack-amount">₦{amount.toLocaleString()}</span>
+          <span className="paystack-amount">KSh {amount.toLocaleString()}</span>
           <div style={{ fontSize: '11px', color: '#ff6b6b', fontWeight: 'bold', textTransform: 'uppercase', marginTop: '2px' }}>
             DEMO CHECKOUT
           </div>
@@ -192,25 +204,50 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
             <div className="paystack-sidebar">
               <button 
                 type="button" 
+                className={`paystack-channel ${payChannel === 'mobile_money' ? 'active' : ''}`}
+                onClick={() => setPayChannel('mobile_money')}
+              >
+                <Smartphone size={18} style={{ color: '#3ac582' }} />
+                <span>M-Pesa Mobile</span>
+              </button>
+
+              <button 
+                type="button" 
                 className={`paystack-channel ${payChannel === 'card' ? 'active' : ''}`}
                 onClick={() => setPayChannel('card')}
               >
                 <CreditCard size={18} style={{ color: '#3ac582' }} />
                 <span>Pay with Card</span>
               </button>
-              
-              <button 
-                type="button" 
-                className={`paystack-channel ${payChannel === 'transfer' ? 'active' : ''}`}
-                onClick={() => setPayChannel('transfer')}
-              >
-                <Landmark size={18} style={{ color: '#3ac582' }} />
-                <span>Bank Transfer</span>
-              </button>
             </div>
 
-            {payChannel === 'card' ? (
-              <form onSubmit={handleDemoPaySubmit}>
+            {payChannel === 'mobile_money' ? (
+              <form onSubmit={handleDemoMpesaSubmit}>
+                {/* Mpesa prompt instruction */}
+                <div style={{ backgroundColor: '#eef9f5', border: '1px solid #3ac582', padding: '14px', borderRadius: '6px', fontSize: '13px', color: '#1e6d45', marginBottom: '16px' }}>
+                  <span style={{ fontWeight: 'bold' }}>Simulated M-Pesa STK Push:</span><br />
+                  Initiate a mock STK Push. Enter your mobile number below and follow instructions on screen.
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label className="form-label" style={{ fontSize: '14px', color: '#444' }}>M-PESA MOBILE NUMBER</label>
+                  <input 
+                    type="tel" 
+                    className="form-input" 
+                    placeholder="e.g. 0712345678"
+                    value={mpesaNumber}
+                    onChange={e => setMpesaNumber(e.target.value)}
+                    style={{ minHeight: '48px', padding: '12px', fontSize: '16px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    required
+                  />
+                </div>
+
+                <button type="submit" className="paystack-pay-btn">
+                  Send STK Push (KSh {amount.toLocaleString()})
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleDemoCardPaySubmit}>
                 {/* Test Card Cue */}
                 <div style={{ backgroundColor: '#eef9f5', border: '1px solid #3ac582', padding: '12px', borderRadius: '6px', fontSize: '13px', color: '#1e6d45', marginBottom: '16px' }}>
                   <span style={{ fontWeight: 'bold' }}>Test Card Details (Copy to use):</span><br />
@@ -259,42 +296,9 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
                 </div>
 
                 <button type="submit" className="paystack-pay-btn">
-                  Pay ₦{amount.toLocaleString()}
+                  Pay KSh {amount.toLocaleString()}
                 </button>
               </form>
-            ) : (
-              <div style={{ color: '#333' }}>
-                <div style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '6px', border: '1px solid #e1e1e1', marginBottom: '20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '14px', color: '#666' }}>TRANSFER AMOUNT</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1a1a1a', margin: '4px 0' }}>₦{(amount).toLocaleString()}</div>
-                  <div style={{ fontSize: '12px', color: '#888' }}>Please send this exact amount.</div>
-                </div>
-
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '14px' }}>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '8px 0', color: '#666' }}>Bank Name</td>
-                      <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' }}>Wema Bank (Demo)</td>
-                    </tr>
-                    <tr style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '8px 0', color: '#666' }}>Account Number</td>
-                      <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right', fontFamily: 'monospace', fontSize: '16px' }}>9988776655</td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '8px 0', color: '#666' }}>Beneficiary</td>
-                      <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' }}>{settings.shopName}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <button 
-                  type="button" 
-                  className="paystack-pay-btn"
-                  onClick={handleDemoTransferConfirm}
-                >
-                  I've sent the money
-                </button>
-              </div>
             )}
 
             <button 
@@ -310,24 +314,34 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         {demoState === 'processing' && (
           <div style={{ textAlign: 'center', padding: '30px 0', color: '#333' }}>
             <Loader2 style={{ animation: 'spin 1s linear infinite', margin: '0 auto 20px', color: '#3ac582' }} size={48} />
-            <h3 style={{ marginBottom: '8px' }}>Processing payment...</h3>
+            <h3 style={{ marginBottom: '8px' }}>
+              {payChannel === 'mobile_money' ? "Sending M-Pesa STK Push..." : "Processing payment..."}
+            </h3>
             <p style={{ color: '#666' }}>Please do not close this window or press the back button.</p>
           </div>
         )}
 
         {demoState === 'otp' && (
           <form onSubmit={handleOtpSubmit} style={{ color: '#333' }}>
-            <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Authorize Transaction</h3>
+            <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>
+              {payChannel === 'mobile_money' ? "M-Pesa Authorization" : "Authorize Transaction"}
+            </h3>
             <p style={{ textAlign: 'center', color: '#666', fontSize: '14px', marginBottom: '24px' }}>
-              Enter the OTP code sent to your registered phone number.
+              {payChannel === 'mobile_money' 
+                ? "Simulated: Enter the M-Pesa PIN/authorization code to confirm payment."
+                : "Enter the OTP code sent to your registered phone number."
+              }
             </p>
 
             <div style={{ backgroundColor: '#fff8f2', border: '1px solid #ffb066', padding: '12px', borderRadius: '6px', fontSize: '13px', color: '#aa5500', marginBottom: '16px', textAlign: 'center' }}>
-              Demo Authorization Code: <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>1234</span>
+              {payChannel === 'mobile_money' ? "Simulated M-Pesa PIN / PIN Code: " : "Demo Authorization Code: "}
+              <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>1234</span>
             </div>
 
             <div className="form-group">
-              <label className="form-label" style={{ fontSize: '14px', color: '#444' }}>ENTER CODE</label>
+              <label className="form-label" style={{ fontSize: '14px', color: '#444', textAlign: 'center', display: 'block' }}>
+                {payChannel === 'mobile_money' ? "ENTER PIN CODE" : "ENTER OTP CODE"}
+              </label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -347,7 +361,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
             )}
 
             <button type="submit" className="paystack-pay-btn">
-              Authorize Payment
+              Confirm Payment
             </button>
           </form>
         )}
@@ -355,8 +369,8 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         {demoState === 'verifying' && (
           <div style={{ textAlign: 'center', padding: '30px 0', color: '#333' }}>
             <Loader2 style={{ animation: 'spin 1.5s linear infinite', margin: '0 auto 20px', color: '#3ac582' }} size={48} />
-            <h3 style={{ marginBottom: '8px' }}>Verifying OTP...</h3>
-            <p style={{ color: '#666' }}>Connecting to bank secure networks.</p>
+            <h3 style={{ marginBottom: '8px' }}>Verifying Transaction...</h3>
+            <p style={{ color: '#666' }}>Checking M-Pesa transaction status on secure networks.</p>
           </div>
         )}
 

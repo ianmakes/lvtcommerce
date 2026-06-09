@@ -138,7 +138,7 @@ export const Cart: React.FC<CartProps> = ({
 
                       {/* Line price */}
                       <span style={{ fontWeight: 900, color: 'var(--accent-primary)', fontSize: '1.25rem' }}>
-                        ₦{(activePrice * item.quantity).toLocaleString()}
+                        KSh {(activePrice * item.quantity).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -153,7 +153,7 @@ export const Cart: React.FC<CartProps> = ({
           <div className="cart-footer">
             <div className="cart-total-row">
               <span>Total Price:</span>
-              <span style={{ color: 'var(--accent-primary)' }}>₦{totalPrice.toLocaleString()}</span>
+              <span style={{ color: 'var(--accent-primary)' }}>KSh {totalPrice.toLocaleString()}</span>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

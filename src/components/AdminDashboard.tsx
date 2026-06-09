@@ -393,7 +393,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="metrics-grid">
                 <div className="metric-card">
                   <div className="metric-label">Total Revenue</div>
-                  <div className="metric-value">₦{totalRevenue.toLocaleString()}</div>
+                  <div className="metric-value">KSh {totalRevenue.toLocaleString()}</div>
                 </div>
                 <div className="metric-card">
                   <div className="metric-label">Incoming Orders</div>
@@ -423,7 +423,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => { setActiveOrderDetails(o); }}>
                         <td style={{ fontWeight: 'bold' }}>{o.id}</td>
                         <td>{o.customerName}</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>₦{o.totalAmount.toLocaleString()}</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>KSh {o.totalAmount.toLocaleString()}</td>
                         <td>
                           <span className={`status-badge ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
                         </td>
@@ -460,7 +460,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <td style={{ fontWeight: 'bold' }}>{o.id}</td>
                         <td>{o.customerName}</td>
                         <td>{o.customerPhone}</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>₦{o.totalAmount.toLocaleString()}</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>KSh {o.totalAmount.toLocaleString()}</td>
                         <td>
                           <span className={`status-badge ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
                         </td>
@@ -519,7 +519,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </td>
                         <td style={{ fontWeight: 'bold' }}>{p.name}</td>
                         <td>{p.category}</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>₦{p.basePrice.toLocaleString()}</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>KSh {p.basePrice.toLocaleString()}</td>
                         <td>
                           {p.attributes && p.attributes.length > 0 ? (
                             <span className="badge" style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent-primary)' }}>
@@ -669,7 +669,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{it.variantDetails}</div>
                       </td>
                       <td style={{ padding: '10px', textAlign: 'right' }}>{it.quantity}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>₦{it.price.toLocaleString()}</td>
+                      <td style={{ padding: '10px', textAlign: 'right' }}>KSh {it.price.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -757,7 +757,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 
                 {/* Base Price */}
                 <div className="form-group">
-                  <label className="form-label">Base Price (NGN):</label>
+                  <label className="form-label">Base Price (KSh):</label>
                   <input 
                     type="number" 
                     className="form-input" 
@@ -898,7 +898,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="variant-matrix-card">
                     <div className="variant-matrix-row variant-matrix-header">
                       <span>Combination</span>
-                      <span>Price (₦)</span>
+                      <span>Price (KSh)</span>
                       <span>Stock</span>
                       <span>SKU</span>
                     </div>

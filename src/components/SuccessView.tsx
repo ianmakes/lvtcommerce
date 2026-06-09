@@ -67,7 +67,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
               {order.items.map((it, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
                   <span>{it.name} <span style={{ color: 'var(--text-secondary)' }}>({it.variantDetails}) x{it.quantity}</span></span>
-                  <span style={{ fontWeight: 'bold' }}>₦{(it.price * it.quantity).toLocaleString()}</span>
+                  <span style={{ fontWeight: 'bold' }}>KSh {(it.price * it.quantity).toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -87,7 +87,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
             }}
           >
             <span>Total Paid:</span>
-            <span>₦{order.totalAmount.toLocaleString()}</span>
+            <span>KSh {order.totalAmount.toLocaleString()}</span>
           </div>
         </div>
 

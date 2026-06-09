@@ -5,8 +5,8 @@ import { Product, Order, ShopSettings } from './types';
 // Default Shop Settings
 const DEFAULT_SETTINGS: ShopSettings = {
   shopName: "GoldenCare Market",
-  phone: "+234 803 123 4567",
-  address: "12 Graceful Living Estate, Victoria Island, Lagos, Nigeria",
+  phone: "+254 700 123 456",
+  address: "12 Graceful Living Road, Kilimani, Nairobi, Kenya",
   paystackPublicKey: "pk_test_cf9803c5179abf7fa0716570a910f2b989142ccc", // Default to test public key
   demoMode: false, // Turn off Demo mode so live/test gateway runs directly!
   voiceAssistDefault: false, // Simplified UI
@@ -81,9 +81,9 @@ const SEED_PRODUCTS: Product[] = [
 const SEED_ORDERS: Order[] = [
   {
     id: "ord-8291",
-    customerName: "Margaret Adebayo",
-    customerPhone: "0805551234",
-    customerAddress: "Flat 4, Palms Court, Lekki, Lagos",
+    customerName: "Margaret Wambui",
+    customerPhone: "0712345678",
+    customerAddress: "Flat 4, Palms Court, Kilimani, Nairobi, Kenya",
     items: [
       {
         productId: "prod-cane",

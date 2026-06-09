@@ -180,7 +180,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Price:</span>
                       <span style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--accent-primary)' }}>
-                        ₦{activePrice.toLocaleString()}
+                        KSh {activePrice.toLocaleString()}
                       </span>
                     </div>
 

@@ -235,7 +235,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                         <div style={{ fontWeight: 'bold' }}>{item.product.name}</div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{variantDesc} x {item.quantity}</div>
                       </div>
-                      <span style={{ fontWeight: 'bold' }}>₦{(price * item.quantity).toLocaleString()}</span>
+                      <span style={{ fontWeight: 'bold' }}>KSh {(price * item.quantity).toLocaleString()}</span>
                     </div>
                   );
                 })}
@@ -245,12 +245,12 @@ export const Checkout: React.FC<CheckoutProps> = ({
               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Items Subtotal:</span>
-                  <span>₦{itemsSubtotal.toLocaleString()}</span>
+                  <span>KSh {itemsSubtotal.toLocaleString()}</span>
                 </div>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Delivery Fee:</span>
-                  <span>{deliveryFee === 0 ? "FREE" : `₦${deliveryFee.toLocaleString()}`}</span>
+                  <span>{deliveryFee === 0 ? "FREE" : `KSh ${deliveryFee.toLocaleString()}`}</span>
                 </div>
 
                 <div 
@@ -266,7 +266,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                   }}
                 >
                   <span>Grand Total:</span>
-                  <span>₦{grandTotal.toLocaleString()}</span>
+                  <span>KSh {grandTotal.toLocaleString()}</span>
                 </div>
               </div>
             </div>

@@ -15,8 +15,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const formattedPrice = product.basePrice.toLocaleString();
   const hasVariants = product.variants && product.variants.length > 0;
   const priceDisplay = hasVariants 
-    ? `From ₦${formattedPrice}` 
-    : `₦${formattedPrice}`;
+    ? `From KSh ${formattedPrice}` 
+    : `KSh ${formattedPrice}`;
 
   return (
     <article className="card prod-card">
