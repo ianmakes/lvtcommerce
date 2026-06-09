@@ -4,6 +4,7 @@ import { ArrowLeft, User, Phone, MapPin, CreditCard } from 'lucide-react';
 import { CartItem, ShopSettings, Order, OrderItem } from '../types';
 import { PaystackPayment } from './PaystackPayment';
 import { BuyerAuth } from './BuyerAuth';
+import { getBuyerProfile } from '../db';
 
 interface CheckoutProps {
   settings: ShopSettings;
@@ -26,13 +27,29 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [address, setAddress] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Prefill buyer name when logged in
+  // Prefill buyer details from profile when logged in
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.displayName && !name) {
-        setName(currentUser.displayName);
+    const fetchBuyerDetails = async () => {
+      if (currentUser) {
+        if (currentUser.displayName && !name) {
+          setName(currentUser.displayName);
+        }
+        try {
+          const userProfile = await getBuyerProfile(currentUser.uid);
+          if (userProfile) {
+            if (userProfile.phone && !phone) {
+              setPhone(userProfile.phone);
+            }
+            if (userProfile.address && !address) {
+              setAddress(userProfile.address);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching buyer profile:", err);
+        }
       }
-    }
+    };
+    fetchBuyerDetails();
   }, [currentUser]);
 
   if (!currentUser) {
@@ -110,6 +127,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       paymentReference: reference,
       orderStatus: 'Paid',
       createdAt: new Date().toISOString(),
+      buyerEmail: currentUser?.email || undefined,
     };
 
     onSubmitOrder(newOrder);

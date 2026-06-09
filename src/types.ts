@@ -48,6 +48,18 @@ export interface Order {
   paymentReference: string;
   orderStatus: 'Pending' | 'Paid' | 'Dispatched' | 'Delivered' | 'Cancelled';
   createdAt: string;
+  buyerEmail?: string;
+}
+
+export interface BuyerProfile {
+  uid: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  notifyEmail: boolean;
+  notifySms: boolean;
+  notifyPromos: boolean;
 }
 
 export interface ShopSettings {

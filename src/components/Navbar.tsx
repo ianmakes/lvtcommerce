@@ -1,13 +1,13 @@
 import React from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ShoppingCart, ShoppingBag, ShieldCheck, LogOut } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, ShieldCheck, LogOut, User } from 'lucide-react';
 import { ShopSettings, CartItem } from '../types';
 
 interface NavbarProps {
   settings: ShopSettings;
   cart: CartItem[];
-  currentView: 'store' | 'admin' | 'checkout' | 'success' | 'product-details';
-  onNavigate: (view: 'store' | 'admin' | 'checkout' | 'success' | 'product-details') => void;
+  currentView: 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account';
+  onNavigate: (view: 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account') => void;
   onOpenCart: () => void;
   currentUser: FirebaseUser | null;
   isAdminAuthenticated: boolean;
@@ -50,6 +50,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             Browse Store
           </button>
           
+          {/* Buyer Account Button */}
+          {currentUser && !isAdminAuthenticated && (
+            <button
+              className={`btn btn-secondary btn-small ${currentView === 'account' ? 'btn-primary' : ''}`}
+              onClick={() => onNavigate('account')}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800 }}
+            >
+              <User size={20} />
+              <span>My Account</span>
+            </button>
+          )}
+
           <button
             className={`btn btn-secondary btn-small ${currentView === 'admin' ? 'btn-primary' : ''}`}
             onClick={() => onNavigate('admin')}

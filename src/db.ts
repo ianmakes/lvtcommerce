@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings } from './types';
+import { Product, Order, ShopSettings, BuyerProfile } from './types';
 
 // Default Shop Settings
 const DEFAULT_SETTINGS: ShopSettings = {
@@ -211,4 +211,19 @@ export async function updateOrderStatus(orderId: string, status: Order['orderSta
     orderStatus: status,
     paymentStatus: paymentStatus
   });
+}
+
+// Buyer Profile GET/SET
+export async function getBuyerProfile(uid: string): Promise<BuyerProfile | null> {
+  const profileRef = doc(db, "users", uid);
+  const profileSnap = await getDoc(profileRef);
+  if (profileSnap.exists()) {
+    return profileSnap.data() as BuyerProfile;
+  }
+  return null;
+}
+
+export async function saveBuyerProfile(profile: BuyerProfile): Promise<void> {
+  const profileRef = doc(db, "users", profile.uid);
+  await setDoc(profileRef, profile);
 }

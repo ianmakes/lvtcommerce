@@ -9,6 +9,7 @@ import { Checkout } from './components/Checkout';
 import { SuccessView } from './components/SuccessView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
+import { BuyerAccount } from './components/BuyerAccount';
 
 import { Product, CartItem, Order, ShopSettings } from './types';
 import { initDb, getProducts, getSettings, addOrder } from './db';
@@ -19,7 +20,7 @@ const SUPER_ADMIN_UID = "avIScAH5NQMWN2zf6Z3YwEEQw302";
 
 function App() {
   // Page routing and layout
-  const [view, setView] = useState<'store' | 'product-details' | 'checkout' | 'success' | 'admin'>('store');
+  const [view, setView] = useState<'store' | 'product-details' | 'checkout' | 'success' | 'admin' | 'account'>('store');
   const [settings, setSettings] = useState<ShopSettings>({
     shopName: "GoldenCare Market",
     phone: "",
@@ -249,6 +250,14 @@ function App() {
               onLoginSuccess={() => setView('admin')}
             />
           )
+        )}
+
+        {/* VIEW F: Buyer Account settings */}
+        {view === 'account' && currentUser && (
+          <BuyerAccount
+            currentUser={currentUser}
+            onReturnToStore={() => setView('store')}
+          />
         )}
 
       </main>
