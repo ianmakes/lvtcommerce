@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Landmark, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
 import { ShopSettings } from '../types';
-import { speakText } from './VoiceHelper';
 
 interface PaystackPaymentProps {
   settings: ShopSettings;
@@ -36,17 +35,6 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   // Clean form values
   const totalKobo = amount * 100;
   const refCode = `GC-REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
-
-  // Speak directions
-  useEffect(() => {
-    if (settings.voiceAssistDefault) {
-      if (isDemo) {
-        speakText("Please choose to pay with Card or Bank Transfer. In Demo Mode, you can use the test card values displayed on the screen.", settings.voiceRate);
-      } else {
-        speakText("Initializing Paystack secure checkout. A payment portal will open shortly.", settings.voiceRate);
-      }
-    }
-  }, [isDemo]);
 
   // Load Real Paystack Inline SDK if not in Demo mode
   useEffect(() => {
@@ -132,15 +120,9 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     }
     
     setDemoState('processing');
-    if (settings.voiceAssistDefault) {
-      speakText("Processing card transaction. Please wait.", settings.voiceRate);
-    }
 
     setTimeout(() => {
       setDemoState('otp');
-      if (settings.voiceAssistDefault) {
-        speakText("An OTP has been sent to your phone. In Demo Mode, you can enter one two three four.", settings.voiceRate);
-      }
     }, 2000);
   };
 
@@ -148,38 +130,23 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     e.preventDefault();
     if (otpValue === '1234') {
       setDemoState('verifying');
-      if (settings.voiceAssistDefault) {
-        speakText("Verifying transaction. Please hold on.", settings.voiceRate);
-      }
       
       setTimeout(() => {
         setDemoState('success');
-        if (settings.voiceAssistDefault) {
-          speakText("Payment successful! Thank you for your purchase.", settings.voiceRate);
-        }
         setTimeout(() => {
           onSuccess(refCode);
         }, 1500);
       }, 2000);
     } else {
       setOtpError("Incorrect OTP. Please enter '1234' for this demo checkout.");
-      if (settings.voiceAssistDefault) {
-        speakText("Incorrect code. Please type one two three four.", settings.voiceRate);
-      }
     }
   };
 
   const handleDemoTransferConfirm = () => {
     setDemoState('processing');
-    if (settings.voiceAssistDefault) {
-      speakText("Confirming bank transfer. This may take up to a minute.", settings.voiceRate);
-    }
 
     setTimeout(() => {
       setDemoState('success');
-      if (settings.voiceAssistDefault) {
-        speakText("Transfer confirmed! Your payment was successful.", settings.voiceRate);
-      }
       setTimeout(() => {
         onSuccess(refCode);
       }, 1500);

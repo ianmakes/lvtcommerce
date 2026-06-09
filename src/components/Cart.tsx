@@ -1,7 +1,6 @@
 import React from 'react';
 import { X, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
 import { CartItem, ShopSettings } from '../types';
-import { speakText } from './VoiceHelper';
 
 interface CartProps {
   settings: ShopSettings;
@@ -34,36 +33,23 @@ export const Cart: React.FC<CartProps> = ({
     const target = current + change;
     if (target < 1) return;
     if (target > maxStock) {
-      if (settings.voiceAssistDefault) {
-        speakText(`Sorry, we only have ${maxStock} items in stock.`, settings.voiceRate);
-      }
+      alert(`Sorry, we only have ${maxStock} items in stock.`);
       return;
     }
     onUpdateQuantity(id, target);
-    if (settings.voiceAssistDefault) {
-      speakText(`Updated quantity of ${name} to ${target}.`, settings.voiceRate);
-    }
   };
 
   const handleRemove = (id: string, name: string) => {
     onRemoveItem(id);
-    if (settings.voiceAssistDefault) {
-      speakText(`Removed ${name} from cart.`, settings.voiceRate);
-    }
   };
 
   const handleCheckoutClick = () => {
     if (cart.length === 0) {
-      if (settings.voiceAssistDefault) {
-        speakText("Your cart is empty. Please add items to checkout.", settings.voiceRate);
-      }
+      alert("Your cart is empty. Please add items to checkout.");
       return;
     }
     onCheckout();
     onClose();
-    if (settings.voiceAssistDefault) {
-      speakText("Proceeding to checkout. Please fill in your delivery details.", settings.voiceRate);
-    }
   };
 
   return (

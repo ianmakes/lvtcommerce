@@ -1,29 +1,32 @@
 import { useState, useEffect } from 'react';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { auth } from './firebase';
 import { Navbar } from './components/Navbar';
-import { AccessibilitySettings } from './components/AccessibilitySettings';
-import { VoiceHelper, speakText } from './components/VoiceHelper';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
 import { Cart } from './components/Cart';
 import { Checkout } from './components/Checkout';
 import { SuccessView } from './components/SuccessView';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AdminLogin } from './components/AdminLogin';
 
 import { Product, CartItem, Order, ShopSettings } from './types';
 import { initDb, getProducts, getSettings } from './db';
 
 import './App.css';
 
+const SUPER_ADMIN_UID = "avIScAH5NQMWN2zf6Z3YwEEQw302";
+
 function App() {
   // Page routing and layout
-  const [view, setView] = useState<'store' | 'admin' | 'checkout' | 'success'>('store');
+  const [view, setView] = useState<'store' | 'product-details' | 'checkout' | 'success' | 'admin'>('store');
   const [settings, setSettings] = useState<ShopSettings>({
     shopName: "GoldenCare Market",
     phone: "",
     address: "",
     paystackPublicKey: "",
     demoMode: true,
-    voiceAssistDefault: true,
+    voiceAssistDefault: false,
     voiceRate: 0.95
   });
 
@@ -35,47 +38,46 @@ function App() {
   
   // Modals & Panels UI
   const [cartOpen, setCartOpen] = useState(false);
-  const [zoom, setZoom] = useState<'normal' | 'large' | 'xlarge'>('normal');
-  const [theme, setTheme] = useState<'light' | 'high-contrast'>('light');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Initialize DB and load states
   useEffect(() => {
-    initDb();
-    setProducts(getProducts());
-    setSettings(getSettings());
+    const loadInitialData = async () => {
+      try {
+        await initDb();
+        const [loadedProducts, loadedSettings] = await Promise.all([
+          getProducts(),
+          getSettings()
+        ]);
+        setProducts(loadedProducts);
+        setSettings(loadedSettings);
+      } catch (err) {
+        console.error("Error loading initial data:", err);
+      }
+    };
+    loadInitialData();
 
-    // Restore Accessibility Settings
-    const savedZoom = localStorage.getItem('gc_zoom') as 'normal' | 'large' | 'xlarge';
-    if (savedZoom) {
-      setZoom(savedZoom);
-      document.documentElement.setAttribute('data-zoom', savedZoom);
-    }
-    const savedTheme = localStorage.getItem('gc_theme') as 'light' | 'high-contrast';
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    }
+    // Firebase Auth State Listener
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
-
-  // Sync zoom and theme changes to HTML element
-  const handleZoomChange = (nextZoom: 'normal' | 'large' | 'xlarge') => {
-    setZoom(nextZoom);
-    localStorage.setItem('gc_zoom', nextZoom);
-    document.documentElement.setAttribute('data-zoom', nextZoom);
-  };
-
-  const handleThemeChange = (nextTheme: 'light' | 'high-contrast') => {
-    setTheme(nextTheme);
-    localStorage.setItem('gc_theme', nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
-  };
 
   const handleSettingsChange = (newSettings: ShopSettings) => {
     setSettings(newSettings);
   };
 
-  const handleRefreshProducts = () => {
-    setProducts(getProducts());
+  const handleRefreshProducts = async () => {
+    try {
+      const loadedProducts = await getProducts();
+      setProducts(loadedProducts);
+    } catch (err) {
+      console.error("Error refreshing products:", err);
+    }
   };
 
   // Cart operations
@@ -106,41 +108,32 @@ function App() {
     setView('success');
   };
 
-  // Construct context speech helpers for screens
-  let pageSummaryText = "";
-  if (view === 'store') {
-    pageSummaryText = `Welcome to the homepage of ${settings.shopName}. We specialize in high-quality items designed to support healthy living and easy mobility. We offer ${products.length} products on display, including walking canes, orthopedic slippers, and daily medication boxes. Feel free to browse. You can click on the Details button of any product to see options like sizes and colors, or click the cart button in the navigation bar to proceed with checking out your selected items.`;
-  } else if (view === 'admin') {
-    pageSummaryText = "You are in the shop administration dashboard. This private space allows operators to manage active sales summaries, view invoice details of incoming orders, modify product variants and stock levels, and toggle simulated or live Paystack payment keys.";
-  } else if (view === 'checkout') {
-    pageSummaryText = "You are at checkout. Step one requires your delivery name, contact phone number, and physical address. Step two will display your total summary and prompt you to complete payment securely using Paystack.";
-  } else if (view === 'success' && activeOrder) {
-    pageSummaryText = `Thank you for shopping with us! Your payment has cleared. Your order identification reference is ${activeOrder.id}. We are packaging your items for delivery. You can click Print Receipt to save a physical copy, or click Return to Shop to continue browsing.`;
-  }
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setView('store');
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
+
+  const isAdminAuthenticated = currentUser !== null && currentUser.uid === SUPER_ADMIN_UID;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       
-      {/* 1. Global senior accessibility top banner */}
-      <AccessibilitySettings
-        settings={settings}
-        onChangeSettings={handleSettingsChange}
-        currentZoom={zoom}
-        onChangeZoom={handleZoomChange}
-        currentTheme={theme}
-        onChangeTheme={handleThemeChange}
-      />
-
-      {/* 2. Brand navigation bar */}
+      {/* Brand navigation bar */}
       <Navbar
         settings={settings}
         cart={cart}
         currentView={view}
         onNavigate={setView}
         onOpenCart={() => setCartOpen(true)}
+        isAdminAuthenticated={isAdminAuthenticated}
+        onSignOut={handleSignOut}
       />
 
-      {/* 3. Main Views router */}
+      {/* Main Views router */}
       <main style={{ flexGrow: 1, paddingBottom: '60px' }}>
         
         {/* VIEW A: Storefront */}
@@ -157,9 +150,6 @@ function App() {
                   <button 
                     className="btn btn-primary" 
                     onClick={() => {
-                      if (settings.voiceAssistDefault) {
-                        speakText("Scrolling to products list.", settings.voiceRate);
-                      }
                       const gridEl = document.getElementById('products-section');
                       if (gridEl) gridEl.scrollIntoView({ behavior: 'smooth' });
                     }}
@@ -189,7 +179,10 @@ function App() {
                       key={prod.id}
                       product={prod}
                       settings={settings}
-                      onSelectProduct={setSelectedProduct}
+                      onSelectProduct={(p) => {
+                        setSelectedProduct(p);
+                        setView('product-details');
+                      }}
                     />
                   ))}
                 </div>
@@ -198,7 +191,20 @@ function App() {
           </div>
         )}
 
-        {/* VIEW B: Checkout flow */}
+        {/* VIEW B: Product Details */}
+        {view === 'product-details' && selectedProduct && (
+          <ProductDetail
+            product={selectedProduct}
+            settings={settings}
+            onBack={() => {
+              setView('store');
+              setSelectedProduct(null);
+            }}
+            onAddToCart={handleAddToCart}
+          />
+        )}
+
+        {/* VIEW C: Checkout flow */}
         {view === 'checkout' && (
           <Checkout
             settings={settings}
@@ -208,7 +214,7 @@ function App() {
           />
         )}
 
-        {/* VIEW C: Order Successful */}
+        {/* VIEW D: Order Successful */}
         {view === 'success' && activeOrder && (
           <SuccessView
             order={activeOrder}
@@ -217,34 +223,29 @@ function App() {
           />
         )}
 
-        {/* VIEW D: Admin Management */}
+        {/* VIEW E: Admin Management */}
         {view === 'admin' && (
-          <AdminDashboard
-            settings={settings}
-            onChangeSettings={handleSettingsChange}
-            onRefreshProducts={handleRefreshProducts}
-          />
+          authLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+              <h3>Checking authorization...</h3>
+            </div>
+          ) : isAdminAuthenticated ? (
+            <AdminDashboard
+              settings={settings}
+              onChangeSettings={handleSettingsChange}
+              onRefreshProducts={handleRefreshProducts}
+            />
+          ) : (
+            <AdminLogin
+              superAdminUid={SUPER_ADMIN_UID}
+              onLoginSuccess={() => setView('admin')}
+            />
+          )
         )}
 
       </main>
 
-      {/* 4. Accessibility Text-To-Speech floating audio help bubble */}
-      <VoiceHelper 
-        settings={settings} 
-        pageSummaryText={pageSummaryText} 
-      />
-
-      {/* 5. Product Detailed Drawer modal */}
-      {selectedProduct && (
-        <ProductDetail
-          product={selectedProduct}
-          settings={settings}
-          onClose={() => setSelectedProduct(null)}
-          onAddToCart={handleAddToCart}
-        />
-      )}
-
-      {/* 6. Shopping Cart Overlay Drawer */}
+      {/* Shopping Cart Overlay Drawer */}
       <Cart
         settings={settings}
         isOpen={cartOpen}

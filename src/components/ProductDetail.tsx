@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, X, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { Product, ProductVariant, ShopSettings, CartItem } from '../types';
-import { speakText } from './VoiceHelper';
 
 interface ProductDetailProps {
   product: Product;
   settings: ShopSettings;
-  onClose: () => void;
+  onBack: () => void;
   onAddToCart: (item: CartItem) => void;
 }
 
 export const ProductDetail: React.FC<ProductDetailProps> = ({
   product,
   settings,
-  onClose,
+  onBack,
   onAddToCart,
 }) => {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [currentVariant, setCurrentVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   // 1. Initialize options with the first available option for each attribute
   useEffect(() => {
@@ -36,12 +36,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     }
     setQuantity(1);
     setErrorMsg('');
+    setSuccessMsg('');
   }, [product]);
 
   // 2. Find matching variant whenever selections change
   useEffect(() => {
     if (product.variants && product.variants.length > 0) {
-      // Find variant where all option keys match selectedOptions
       const matched = product.variants.find(v => {
         return Object.entries(v.options).every(([key, val]) => {
           return selectedOptions[key] === val;
@@ -53,64 +53,22 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     }
   }, [selectedOptions, product]);
 
-  // 3. Accessibility announcement when variant changes
-  const announceVariantSelection = (attrName: string, optionVal: string, price: number, stock: number) => {
-    if (!settings.voiceAssistDefault) return;
-    
-    let stockText = stock > 0 ? `In Stock, ${stock} items left` : "Out of stock";
-    speakText(`Selected ${attrName}: ${optionVal}. Price is now ${price.toLocaleString()} Naira. ${stockText}.`, settings.voiceRate);
-  };
-
   const handleSelectOption = (attrName: string, optionVal: string) => {
-    const nextOptions = { ...selectedOptions, [attrName]: optionVal };
-    setSelectedOptions(nextOptions);
-
-    // Speak it
-    if (product.variants && product.variants.length > 0) {
-      const matched = product.variants.find(v => {
-        return Object.entries(v.options).every(([key, val]) => {
-          return (key === attrName ? optionVal : selectedOptions[key]) === val;
-        });
-      });
-      if (matched) {
-        announceVariantSelection(attrName, optionVal, matched.price, matched.stock);
-      }
-    }
+    setSelectedOptions({ ...selectedOptions, [attrName]: optionVal });
+    setSuccessMsg('');
   };
 
-  const handleSpeakDetails = () => {
-    const hasVars = product.attributes && product.attributes.length > 0;
-    let text = `${product.name}. Description: ${product.description}. `;
-    if (hasVars) {
-      const currentPrice = currentVariant ? currentVariant.price : product.basePrice;
-      const currentStock = currentVariant ? currentVariant.stock : 0;
-      const optionsText = Object.entries(selectedOptions).map(([k, v]) => `${k} is ${v}`).join(', ');
-      text += `Current selections are: ${optionsText}. Price is ${currentPrice} Naira. Stock status is ${currentStock > 0 ? 'available' : 'unavailable'}.`;
-    } else {
-      text += `Price is ${product.basePrice} Naira. In stock.`;
-    }
-    speakText(text, settings.voiceRate);
-  };
-
-  // Adjust Quantity
   const handleQuantityAdjust = (amt: number) => {
     const newQty = quantity + amt;
     if (newQty < 1) return;
     
     const maxStock = currentVariant ? currentVariant.stock : 999;
     if (newQty > maxStock && product.variants && product.variants.length > 0) {
-      setErrorMsg(`Sorry, we only have ${maxStock} items of this variant in stock.`);
-      if (settings.voiceAssistDefault) {
-        speakText(`Sorry, we only have ${maxStock} items of this variation in stock.`, settings.voiceRate);
-      }
+      setErrorMsg(`Sorry, we only have ${maxStock} items of this variation in stock.`);
       return;
     }
     setErrorMsg('');
     setQuantity(newQty);
-    
-    if (settings.voiceAssistDefault) {
-      speakText(`Quantity set to ${newQty}.`, settings.voiceRate);
-    }
   };
 
   const handleAddToCartClick = () => {
@@ -138,165 +96,179 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     };
 
     onAddToCart(cartItem);
-    
-    if (settings.voiceAssistDefault) {
-      const itemPrice = currentVariant ? currentVariant.price : product.basePrice;
-      speakText(`Added ${quantity} of ${product.name} to your cart. Total added value is ${(itemPrice * quantity).toLocaleString()} Naira. You can click close to browse more, or open cart to checkout.`, settings.voiceRate);
-    }
-
-    onClose();
+    setSuccessMsg(`Added ${quantity} of ${product.name} to your cart successfully!`);
+    setErrorMsg('');
   };
 
-  // Pricing & Stock display
   const hasVariants = product.attributes && product.attributes.length > 0;
   const activePrice = currentVariant ? currentVariant.price : product.basePrice;
   const isOutOfStock = hasVariants ? (!currentVariant || currentVariant.stock <= 0) : false;
   const activeStock = currentVariant ? currentVariant.stock : null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
-        {/* Close Button */}
-        <button className="modal-close" onClick={onClose} aria-label="Close details">
-          <X size={24} />
-        </button>
+    <div className="container" style={{ padding: '40px 24px' }}>
+      {/* Back button */}
+      <button 
+        className="btn btn-secondary btn-small"
+        onClick={onBack}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '32px', minHeight: '44px' }}
+      >
+        <ArrowLeft size={18} />
+        <span>Back to Store</span>
+      </button>
 
-        <div className="prod-detail-grid">
-          {/* Left Column: Image */}
-          <div>
-            <div 
-              style={{ 
-                width: '100%', 
-                height: '350px', 
-                borderRadius: 'var(--radius-md)', 
-                overflow: 'hidden',
-                border: '2px solid var(--border-color)' 
-              }}
-            >
-              <img 
-                src={product.image || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
-                alt={product.name} 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </div>
-
-            <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span className="prod-badge" style={{ margin: 0 }}>{product.category}</span>
-              {settings.voiceAssistDefault && (
-                <button
-                  className="btn btn-secondary btn-small"
-                  onClick={handleSpeakDetails}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px' }}
-                >
-                  <Volume2 size={20} />
-                  <span>Read Details Aloud</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Title, Attributes, Quantity, Cart Add */}
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <h2 style={{ fontSize: 'calc(var(--font-scale) * 1.6)', marginBottom: '12px' }}>{product.name}</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 'calc(var(--font-scale) * 1.0)', marginBottom: '24px' }}>
-                {product.description}
-              </p>
-
-              {/* Attributes (Variable Options) selector */}
-              {hasVariants && product.attributes.map(attr => (
-                <div key={attr.name} className="variant-section">
-                  <span className="variant-label">{attr.name}:</span>
-                  <div className="variant-options">
-                    {attr.options.map(opt => {
-                      const isSelected = selectedOptions[attr.name] === opt;
-                      return (
-                        <button
-                          key={opt}
-                          className={`variant-pill ${isSelected ? 'selected' : ''}`}
-                          onClick={() => handleSelectOption(attr.name, opt)}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-
-              {/* Price & Stock Display */}
-              <div style={{ margin: '24px 0', borderTop: '2px solid var(--border-color)', paddingTop: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 'calc(var(--font-scale) * 1.1)', fontWeight: 'bold' }}>Price:</span>
-                  <span style={{ fontSize: 'calc(var(--font-scale) * 1.8)', fontWeight: '900', color: 'var(--accent-primary)' }}>
-                    ₦{activePrice.toLocaleString()}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                  <span style={{ fontSize: 'calc(var(--font-scale) * 1.1)', fontWeight: 'bold' }}>Availability:</span>
-                  {isOutOfStock ? (
-                    <span style={{ color: 'var(--warning-color)', fontWeight: 800 }}>Out of Stock</span>
-                  ) : (
-                    <span style={{ color: 'var(--success-color)', fontWeight: 800 }}>
-                      In Stock {activeStock !== null ? `(${activeStock} remaining)` : ''}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {errorMsg && (
+      {/* Main Grid Card */}
+      <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
+            {/* Split viewport for large displays */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px', padding: '32px' }}>
+              
+              {/* Image side */}
               <div 
                 style={{ 
-                  color: 'var(--warning-color)', 
-                  backgroundColor: 'var(--warning-light)', 
-                  padding: '12px', 
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--warning-color)',
-                  marginBottom: '16px',
-                  fontWeight: 'bold',
-                  fontSize: 'calc(var(--font-scale) * 0.95)'
+                  width: '100%', 
+                  height: '420px', 
+                  borderRadius: 'var(--radius-md)', 
+                  overflow: 'hidden',
+                  border: '2px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-secondary)'
                 }}
               >
-                {errorMsg}
+                <img 
+                  src={product.image || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
+                  alt={product.name} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
               </div>
-            )}
 
-            {/* Quantity Controls & Add Button */}
-            <div style={{ marginTop: 'auto' }}>
-              {!isOutOfStock && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: 'calc(var(--font-scale) * 1.1)' }}>Select Quantity:</span>
-                  <div className="quantity-controls">
-                    <button className="qty-btn" onClick={() => handleQuantityAdjust(-1)} aria-label="Decrease quantity">
-                      <Minus size={20} />
-                    </button>
-                    <span className="qty-num">{quantity}</span>
-                    <button className="qty-btn" onClick={() => handleQuantityAdjust(1)} aria-label="Increase quantity">
-                      <Plus size={20} />
-                    </button>
+              {/* Selections side */}
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <span className="prod-badge" style={{ marginBottom: '16px' }}>{product.category}</span>
+                  <h1 style={{ fontSize: '2.2rem', marginBottom: '16px' }}>{product.name}</h1>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: '1.7', marginBottom: '32px' }}>
+                    {product.description}
+                  </p>
+
+                  {/* Attributes Selectors */}
+                  {hasVariants && product.attributes.map(attr => (
+                    <div key={attr.name} className="variant-section" style={{ marginBottom: '24px' }}>
+                      <span className="variant-label" style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '8px', display: 'block' }}>
+                        {attr.name}:
+                      </span>
+                      <div className="variant-options">
+                        {attr.options.map(opt => {
+                          const isSelected = selectedOptions[attr.name] === opt;
+                          return (
+                            <button
+                              key={opt}
+                              className={`variant-pill ${isSelected ? 'selected' : ''}`}
+                              onClick={() => handleSelectOption(attr.name, opt)}
+                              style={{ padding: '10px 20px', minHeight: '44px' }}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Pricing and Stock Detail block */}
+                  <div style={{ borderTop: '2px solid var(--border-color)', borderBottom: '2px solid var(--border-color)', padding: '20px 0', margin: '24px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Price:</span>
+                      <span style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--accent-primary)' }}>
+                        ₦{activePrice.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Availability Status:</span>
+                      {isOutOfStock ? (
+                        <span style={{ color: 'var(--warning-color)', fontWeight: 800 }}>Out of Stock</span>
+                      ) : (
+                        <span style={{ color: 'var(--success-color)', fontWeight: 800 }}>
+                          In Stock {activeStock !== null ? `(${activeStock} units left)` : ''}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <button
-                className="btn btn-primary btn-full"
-                onClick={handleAddToCartClick}
-                disabled={isOutOfStock}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  gap: '12px',
-                  opacity: isOutOfStock ? 0.5 : 1,
-                  cursor: isOutOfStock ? 'not-allowed' : 'pointer'
-                }}
-              >
-                <ShoppingCart size={24} />
-                <span>{isOutOfStock ? 'Temporarily Out of Stock' : 'Add to Shopping Cart'}</span>
-              </button>
+                {/* Notifications */}
+                {errorMsg && (
+                  <div 
+                    style={{ 
+                      color: 'var(--warning-color)', 
+                      backgroundColor: 'var(--warning-light)', 
+                      padding: '16px', 
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--warning-color)',
+                      marginBottom: '20px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {errorMsg}
+                  </div>
+                )}
+
+                {successMsg && (
+                  <div 
+                    style={{ 
+                      color: 'var(--success-color)', 
+                      backgroundColor: 'var(--success-light)', 
+                      padding: '16px', 
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--success-color)',
+                      marginBottom: '20px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {successMsg}
+                  </div>
+                )}
+
+                {/* Cart Action & Quantity */}
+                <div>
+                  {!isOutOfStock && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Quantity:</span>
+                      <div className="quantity-controls">
+                        <button className="qty-btn" onClick={() => handleQuantityAdjust(-1)} aria-label="Decrease quantity">
+                          <Minus size={20} />
+                        </button>
+                        <span className="qty-num" style={{ fontSize: '1.2rem', minWidth: '32px' }}>{quantity}</span>
+                        <button className="qty-btn" onClick={() => handleQuantityAdjust(1)} aria-label="Increase quantity">
+                          <Plus size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    className="btn btn-primary btn-full"
+                    onClick={handleAddToCartClick}
+                    disabled={isOutOfStock}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      gap: '12px',
+                      opacity: isOutOfStock ? 0.5 : 1,
+                      cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                      fontSize: '1.15rem',
+                      minHeight: '60px'
+                    }}
+                  >
+                    <ShoppingCart size={24} />
+                    <span>{isOutOfStock ? 'Temporarily Out of Stock' : 'Add to Shopping Cart'}</span>
+                  </button>
+                </div>
+
+              </div>
+
             </div>
           </div>
         </div>

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Phone, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, User, Phone, MapPin, CreditCard } from 'lucide-react';
 import { CartItem, ShopSettings, Order, OrderItem } from '../types';
 import { PaystackPayment } from './PaystackPayment';
-import { speakText } from './VoiceHelper';
 
 interface CheckoutProps {
   settings: ShopSettings;
@@ -33,20 +32,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   // Delivery calculations: Free delivery if items > 30,000 NGN, else flat 1500 NGN
   const deliveryFee = itemsSubtotal >= 30000 ? 0 : 1500;
   const grandTotal = itemsSubtotal + deliveryFee;
-
-  useEffect(() => {
-    if (settings.voiceAssistDefault) {
-      announceStep();
-    }
-  }, [step]);
-
-  const announceStep = () => {
-    if (step === 1) {
-      speakText("Checkout Step 1: Please enter your name, phone number, and delivery address so we know where to send your products.", settings.voiceRate);
-    } else if (step === 2) {
-      speakText(`Checkout Step 2: Review your order details. Subtotal is ${itemsSubtotal.toLocaleString()} Naira. Delivery fee is ${deliveryFee === 0 ? 'Free' : `${deliveryFee} Naira`}. Grand total is ${grandTotal.toLocaleString()} Naira. Click Pay with Paystack to make payment.`, settings.voiceRate);
-    }
-  };
 
   const handleStep1Submit = (e: React.FormEvent) => {
     e.preventDefault();

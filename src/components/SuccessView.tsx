@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { CheckCircle, Printer, ShoppingBag } from 'lucide-react';
 import { Order, ShopSettings } from '../types';
-import { speakText } from './VoiceHelper';
 
 interface SuccessViewProps {
   order: Order;
@@ -14,15 +13,6 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   settings,
   onReturnToStore,
 }) => {
-  useEffect(() => {
-    if (settings.voiceAssistDefault) {
-      speakText(
-        `Thank you, ${order.customerName}! Your order has been successfully placed. Your Order Reference is ${order.id}. The total amount paid is ${order.totalAmount.toLocaleString()} Naira. We will process it immediately.`,
-        settings.voiceRate
-      );
-    }
-  }, [order]);
-
   const handlePrint = () => {
     window.print();
   };

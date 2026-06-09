@@ -1,17 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, Plus, Trash2, Edit2, 
-  Save, CheckCircle, Truck, PackageCheck, Ban, RefreshCw, X 
+  Save, CheckCircle, Truck, Ban, X, Upload, Loader2, Image as ImageIcon, PackageCheck
 } from 'lucide-react';
 import { Product, Order, ShopSettings, Attribute, ProductVariant } from '../types';
-import { getProducts, saveProducts, getOrders, saveOrders, getSettings, saveSettings } from '../db';
-import { speakText } from './VoiceHelper';
+import { getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings } from '../db';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
   onChangeSettings: (newSettings: ShopSettings) => void;
   onRefreshProducts: () => void;
 }
+
+// Cloudinary Preset Samples
+const CLOUDINARY_SAMPLES = [
+  { name: "Cane Sample", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png" },
+  { name: "Pill Box", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-5.jpg" },
+  { name: "Microfiber Wrap", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-3.jpg" },
+  { name: "Magnifying Zoom", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035259/samples/zoom.avif" },
+  { name: "Woman Field", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035257/samples/woman-on-a-football-field.jpg" },
+  { name: "Coffee Break", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035256/samples/coffee.jpg" },
+  { name: "Posture Chair", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035256/samples/chair.png" },
+  { name: "Portrait Model", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035255/samples/man-portrait.jpg" },
+  { name: "Walker Slippers", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035249/samples/shoe.jpg" },
+  { name: "Outdoor Seniors", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035248/samples/two-ladies.jpg" },
+  { name: "Herb Spices", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035244/samples/food/spices.jpg" },
+  { name: "Leather Bag", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035243/samples/ecommerce/leather-bag-gray.jpg" },
+  { name: "Wellness Bike", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035239/samples/bike.jpg" },
+  { name: "Nature Sheep", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035238/samples/sheep.jpg" },
+  { name: "Dessert Fruit", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035235/samples/food/dessert.jpg" },
+  { name: "Seniors Winter", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035240/samples/people/boy-snow-hoodie.jpg" },
+  { name: "Leisure Bicycle", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035242/samples/people/bicycle.jpg" },
+  { name: "Bright Balloons", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035250/samples/balloons.jpg" },
+  { name: "Warm Cushion", url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-4.jpg" }
+];
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   settings,
@@ -20,16 +42,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'settings'>('overview');
   
-  // Lists from DB
+  // Lists from Firestore DB
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Form Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  
-  // Order Detail Drawer
   const [activeOrderDetails, setActiveOrderDetails] = useState<Order | null>(null);
 
   // Product Form Fields
@@ -41,40 +62,90 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [prodAttrs, setProdAttrs] = useState<Attribute[]>([]);
   const [prodVariants, setProdVariants] = useState<ProductVariant[]>([]);
 
+  // Cloudinary Upload State
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   // Temp Attribute Editor
   const [newAttrName, setNewAttrName] = useState('');
   const [newAttrOptions, setNewAttrOptions] = useState('');
 
-  // Load Admin Data
-  const loadAdminData = () => {
-    setProducts(getProducts());
-    setOrders(getOrders());
-    setLocalSettings(getSettings());
+  // Load Admin Data from Firestore
+  const loadAdminData = async () => {
+    setIsLoading(true);
+    try {
+      const dbProds = await getProducts();
+      const dbOrders = await getOrders();
+      const dbSettings = await getSettings();
+      setProducts(dbProds);
+      setOrders(dbOrders);
+      setLocalSettings(dbSettings);
+    } catch (e) {
+      console.error("Error loading data from Firestore:", e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     loadAdminData();
-    if (settings.voiceAssistDefault) {
-      speakText("Admin Dashboard opened. Showing sales overview.", settings.voiceRate);
-    }
   }, []);
 
-  const handleTabChange = (tab: 'overview' | 'orders' | 'products' | 'settings') => {
-    setActiveTab(tab);
-    if (settings.voiceAssistDefault) {
-      let label = "Sales Overview";
-      if (tab === 'orders') label = "Manage Orders";
-      if (tab === 'products') label = "Manage Products";
-      if (tab === 'settings') label = "Shop Settings";
-      speakText(`Showing ${label} section.`, settings.voiceRate);
+  // Web Crypto SHA-1 Generation for Cloudinary Signed Upload
+  const generateSha1 = async (str: string): Promise<string> => {
+    const utf8 = new TextEncoder().encode(str);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-1', utf8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  // Direct Signed Upload to Cloudinary
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+
+    try {
+      const cloudinaryCloudName = "dhvnbtkgw";
+      const cloudinaryApiKey = "826498111838123";
+      const cloudinaryApiSecret = "tZkjGNGSkZFKBckwfCh9wkxniy0";
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+
+      // Cloudinary parameters sorting: alphabetical parameters joined with '&', followed by Secret Key (no &)
+      // Since we are only passing 'timestamp', the parameter string is just: timestamp=<val>
+      const signatureString = `timestamp=${timestamp}${cloudinaryApiSecret}`;
+      const signature = await generateSha1(signatureString);
+
+      // Construct Form Data payload
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", cloudinaryApiKey);
+      formData.append("timestamp", timestamp);
+      formData.append("signature", signature);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!res.ok) {
+        throw new Error(`Upload failed with status: ${res.status}`);
+      }
+
+      const json = await res.json();
+      setProdImg(json.secure_url);
+      alert("Image uploaded to Cloudinary successfully!");
+    } catch (err) {
+      console.error("Cloudinary upload error:", err);
+      alert("Failed to upload image to Cloudinary. Please try again or select a sample image.");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
   // Cartesian Product Helper for Variant Generation
   const generateCartesianVariants = (attrs: Attribute[]): ProductVariant[] => {
     if (attrs.length === 0) return [];
-
-    // Filter out attributes with no options
     const validAttrs = attrs.filter(a => a.options && a.options.length > 0);
     if (validAttrs.length === 0) return [];
 
@@ -119,8 +190,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdAttrs(nextAttrs);
     setNewAttrName('');
     setNewAttrOptions('');
-
-    // Re-generate variants matrix automatically
     setProdVariants(generateCartesianVariants(nextAttrs));
   };
 
@@ -139,41 +208,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdVariants(nextVars);
   };
 
-  // Save/Create Product
-  const handleSaveProduct = (e: React.FormEvent) => {
+  // Save/Create Product in Firestore
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName.trim() || !prodCat.trim() || prodPrice <= 0) {
       alert("Please fill in Name, Category, and Base Price.");
       return;
     }
 
+    setIsLoading(true);
+
     const newProduct: Product = {
       id: editingProduct ? editingProduct.id : `prod-${Date.now()}`,
       name: prodName.trim(),
       description: prodDesc.trim(),
       category: prodCat.trim(),
-      image: prodImg.trim() || "https://images.unsplash.com/photo-1579684389782-64d84b5e902a?w=500",
+      image: prodImg.trim() || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
       basePrice: Number(prodPrice),
       attributes: prodAttrs,
       variants: prodVariants
     };
 
-    const currentProds = getProducts();
-    let nextProds = [];
-
-    if (editingProduct) {
-      nextProds = currentProds.map(p => p.id === editingProduct.id ? newProduct : p);
-      if (settings.voiceAssistDefault) speakText(`Product ${prodName} updated successfully.`, settings.voiceRate);
-    } else {
-      nextProds = [newProduct, ...currentProds];
-      if (settings.voiceAssistDefault) speakText(`New product ${prodName} added successfully.`, settings.voiceRate);
+    try {
+      await saveProduct(newProduct);
+      setProductModalOpen(false);
+      setEditingProduct(null);
+      await loadAdminData();
+      onRefreshProducts();
+      alert("Product saved successfully to database!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save product.");
+    } finally {
+      setIsLoading(false);
     }
-
-    saveProducts(nextProds);
-    setProductModalOpen(false);
-    setEditingProduct(null);
-    loadAdminData();
-    onRefreshProducts();
   };
 
   const handleEditProductClick = (prod: Product) => {
@@ -188,13 +256,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProductModalOpen(true);
   };
 
-  const handleDeleteProductClick = (id: string, name: string) => {
+  const handleDeleteProductClick = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete ${name}?`)) {
-      const nextProds = products.filter(p => p.id !== id);
-      saveProducts(nextProds);
-      loadAdminData();
-      onRefreshProducts();
-      if (settings.voiceAssistDefault) speakText(`Deleted product ${name}.`, settings.voiceRate);
+      setIsLoading(true);
+      try {
+        await deleteProduct(id);
+        await loadAdminData();
+        onRefreshProducts();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to delete product.");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -210,43 +284,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProductModalOpen(true);
   };
 
-  // Update Order Status
-  const handleUpdateOrderStatus = (orderId: string, status: Order['orderStatus']) => {
-    const currentOrders = getOrders();
-    const nextOrders = currentOrders.map(o => {
-      if (o.id === orderId) {
-        return {
-          ...o,
+  // Update Order Status in Firestore
+  const handleUpdateOrderStatusClick = async (orderId: string, status: Order['orderStatus'], paymentStatus: Order['paymentStatus']) => {
+    setIsLoading(true);
+    try {
+      await updateOrderStatus(orderId, status, paymentStatus);
+      await loadAdminData();
+      
+      // Update drawer if open
+      if (activeOrderDetails && activeOrderDetails.id === orderId) {
+        setActiveOrderDetails({
+          ...activeOrderDetails,
           orderStatus: status,
-          paymentStatus: status === 'Cancelled' ? 'Pending' as const : o.paymentStatus // Cancel resets paid or keeps paid depending on logic.
-        };
+          paymentStatus: paymentStatus
+        });
       }
-      return o;
-    });
-    
-    saveOrders(nextOrders);
-    loadAdminData();
-    
-    // Update active drawer representation
-    const updatedOrder = nextOrders.find(o => o.id === orderId);
-    if (updatedOrder) {
-      setActiveOrderDetails(updatedOrder);
-    }
-
-    if (settings.voiceAssistDefault) {
-      speakText(`Order status updated to ${status}.`, settings.voiceRate);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update status.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Save Settings
-  const handleSaveSettingsSubmit = (e: React.FormEvent) => {
+  // Save Settings to Firestore
+  const handleSaveSettingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveSettings(localSettings);
-    onChangeSettings(localSettings);
-    if (settings.voiceAssistDefault) {
-      speakText("Shop Settings saved successfully.", settings.voiceRate);
+    setIsLoading(true);
+    try {
+      await saveSettings(localSettings);
+      onChangeSettings(localSettings);
+      alert("Settings saved to Firestore successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save settings.");
+    } finally {
+      setIsLoading(false);
     }
-    alert("Settings saved!");
   };
 
   // Metrics Calculations
@@ -259,6 +333,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="container">
+      {isLoading && (
+        <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 9999, backgroundColor: 'var(--accent-primary)', color: 'white', padding: '8px 16px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
+          <span>Syncing Database...</span>
+        </div>
+      )}
+
       <div className="admin-container">
         
         {/* Sidebar Nav */}
@@ -268,7 +349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </h3>
           <button 
             className={`admin-nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => handleTabChange('overview')}
+            onClick={() => setActiveTab('overview')}
           >
             <BarChart3 size={20} />
             <span>Sales Overview</span>
@@ -276,7 +357,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           
           <button 
             className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`}
-            onClick={() => handleTabChange('orders')}
+            onClick={() => setActiveTab('orders')}
           >
             <ShoppingBag size={20} />
             <span>Manage Orders ({orders.length})</span>
@@ -284,7 +365,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           
           <button 
             className={`admin-nav-item ${activeTab === 'products' ? 'active' : ''}`}
-            onClick={() => handleTabChange('products')}
+            onClick={() => setActiveTab('products')}
           >
             <PackageCheck size={20} />
             <span>Manage Products ({products.length})</span>
@@ -292,7 +373,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           
           <button 
             className={`admin-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => handleTabChange('settings')}
+            onClick={() => setActiveTab('settings')}
           >
             <Settings size={20} />
             <span>Shop Settings</span>
@@ -339,7 +420,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </thead>
                   <tbody>
                     {orders.slice(0, 5).map(o => (
-                      <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => { setActiveOrderDetails(o); if (settings.voiceAssistDefault) speakText(`Opening details for order ${o.id}`, settings.voiceRate); }}>
+                      <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => { setActiveOrderDetails(o); }}>
                         <td style={{ fontWeight: 'bold' }}>{o.id}</td>
                         <td>{o.customerName}</td>
                         <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>₦{o.totalAmount.toLocaleString()}</td>
@@ -385,13 +466,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px' }} onClick={() => handleUpdateOrderStatus(o.id, 'Dispatched')} title="Mark Dispatched">
+                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Dispatched', o.paymentStatus)} title="Mark Dispatched">
                               <Truck size={16} />
                             </button>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px', backgroundColor: 'var(--success-light)', color: 'var(--success-color)' }} onClick={() => handleUpdateOrderStatus(o.id, 'Delivered')} title="Mark Delivered">
+                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px', backgroundColor: 'var(--success-light)', color: 'var(--success-color)' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Delivered', 'Paid')} title="Mark Delivered">
                               <CheckCircle size={16} />
                             </button>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px', backgroundColor: 'var(--warning-light)', color: 'var(--warning-color)' }} onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')} title="Cancel Order">
+                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px', backgroundColor: 'var(--warning-light)', color: 'var(--warning-color)' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Cancelled', o.paymentStatus)} title="Cancel Order">
                               <Ban size={16} />
                             </button>
                           </div>
@@ -537,34 +618,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 )}
 
-                {/* Voice Assist Default */}
-                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0' }}>
-                  <input 
-                    id="set-voice"
-                    type="checkbox" 
-                    style={{ width: '24px', height: '24px', cursor: 'pointer' }}
-                    checked={localSettings.voiceAssistDefault}
-                    onChange={e => setLocalSettings({ ...localSettings, voiceAssistDefault: e.target.checked })}
-                  />
-                  <label htmlFor="set-voice" className="form-label" style={{ margin: 0, cursor: 'pointer' }}>
-                    Voice Assistance Enabled by Default
-                  </label>
-                </div>
-
-                {/* Voice Rate */}
-                <div className="form-group">
-                  <label className="form-label">Voice Reading Speed: {localSettings.voiceRate}x</label>
-                  <input 
-                    type="range" 
-                    min={0.6} 
-                    max={1.5} 
-                    step={0.05}
-                    value={localSettings.voiceRate}
-                    onChange={e => setLocalSettings({ ...localSettings, voiceRate: Number(e.target.value) })}
-                    style={{ width: '100%', height: '40px', cursor: 'pointer' }}
-                  />
-                </div>
-
                 <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
                   <Save size={20} />
                   <span>Save Configuration</span>
@@ -632,7 +685,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
                   className="btn btn-secondary btn-small"
-                  onClick={() => handleUpdateOrderStatus(activeOrderDetails.id, 'Dispatched')}
+                  onClick={() => handleUpdateOrderStatusClick(activeOrderDetails.id, 'Dispatched', activeOrderDetails.paymentStatus)}
                   disabled={activeOrderDetails.orderStatus === 'Delivered' || activeOrderDetails.orderStatus === 'Cancelled'}
                   style={{ minHeight: '40px' }}
                 >
@@ -640,7 +693,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
                 <button 
                   className="btn btn-primary btn-small"
-                  onClick={() => handleUpdateOrderStatus(activeOrderDetails.id, 'Delivered')}
+                  onClick={() => handleUpdateOrderStatusClick(activeOrderDetails.id, 'Delivered', 'Paid')}
                   disabled={activeOrderDetails.orderStatus === 'Delivered' || activeOrderDetails.orderStatus === 'Cancelled'}
                   style={{ minHeight: '40px' }}
                 >
@@ -683,7 +736,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="form-input" 
                   value={prodDesc}
                   onChange={e => setProdDesc(e.target.value)}
-                  placeholder="Summarize product health benefits..."
+                  placeholder="Product benefits..."
                   style={{ minHeight: '80px', fontFamily: 'inherit' }}
                 />
               </div>
@@ -715,9 +768,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Image URL */}
+              {/* Cloudinary Dynamic Upload */}
+              <div className="form-group" style={{ border: '2px dashed var(--border-color)', padding: '20px', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', marginBottom: '20px' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <Upload size={20} />
+                  <span>Upload Image to Cloudinary:</span>
+                </label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleImageUpload}
+                  disabled={uploadingImage}
+                  style={{ marginTop: '8px', cursor: 'pointer' }}
+                />
+                {uploadingImage && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                    <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
+                    <span>Uploading to Cloudinary...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Image URL Display */}
               <div className="form-group">
-                <label className="form-label">Image URL:</label>
+                <label className="form-label">Active Image URL:</label>
                 <input 
                   type="text" 
                   className="form-input" 
@@ -727,11 +801,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 />
               </div>
 
+              {/* Preset Cloudinary Samples Carousel */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ImageIcon size={18} />
+                  <span>Or Pick from Preconfigured Samples:</span>
+                </label>
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    gap: '12px', 
+                    overflowX: 'auto', 
+                    padding: '8px 0', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '8px', 
+                    backgroundColor: '#fff' 
+                  }}
+                >
+                  {CLOUDINARY_SAMPLES.map(sample => (
+                    <div 
+                      key={sample.name} 
+                      onClick={() => setProdImg(sample.url)}
+                      style={{ 
+                        flexShrink: 0, 
+                        width: '72px', 
+                        cursor: 'pointer', 
+                        textAlign: 'center',
+                        border: prodImg === sample.url ? '2px solid var(--accent-primary)' : '1px solid transparent',
+                        borderRadius: '6px',
+                        padding: '4px',
+                        backgroundColor: '#fafafa'
+                      }}
+                    >
+                      <img src={sample.url} alt={sample.name} style={{ width: '100%', height: '48px', objectFit: 'cover', borderRadius: '4px' }} />
+                      <div style={{ fontSize: '10px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', marginTop: '2px', color: '#666' }}>{sample.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Variables (Attributes) Section */}
               <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '24px', marginTop: '24px' }}>
                 <h3>Product Options (Variables)</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Add options if this product has variations like Size or Color. Leave blank for standard products.
+                  Add options if this product has variations.
                 </p>
 
                 {/* Display Current Attributes */}
@@ -762,7 +875,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     />
                   </div>
                   <div style={{ flex: 2 }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Options (Comma-separated, e.g. Small, Medium)</label>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Options (Comma-separated)</label>
                     <input 
                       type="text" 
                       className="form-input" 
@@ -782,10 +895,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {prodVariants.length > 0 && (
                 <div style={{ marginTop: '24px' }}>
                   <h3>Variation Prices & Stock</h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                    Edit the prices, stock levels, and SKUs for each combination.
-                  </p>
-
                   <div className="variant-matrix-card">
                     <div className="variant-matrix-row variant-matrix-header">
                       <span>Combination</span>
@@ -794,7 +903,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <span>SKU</span>
                     </div>
                     {prodVariants.map((v, idx) => {
-                      const label = Object.entries(v.options).map(([k, optVal]) => `${optVal}`).join(' / ');
+                      const label = Object.entries(v.options).map(([_, optVal]) => `${optVal}`).join(' / ');
                       return (
                         <div className="variant-matrix-row" key={v.id}>
                           <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{label}</span>

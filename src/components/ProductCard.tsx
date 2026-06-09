@@ -1,7 +1,5 @@
 import React from 'react';
-import { Volume2 } from 'lucide-react';
 import { Product, ShopSettings } from '../types';
-import { speakText } from './VoiceHelper';
 
 interface ProductCardProps {
   product: Product;
@@ -14,20 +12,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   settings,
   onSelectProduct,
 }) => {
-  // Format price
   const formattedPrice = product.basePrice.toLocaleString();
-
-  // Determine if it has variants and show starting price
   const hasVariants = product.variants && product.variants.length > 0;
   const priceDisplay = hasVariants 
     ? `From ₦${formattedPrice}` 
     : `₦${formattedPrice}`;
-
-  const handleSpeak = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const textToSpeak = `${product.name}. Category: ${product.category}. Price: ${hasVariants ? 'starts from' : ''} ${product.basePrice} Naira. Description: ${product.description}`;
-    speakText(textToSpeak, settings.voiceRate);
-  };
 
   return (
     <article className="card prod-card">
@@ -40,42 +29,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         />
       </div>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-        <span className="prod-badge">{product.category}</span>
-        
-        {/* Speaker helper button */}
-        {settings.voiceAssistDefault && (
-          <button
-            onClick={handleSpeak}
-            style={{
-              background: 'var(--accent-light)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '40px',
-              height: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--accent-primary)',
-            }}
-            title="Read product details aloud"
-            aria-label={`Read details of ${product.name} aloud`}
-          >
-            <Volume2 size={20} />
-          </button>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '12px' }}>
+        <span className="prod-badge" style={{ margin: 0 }}>{product.category}</span>
       </div>
 
-      <h3 className="prod-title">{product.name}</h3>
-      <p className="prod-desc">{product.description}</p>
+      <h3 className="prod-title" style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{product.name}</h3>
+      <p className="prod-desc" style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{product.description}</p>
       
-      <div className="prod-footer">
-        <span className="prod-price">{priceDisplay}</span>
+      <div className="prod-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: 'auto' }}>
+        <span className="prod-price" style={{ color: 'var(--accent-primary)', fontSize: '1.35rem', fontWeight: 'bold' }}>
+          {priceDisplay}
+        </span>
         <button 
-          className="btn btn-primary"
+          className="btn btn-primary btn-small"
           onClick={() => onSelectProduct(product)}
-          style={{ minWidth: '150px' }}
+          style={{ minWidth: '130px' }}
         >
           View Details
         </button>

@@ -40,42 +40,6 @@
   --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* High Contrast Theme Overrides */
-[data-theme="high-contrast"] {
-  --bg-primary: #000000;
-  --bg-secondary: #121212;
-  --bg-card: #1E1E1E;
-  --border-color: #FFFFFF;
-  
-  --text-primary: #FFFFFF;
-  --text-secondary: #E0E0E0;
-  --text-inverse: #000000;
-  
-  --accent-primary: #FFFF00; /* High Contrast Yellow */
-  --accent-hover: #FFD700;
-  --accent-light: #2C2C00;
-  
-  --warning-color: #FF3333;
-  --warning-light: #4A0000;
-  
-  --success-color: #00FF66;
-  --success-light: #003311;
-  
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  
-  --border-width: 2px;
-}
-
-/* Accessibility Sizing Options */
-[data-zoom="large"] {
-  --font-scale: 1.25rem;
-}
-[data-zoom="xlarge"] {
-  --font-scale: 1.5rem;
-}
-
 /* 2. Global Resets & Typography */
 * {
   box-sizing: border-box;
