@@ -11,7 +11,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
 
 import { Product, CartItem, Order, ShopSettings } from './types';
-import { initDb, getProducts, getSettings } from './db';
+import { initDb, getProducts, getSettings, addOrder } from './db';
 
 import './App.css';
 
@@ -102,10 +102,16 @@ function App() {
   };
 
   // Complete Checkout Flow
-  const handleSubmitOrder = (order: Order) => {
-    setActiveOrder(order);
-    setCart([]); // Reset Cart
-    setView('success');
+  const handleSubmitOrder = async (order: Order) => {
+    try {
+      await addOrder(order);
+      setActiveOrder(order);
+      setCart([]); // Reset Cart
+      setView('success');
+    } catch (err) {
+      console.error("Error saving order:", err);
+      alert("Failed to save order to the database. Please try again.");
+    }
   };
 
   const handleSignOut = async () => {
@@ -129,6 +135,7 @@ function App() {
         currentView={view}
         onNavigate={setView}
         onOpenCart={() => setCartOpen(true)}
+        currentUser={currentUser}
         isAdminAuthenticated={isAdminAuthenticated}
         onSignOut={handleSignOut}
       />
@@ -209,6 +216,7 @@ function App() {
           <Checkout
             settings={settings}
             cart={cart}
+            currentUser={currentUser}
             onCancel={() => setView('store')}
             onSubmitOrder={handleSubmitOrder}
           />

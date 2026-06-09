@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { User as FirebaseUser } from 'firebase/auth';
 import { ArrowLeft, User, Phone, MapPin, CreditCard } from 'lucide-react';
 import { CartItem, ShopSettings, Order, OrderItem } from '../types';
 import { PaystackPayment } from './PaystackPayment';
+import { BuyerAuth } from './BuyerAuth';
 
 interface CheckoutProps {
   settings: ShopSettings;
   cart: CartItem[];
+  currentUser: FirebaseUser | null;
   onCancel: () => void;
   onSubmitOrder: (order: Order) => void;
 }
@@ -13,6 +16,7 @@ interface CheckoutProps {
 export const Checkout: React.FC<CheckoutProps> = ({
   settings,
   cart,
+  currentUser,
   onCancel,
   onSubmitOrder,
 }) => {
@@ -21,6 +25,35 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Prefill buyer name when logged in
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.displayName && !name) {
+        setName(currentUser.displayName);
+      }
+    }
+  }, [currentUser]);
+
+  if (!currentUser) {
+    return (
+      <div className="container checkout-container">
+        <button 
+          className="btn btn-secondary btn-small"
+          onClick={onCancel}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '24px', minHeight: '44px' }}
+        >
+          <ArrowLeft size={18} />
+          <span>Go back to Shop</span>
+        </button>
+        <h1 className="text-center" style={{ marginBottom: '12px' }}>Checkout Registration</h1>
+        <p className="text-center" style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
+          Please sign in or create an account to proceed with your order.
+        </p>
+        <BuyerAuth onSuccess={() => {}} />
+      </div>
+    );
+  }
 
   // Settle calculations
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);

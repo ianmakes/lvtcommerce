@@ -1,4 +1,5 @@
 import React from 'react';
+import { User as FirebaseUser } from 'firebase/auth';
 import { ShoppingCart, ShoppingBag, ShieldCheck, LogOut } from 'lucide-react';
 import { ShopSettings, CartItem } from '../types';
 
@@ -8,6 +9,7 @@ interface NavbarProps {
   currentView: 'store' | 'admin' | 'checkout' | 'success' | 'product-details';
   onNavigate: (view: 'store' | 'admin' | 'checkout' | 'success' | 'product-details') => void;
   onOpenCart: () => void;
+  currentUser: FirebaseUser | null;
   isAdminAuthenticated: boolean;
   onSignOut: () => void;
 }
@@ -18,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onNavigate,
   onOpenCart,
+  currentUser,
   isAdminAuthenticated,
   onSignOut,
 }) => {
@@ -56,17 +59,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Shop Manager (Admin)</span>
           </button>
 
-          {/* Admin Sign Out Button */}
-          {isAdminAuthenticated && (
-            <button
-              className="btn btn-secondary btn-small"
-              onClick={onSignOut}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: 'var(--warning-color)', borderColor: 'var(--warning-color)' }}
-              title="Sign Out as Admin"
-            >
-              <LogOut size={18} />
-              <span>Sign Out</span>
-            </button>
+          {/* Sign Out Button for Buyer or Admin */}
+          {currentUser && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+                {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email)}
+              </span>
+              <button
+                className="btn btn-secondary btn-small"
+                onClick={onSignOut}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, color: 'var(--warning-color)', borderColor: 'var(--warning-color)', minHeight: '38px', padding: '6px 12px' }}
+                title={isAdminAuthenticated ? "Sign Out as Admin" : "Sign Out"}
+              >
+                <LogOut size={16} />
+                <span>Sign Out</span>
+              </button>
+            </div>
           )}
 
           {/* Cart Trigger */}
