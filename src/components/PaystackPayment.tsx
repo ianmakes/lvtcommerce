@@ -21,6 +21,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
 }) => {
   const isDemo = settings.demoMode || !settings.paystackPublicKey;
   const [payChannel, setPayChannel] = useState<'card' | 'mobile_money'>('mobile_money');
+  const [paymentInitiated, setPaymentInitiated] = useState(false);
   
   // Input states for Demo Mode
   const [cardNumber, setCardNumber] = useState('');
@@ -37,9 +38,10 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   const totalCents = amount * 100; // Paystack KES uses cents
   const refCode = `GC-REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
 
-  // Load Real Paystack Inline SDK if not in Demo mode
+  // Load Real Paystack Inline SDK if not in Demo mode and payment has been initiated
   useEffect(() => {
     if (isDemo) return;
+    if (!paymentInitiated) return;
 
     // Load Paystack script dynamically
     const scriptId = 'paystack-inline-js';
@@ -74,6 +76,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
             onSuccess(response.reference);
           },
           onClose: function () {
+            setPaymentInitiated(false);
             onCancel();
           }
         });
@@ -96,7 +99,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     return () => {
       // Keep script loaded
     };
-  }, [isDemo]);
+  }, [isDemo, paymentInitiated, settings, customerPhone, totalCents, refCode, customerName, onSuccess, onCancel]);
 
   // Handle Demo Mode card formatting
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,6 +168,47 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     }
   };
 
+  // If payment hasn't been initiated yet, render the premium "Proceed to Pay" trigger card
+  if (!paymentInitiated) {
+    return (
+      <div className="card animate-fade-in" style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+          <CreditCard size={24} style={{ color: 'var(--accent-primary)' }} />
+          <span>Payment Method</span>
+        </h3>
+        
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0 }}>
+          We use Paystack to secure your transaction. You can pay with your M-Pesa account or Credit/Debit card.
+        </p>
+
+        <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 'bold', textTransform: 'uppercase' }}>Amount to Pay</span>
+            <span style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--accent-primary)' }}>KSh {amount.toLocaleString()}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--success-color)', fontSize: '0.85rem', fontWeight: 'bold' }}>
+            <CheckCircle size={16} />
+            <span>Secure checkout</span>
+          </div>
+        </div>
+
+        <button 
+          className="btn btn-primary btn-full" 
+          onClick={() => setPaymentInitiated(true)}
+          style={{ fontSize: '1.1rem', gap: '8px', minHeight: '56px' }}
+        >
+          <CreditCard size={20} />
+          <span>Proceed to Pay KSh {amount.toLocaleString()}</span>
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#999999', fontSize: '11px', marginTop: '4px' }}>
+          <ShieldAlert size={14} />
+          <span>Secured by Paystack (M-Pesa & Cards)</span>
+        </div>
+      </div>
+    );
+  }
+
   // If live mode, render a loading state since Paystack Inline SDK will overlay its own beautiful UI
   if (!isDemo) {
     return (
@@ -172,7 +216,13 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         <Loader2 className="voice-wave" size={48} style={{ margin: '0 auto 20px', color: 'var(--accent-primary)', animation: 'spin 1.5s linear infinite' }} />
         <h3>Loading Paystack Secure Gateway</h3>
         <p style={{ color: 'var(--text-secondary)' }}>Connecting to Paystack (M-Pesa / Card)...</p>
-        <button className="btn btn-secondary mt-12" onClick={onCancel}>
+        <button 
+          className="btn btn-secondary mt-12" 
+          onClick={() => {
+            setPaymentInitiated(false);
+            onCancel();
+          }}
+        >
           Cancel Payment
         </button>
       </div>
@@ -304,7 +354,10 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
             <button 
               type="button" 
               style={{ background: 'none', border: 'none', color: '#666', fontSize: '14px', marginTop: '16px', textDecoration: 'underline', width: '100%', cursor: 'pointer' }}
-              onClick={onCancel}
+              onClick={() => {
+                setPaymentInitiated(false);
+                onCancel();
+              }}
             >
               Cancel Payment
             </button>

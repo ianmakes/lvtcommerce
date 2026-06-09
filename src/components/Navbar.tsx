@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Action Links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <button
-            className={`btn btn-secondary btn-small ${currentView === 'store' || currentView === 'product-details' ? 'btn-primary' : ''}`}
+            className={`btn btn-small ${currentView === 'store' || currentView === 'product-details' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => onNavigate('store')}
             style={{ fontWeight: 800 }}
           >
@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Buyer Account Button */}
           {currentUser && !isAdminAuthenticated && (
             <button
-              className={`btn btn-secondary btn-small ${currentView === 'account' ? 'btn-primary' : ''}`}
+              className={`btn btn-small ${currentView === 'account' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => onNavigate('account')}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800 }}
             >
@@ -63,7 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           <button
-            className={`btn btn-secondary btn-small ${currentView === 'admin' ? 'btn-primary' : ''}`}
+            className={`btn btn-small ${currentView === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => onNavigate('admin')}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800 }}
           >

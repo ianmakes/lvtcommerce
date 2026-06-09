@@ -323,16 +323,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </div>
 
             {/* Payment Portal integration */}
-            <div className="card">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <CreditCard size={24} style={{ color: 'var(--accent-primary)' }} />
-                <span>Choose Payment Method:</span>
-              </h3>
-              
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '24px' }}>
-                We use Paystack to secure your transaction. You can pay with your ATM card, bank transfer, or USSD code.
-              </p>
-
+            <div style={{ marginTop: '8px' }}>
               <PaystackPayment
                 settings={settings}
                 amount={grandTotal}
