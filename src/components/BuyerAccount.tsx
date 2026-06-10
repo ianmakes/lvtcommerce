@@ -292,23 +292,6 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
               key={tab.id}
               className={`admin-nav-item ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => { setActiveTab(tab.id); setSuccessMsg(''); setErrorMsg(''); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                width: '100%',
-                padding: '12px 16px',
-                fontSize: '13px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                textAlign: 'left',
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: activeTab === tab.id ? 'var(--color-ink)' : 'transparent',
-                color: activeTab === tab.id ? '#ffffff' : 'var(--text-stone)',
-                transition: 'all 0.15s ease',
-              }}
             >
               {tab.icon}
               <span>{tab.label}</span>
@@ -317,7 +300,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
         </aside>
 
         {/* Content Panel */}
-        <main className="card" style={{ border: '1px solid var(--color-hairline-soft)', padding: '32px', minHeight: '400px' }}>
+        <main className="account-content-card">
           
           {/* TAB: Overview */}
           {activeTab === 'overview' && (

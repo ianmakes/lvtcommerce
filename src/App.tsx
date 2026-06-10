@@ -685,11 +685,7 @@ function App() {
 
         {/* VIEW H: Buyer Authentication */}
         {path === '/auth' && (
-          <div className="container" style={{ maxWidth: '600px', padding: '60px 0' }}>
-            <h1 className="font-heading-xl text-center" style={{ marginBottom: '12px', textTransform: 'uppercase' }}>Access GoldenCare System</h1>
-            <p className="font-body-md text-center" style={{ color: 'var(--text-mute)', marginBottom: '32px' }}>
-              Sign in or register an account to manage shipping details, wishlist, and track orders.
-            </p>
+          <div className="container" style={{ padding: '40px 0' }}>
             <BuyerAuth onSuccess={() => navigate('/account')} />
           </div>
         )}

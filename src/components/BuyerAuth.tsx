@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
-import { Mail, Lock, User, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
 
 interface BuyerAuthProps {
   onSuccess: () => void;
@@ -25,14 +25,11 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         if (!fullName.trim()) {
           throw new Error("Please enter your full name.");
         }
-        // Register user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Update user profile with name
         await updateProfile(userCredential.user, {
           displayName: fullName.trim()
         });
       } else {
-        // Sign in user
         await signInWithEmailAndPassword(auth, email, password);
       }
       onSuccess();
@@ -55,155 +52,313 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
     }
   };
 
+  const benefits = [
+    { title: "Member-Only Drops", desc: "First access to premium recovery gear and drops." },
+    { title: "Live Tracking", desc: "Follow your order status from rider dispatch to your doorstep." },
+    { title: "Curated Wishlist", desc: "Save your favorite products and add to cart with one click." },
+    { title: "Express Checkouts", desc: "Securely save your shipping details for next-day dispatch." }
+  ];
+
   return (
-    <div style={{ maxWidth: '480px', margin: '24px auto', padding: '0 16px' }}>
-      <div className="card" style={{ padding: '32px 24px' }}>
-        
-        {/* Toggle tabs */}
-        <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: '28px' }}>
-          <button
-            type="button"
-            onClick={() => { setIsSignUp(false); setErrorMsg(''); }}
-            style={{
-              flex: 1,
-              padding: '12px',
-              background: 'none',
-              border: 'none',
-              borderBottom: !isSignUp ? '3px solid var(--accent-primary)' : '3px solid transparent',
-              fontWeight: 'bold',
-              color: !isSignUp ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontSize: '1.1rem'
-            }}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setIsSignUp(true); setErrorMsg(''); }}
-            style={{
-              flex: 1,
-              padding: '12px',
-              background: 'none',
-              border: 'none',
-              borderBottom: isSignUp ? '3px solid var(--accent-primary)' : '3px solid transparent',
-              fontWeight: 'bold',
-              color: isSignUp ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontSize: '1.1rem'
-            }}
-          >
-            Create Account
-          </button>
-        </div>
-
-        <h3 style={{ fontSize: '1.4rem', marginBottom: '8px', textAlign: 'center' }}>
-          {isSignUp ? "Join GoldenCare Market" : "Welcome Back"}
-        </h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', textAlign: 'center', marginBottom: '24px' }}>
-          {isSignUp 
-            ? "Create an account to save your checkout delivery details and track your orders." 
-            : "Sign in with your account to proceed to checkout."
-          }
-        </p>
-
-        {errorMsg && (
-          <div 
-            style={{ 
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'center',
-              color: 'var(--warning-color)', 
-              backgroundColor: 'var(--warning-light)', 
-              padding: '12px 16px', 
-              borderRadius: 'var(--radius-none)',
-              border: '1px solid var(--warning-color)',
-              marginBottom: '20px',
-              fontWeight: 'bold',
-              fontSize: '0.9rem'
-            }}
-          >
-            <AlertCircle size={20} style={{ flexShrink: 0 }} />
-            <span>{errorMsg}</span>
+    <div className="auth-wrapper">
+      
+      {/* Brand Column (Left) */}
+      <div className="auth-brand-column">
+        <div>
+          <span className="auth-brand-badge">GoldenCare Co.</span>
+          <h2 className="auth-brand-title">EVERYTHING YOU NEED TO RECOVER.</h2>
+          <p className="auth-brand-subtitle">
+            Join the GoldenCare membership to unlock a smarter recovery and mobility shopping experience.
+          </p>
+          
+          <div className="auth-benefits-list">
+            {benefits.map((b, idx) => (
+              <div key={idx} className="auth-benefit-item">
+                <CheckCircle2 size={18} className="auth-benefit-icon" />
+                <div>
+                  <h4 className="auth-benefit-title">{b.title}</h4>
+                  <p className="auth-benefit-desc">{b.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+        
+        <div className="auth-brand-footer">
+          GoldenCare Co. &copy; 2026. All rights reserved.
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* Full Name (Sign Up only) */}
-          {isSignUp && (
-            <div className="form-group">
-              <label className="form-label" htmlFor="buyer-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <User size={18} />
-                <span>Full Name:</span>
-              </label>
-              <input 
-                id="buyer-name"
-                type="text" 
-                className="form-input" 
-                placeholder="Samuel Wambui"
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                required
-                disabled={loading}
-              />
+      {/* Form Column (Right) */}
+      <div className="auth-form-column">
+        <div style={{ width: '100%', maxWidth: '380px' }}>
+          {/* Custom Minimalist Tab Header */}
+          <div className="auth-tabs">
+            <button
+              type="button"
+              onClick={() => { setIsSignUp(false); setErrorMsg(''); }}
+              className={`auth-tab-btn ${!isSignUp ? 'active' : ''}`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsSignUp(true); setErrorMsg(''); }}
+              className={`auth-tab-btn ${isSignUp ? 'active' : ''}`}
+            >
+              Join Us
+            </button>
+          </div>
+
+          <h3 className="auth-form-title">
+            {isSignUp ? "Create Account" : "Welcome Back"}
+          </h3>
+          <p className="auth-form-subtitle">
+            {isSignUp 
+              ? "Fill in your details to create an account and access your member benefits." 
+              : "Enter your registered email and password to log in."
+            }
+          </p>
+
+          {errorMsg && (
+            <div className="auth-error-alert">
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Email input */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="buyer-email" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Mail size={18} />
-              <span>Email Address:</span>
-            </label>
-            <input 
-              id="buyer-email"
-              type="email" 
-              className="form-input" 
-              placeholder="name@email.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          {/* Password input */}
-          <div className="form-group" style={{ marginBottom: '28px' }}>
-            <label className="form-label" htmlFor="buyer-password" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Lock size={18} />
-              <span>Password:</span>
-            </label>
-            <input 
-              id="buyer-password"
-              type="password" 
-              className="form-input" 
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className="btn btn-primary btn-full"
-            disabled={loading}
-            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', minHeight: '48px' }}
-          >
-            {loading ? (
-              <>
-                <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={20} />
-                <span>Please wait...</span>
-              </>
-            ) : (
-              <span>{isSignUp ? "Sign Up & Continue" : "Sign In & Continue"}</span>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Full Name (Join Us only) */}
+            {isSignUp && (
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="buyer-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                  <User size={16} />
+                  <span>Full Name</span>
+                </label>
+                <input 
+                  id="buyer-name"
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. Samuel Wambui"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  disabled={loading}
+                  style={{ borderRadius: 0 }}
+                />
+              </div>
             )}
-          </button>
-        </form>
+
+            {/* Email input */}
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" htmlFor="buyer-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                <Mail size={16} />
+                <span>Email Address</span>
+              </label>
+              <input 
+                id="buyer-email"
+                type="email" 
+                className="form-input" 
+                placeholder="name@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                style={{ borderRadius: 0 }}
+              />
+            </div>
+
+            {/* Password input */}
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" htmlFor="buyer-password" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                <Lock size={16} />
+                <span>Password</span>
+              </label>
+              <input 
+                id="buyer-password"
+                type="password" 
+                className="form-input" 
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                style={{ borderRadius: 0 }}
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+              disabled={loading}
+              style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
+            >
+              {loading ? (
+                <>
+                  <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+                  <span>Please wait...</span>
+                </>
+              ) : (
+                <>
+                  <span>{isSignUp ? "Join Membership" : "Sign In"}</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
 
       <style>{`
+        .auth-wrapper {
+          display: grid;
+          grid-template-columns: 1fr;
+          min-height: 580px;
+          border: 1px solid var(--color-hairline-soft);
+          background-color: var(--color-canvas);
+          margin: 40px auto;
+          max-width: 1000px;
+        }
+        @media (min-width: 768px) {
+          .auth-wrapper {
+            grid-template-columns: 1.1fr 0.9fr;
+          }
+        }
+        .auth-brand-column {
+          display: none;
+          background-color: var(--color-ink);
+          color: #ffffff;
+          padding: 48px;
+          flex-direction: column;
+          justify-content: space-between;
+          text-align: left;
+        }
+        @media (min-width: 768px) {
+          .auth-brand-column {
+            display: flex;
+          }
+        }
+        .auth-brand-badge {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+          opacity: 0.8;
+          display: block;
+          margin-bottom: 24px;
+        }
+        .auth-brand-title {
+          font-size: 28px;
+          font-weight: 800;
+          text-transform: uppercase;
+          line-height: 1.2;
+          margin: 0 0 16px 0;
+          letter-spacing: 0.5px;
+        }
+        .auth-brand-subtitle {
+          font-size: 14px;
+          line-height: 1.5;
+          opacity: 0.7;
+          margin: 0 0 40px 0;
+        }
+        .auth-benefits-list {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        .auth-benefit-item {
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+        }
+        .auth-benefit-icon {
+          color: var(--color-success);
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+        .auth-benefit-title {
+          margin: 0 0 4px 0;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .auth-benefit-desc {
+          margin: 0;
+          font-size: 12px;
+          opacity: 0.7;
+          line-height: 1.4;
+        }
+        .auth-brand-footer {
+          font-size: 11px;
+          opacity: 0.5;
+          margin-top: 40px;
+        }
+        .auth-form-column {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 48px 32px;
+        }
+        @media (max-width: 480px) {
+          .auth-form-column {
+            padding: 32px 16px;
+          }
+        }
+        .auth-tabs {
+          display: flex;
+          gap: 24px;
+          border-bottom: 1px solid var(--color-hairline-soft);
+          margin-bottom: 32px;
+        }
+        .auth-tab-btn {
+          background: none;
+          border: none;
+          padding: 8px 0 12px 0;
+          font-size: 13px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          cursor: pointer;
+          color: var(--text-stone);
+          position: relative;
+          transition: color 0.2s ease;
+        }
+        .auth-tab-btn.active {
+          color: var(--color-ink);
+        }
+        .auth-tab-btn.active::after {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background-color: var(--color-ink);
+        }
+        .auth-form-title {
+          font-size: 20px;
+          font-weight: 700;
+          text-transform: uppercase;
+          margin: 0 0 8px 0;
+          letter-spacing: 0.5px;
+        }
+        .auth-form-subtitle {
+          font-size: 13px;
+          color: var(--text-mute);
+          margin: 0 0 24px 0;
+          line-height: 1.5;
+        }
+        .auth-error-alert {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          color: var(--color-sale); 
+          background-color: #fff5f5; 
+          padding: 12px 16px; 
+          border: 1px solid #ffe3e3;
+          margin-bottom: 24px;
+          font-weight: 600;
+          font-size: 13px;
+        }
         @keyframes spin {
           100% { transform: rotate(360deg); }
         }
