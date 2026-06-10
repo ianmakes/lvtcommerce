@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  BarChart3, ShoppingBag, Settings, Plus, Trash2, Edit2, 
-  Save, CheckCircle, Truck, Ban, X, Upload, Loader2, Image as ImageIcon, PackageCheck,
-  Users, FileText, Layers, Tag
+  BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
+  Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity
 } from 'lucide-react';
 import { Product, Order, ShopSettings, Attribute, ProductVariant } from '../types';
 import { getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings } from '../db';
 import { useLocation, navigate } from '../Router';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
@@ -71,8 +72,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [prodCat, setProdCat] = useState('');
   const [prodPrice, setProdPrice] = useState(0);
   const [prodImg, setProdImg] = useState('');
+  const [prodGallery, setProdGallery] = useState<string[]>([]);
   const [prodAttrs, setProdAttrs] = useState<Attribute[]>([]);
   const [prodVariants, setProdVariants] = useState<ProductVariant[]>([]);
+  const [editorTab, setEditorTab] = useState<'general' | 'attributes' | 'variations'>('general');
 
   // Cloudinary Upload State
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -151,6 +154,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } catch (err) {
       console.error("Cloudinary upload error:", err);
       alert("Failed to upload image to Cloudinary. Please try again or select a sample image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Direct Signed Upload of Multiple Gallery Images to Cloudinary
+  const handleGalleryImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImage(true);
+
+    try {
+      const cloudinaryCloudName = "dhvnbtkgw";
+      const cloudinaryApiKey = "826498111838123";
+      const cloudinaryApiSecret = "tZkjGNGSkZFKBckwfCh9wkxniy0";
+
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const signatureString = `timestamp=${timestamp}${cloudinaryApiSecret}`;
+        const signature = await generateSha1(signatureString);
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("api_key", cloudinaryApiKey);
+        formData.append("timestamp", timestamp);
+        formData.append("signature", signature);
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`, {
+          method: "POST",
+          body: formData
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          uploadedUrls.push(json.secure_url);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setProdGallery(prev => [...prev, ...uploadedUrls]);
+        alert(`Successfully uploaded ${uploadedUrls.length} image(s) to product gallery!`);
+      } else {
+        alert("Failed to upload gallery images to Cloudinary.");
+      }
+    } catch (err) {
+      console.error("Cloudinary gallery upload error:", err);
+      alert("Failed to upload gallery images.");
     } finally {
       setUploadingImage(false);
     }
@@ -240,11 +294,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       basePrice: Number(prodPrice),
       attributes: prodAttrs,
       variants: prodVariants,
+      images: prodGallery,
       ...(editingProduct ? {
         rating: editingProduct.rating,
         reviewCount: editingProduct.reviewCount,
         specifications: editingProduct.specifications,
-        images: editingProduct.images,
         badge: editingProduct.badge
       } : {})
     };
@@ -271,6 +325,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdCat(prod.category);
     setProdPrice(prod.basePrice);
     setProdImg(prod.image);
+    setProdGallery(prod.images || []);
     setProdAttrs(prod.attributes || []);
     setProdVariants(prod.variants || []);
     setProductModalOpen(true);
@@ -299,6 +354,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdCat('');
     setProdPrice(10000);
     setProdImg('');
+    setProdGallery([]);
     setProdAttrs([]);
     setProdVariants([]);
     setProductModalOpen(true);
@@ -348,348 +404,492 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     .filter(o => o.paymentStatus === 'Paid' && o.orderStatus !== 'Cancelled')
     .reduce((acc, o) => acc + o.totalAmount, 0);
 
-  const pendingOrdersCount = orders.filter(o => o.orderStatus === 'Pending' || o.orderStatus === 'Paid').length;
   const activeProductsCount = products.length;
 
   return (
-    <div className="container">
+    <div className="wp-admin-body" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {isLoading && (
-        <div style={{ position: 'fixed', top: '12px', right: '12px', zIndex: 9999, backgroundColor: 'var(--accent-primary)', color: 'white', padding: '8px 16px', borderRadius: 'var(--radius-none)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ position: 'fixed', top: '40px', right: '20px', zIndex: 99999, backgroundColor: '#2271b1', color: 'white', padding: '8px 16px', borderRadius: '0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
           <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
           <span>Syncing Database...</span>
         </div>
       )}
 
-      <div className="admin-container">
+      {/* WordPress Admin Bar */}
+      <header className="wp-admin-bar">
+        <div className="wp-admin-bar-left">
+          <span style={{ fontWeight: 'bold', color: '#fff', marginRight: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ backgroundColor: '#2271b1', width: '20px', height: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', borderRadius: '3px', fontSize: '11px', fontWeight: 900 }}>G</span>
+            GoldenCare Admin
+          </span>
+          <a href="/" className="wp-admin-bar-link" target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={14} />
+            <span>Visit Storefront</span>
+          </a>
+        </div>
+        <div className="wp-admin-bar-right">
+          <span style={{ fontSize: '12px', color: '#c3c4c7' }}>Howdy, Manager</span>
+          <button 
+            type="button"
+            onClick={async () => {
+              try {
+                await signOut(auth);
+                navigate('/');
+              } catch (err) {
+                console.error("Sign out error:", err);
+              }
+            }}
+            className="wp-admin-bar-link"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }}
+          >
+            <LogOut size={14} />
+            <span>Log Out</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="wp-admin-wrapper">
         
         {/* Sidebar Nav */}
-        <aside className="admin-sidebar">
-          <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>
-            Manager Tabs
-          </h3>
+        <aside className="wp-admin-sidebar">
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'overview' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/home')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <BarChart3 size={20} />
-            <span>Sales Overview</span>
+            <Activity size={18} />
+            <span>Dashboard</span>
           </button>
           
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/orders')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <ShoppingBag size={20} />
-            <span>Manage Orders ({orders.length})</span>
+            <ShoppingBag size={18} />
+            <span>Orders ({orders.length})</span>
           </button>
           
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'products' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'products' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/products')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <PackageCheck size={20} />
-            <span>Manage Products ({products.length})</span>
+            <PackageCheck size={18} />
+            <span>Products ({products.length})</span>
           </button>
 
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'customers' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'customers' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/customers')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <Users size={20} />
+            <Users size={18} />
             <span>Customers</span>
           </button>
 
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'reports' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/reports')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <FileText size={20} />
+            <FileText size={18} />
             <span>Reports</span>
           </button>
 
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'categories' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'categories' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/categories')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <Layers size={20} />
+            <Layers size={18} />
             <span>Categories</span>
           </button>
 
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'tags' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'tags' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/tags')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <Tag size={20} />
+            <Tag size={18} />
             <span>Promo Tags</span>
           </button>
           
           <button 
             type="button"
-            className={`admin-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+            className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => navigate('/dashboard/settings')}
-            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
-            <Settings size={20} />
-            <span>Shop Settings</span>
+            <Settings size={18} />
+            <span>Settings</span>
           </button>
         </aside>
 
         {/* Content Panel */}
-        <main className="admin-content">
+        <main className="wp-admin-main-content">
           
           {/* TAB 1: Overview */}
           {activeTab === 'overview' && (
             <div>
-              <h2>Sales & Shop Overview</h2>
-              <p style={{ color: 'var(--text-secondary)' }}>Quick summary of your shop statistics.</p>
+              <h1 className="wp-admin-page-title">Dashboard</h1>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                
+                {/* At a Glance Widget */}
+                <div className="wp-postbox">
+                  <h2 className="wp-postbox-title">At a Glance</h2>
+                  <div className="wp-postbox-inside">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <PackageCheck size={16} style={{ color: '#646970' }} />
+                        <span><strong>{activeProductsCount}</strong> Products</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ShoppingBag size={16} style={{ color: '#646970' }} />
+                        <span><strong>{orders.length}</strong> Orders</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Users size={16} style={{ color: '#646970' }} />
+                        <span><strong>{Array.from(new Set(orders.map(o => o.buyerEmail))).length}</strong> Customers</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <BarChart3 size={16} style={{ color: '#646970' }} />
+                        <span><strong>KSh {totalRevenue.toLocaleString()}</strong> Revenue</span>
+                      </div>
+                    </div>
+                    <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '15px 0' }} />
+                    <p style={{ margin: 0, fontSize: '12px', color: '#646970' }}>GoldenCare Market is running on Stark Minimal theme.</p>
+                  </div>
+                </div>
 
-              {/* Metrics cards */}
-              <div className="metrics-grid">
-                <div className="metric-card">
-                  <div className="metric-label">Total Revenue</div>
-                  <div className="metric-value">KSh {totalRevenue.toLocaleString()}</div>
+                {/* Quick Draft Widget */}
+                <div className="wp-postbox">
+                  <h2 className="wp-postbox-title">Quick Draft</h2>
+                  <div className="wp-postbox-inside">
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.target as HTMLFormElement;
+                      const title = (form.elements.namedItem('draftTitle') as HTMLInputElement).value;
+                      const content = (form.elements.namedItem('draftContent') as HTMLTextAreaElement).value;
+                      localStorage.setItem('wp_quick_draft', JSON.stringify({ title, content, date: new Date().toLocaleDateString() }));
+                      alert("Draft saved locally!");
+                      form.reset();
+                    }}>
+                      <div style={{ marginBottom: '10px' }}>
+                        <input 
+                          type="text" 
+                          name="draftTitle" 
+                          placeholder="Title" 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
+                          required
+                        />
+                      </div>
+                      <div style={{ marginBottom: '10px' }}>
+                        <textarea 
+                          name="draftContent" 
+                          placeholder="What's on your mind?" 
+                          rows={3} 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }} 
+                          required
+                        />
+                      </div>
+                      <button type="submit" className="wp-button-primary">Save Draft</button>
+                    </form>
+                  </div>
                 </div>
-                <div className="metric-card">
-                  <div className="metric-label">Incoming Orders</div>
-                  <div className="metric-value">{pendingOrdersCount}</div>
-                </div>
-                <div className="metric-card">
-                  <div className="metric-label">Active Products</div>
-                  <div className="metric-value">{activeProductsCount}</div>
-                </div>
-              </div>
 
-              {/* Recent Orders List */}
-              <h3 style={{ marginTop: '32px' }}>Recent Customer Orders</h3>
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Customer Name</th>
-                      <th>Amount</th>
-                      <th>Order Status</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.slice(0, 5).map(o => (
-                      <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => { setActiveOrderDetails(o); }}>
-                        <td style={{ fontWeight: 'bold' }}>{o.id}</td>
-                        <td>{o.customerName}</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>KSh {o.totalAmount.toLocaleString()}</td>
-                        <td>
-                          <span className={`status-badge ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
-                        </td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{new Date(o.createdAt).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {/* Recent Activity Widget */}
+                <div className="wp-postbox">
+                  <h2 className="wp-postbox-title">Activity</h2>
+                  <div className="wp-postbox-inside">
+                    <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 600 }}>Recent Orders</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                      {orders.slice(0, 5).map(o => (
+                        <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f1f1', paddingBottom: '6px' }}>
+                          <div>
+                            <span style={{ color: '#646970', marginRight: '8px' }}>{new Date(o.createdAt).toLocaleDateString()}</span>
+                            <a 
+                              onClick={() => {
+                                navigate('/dashboard/orders');
+                                setActiveOrderDetails(o);
+                              }} 
+                              style={{ color: '#2271b1', cursor: 'pointer', fontWeight: 500 }}
+                            >
+                              Order #{o.id.substring(6, 12)}
+                            </a>
+                            <span style={{ color: '#2c3338', marginLeft: '6px' }}>by {o.customerName}</span>
+                          </div>
+                          <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* GoldenCare Insights Widget */}
+                <div className="wp-postbox">
+                  <h2 className="wp-postbox-title">GoldenCare Insights</h2>
+                  <div className="wp-postbox-inside" style={{ fontSize: '13px', lineHeight: 1.5 }}>
+                    <p style={{ marginTop: 0 }}>Welcome to your specialized wellness logistics system. We have successfully modularized the store settings:</p>
+                    <ul style={{ paddingLeft: '20px', margin: '10px 0' }}>
+                      <li>Ensure Cloudinary keys are active for seamless asset pipelines.</li>
+                      <li>Review the orders pipeline regularly to coordinate shipping dispatch.</li>
+                      <li>Adjust coupons in the Promo Tags tab to coordinate promotional drops.</li>
+                    </ul>
+                    <p style={{ margin: 0 }}><a href="/about" target="_blank" style={{ color: '#2271b1', textDecoration: 'none' }}>Learn more about GoldenCare Philosophy &rarr;</a></p>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
 
-          {/* TAB 2: Manage Orders */}
+          {/* TAB 2: Manage Customer Orders */}
           {activeTab === 'orders' && (
             <div>
-              <h2>Manage Customer Orders</h2>
-              <p style={{ color: 'var(--text-secondary)' }}>Update order fulfillment states and inspect details.</p>
+              <h1 className="wp-admin-page-title">Orders</h1>
+              
+              <ul className="wp-subsubsub">
+                <li><a href="#" className="current">All <span className="count">({orders.length})</span></a> |</li>
+                <li><a href="#">Pending <span className="count">({orders.filter(o => o.orderStatus === 'Pending').length})</span></a> |</li>
+                <li><a href="#">Delivered <span className="count">({orders.filter(o => o.orderStatus === 'Delivered').length})</span></a></li>
+              </ul>
 
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Buyer</th>
-                      <th>Phone</th>
-                      <th>Amount</th>
-                      <th>Fulfillment</th>
-                      <th>Fulfillment Status</th>
+              <table className="wp-list-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '120px' }}>Order</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Payment</th>
+                    <th>Billing Address</th>
+                    <th>Total</th>
+                    <th style={{ width: '150px' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map(o => (
+                    <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setActiveOrderDetails(o)}>
+                      <td>
+                        <a style={{ fontWeight: 600, color: '#2271b1', textDecoration: 'none' }}>
+                          #{o.id.substring(6, 12)}
+                        </a>
+                      </td>
+                      <td>{new Date(o.createdAt).toLocaleDateString()}</td>
+                      <td>
+                        <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
+                      </td>
+                      <td>
+                        <span className={`wp-badge-status ${o.paymentStatus.toLowerCase() === 'paid' ? 'paid' : 'unpaid'}`}>{o.paymentStatus}</span>
+                      </td>
+                      <td>
+                        <strong>{o.customerName}</strong><br />
+                        <span style={{ fontSize: '11px', color: '#646970' }}>{o.customerAddress}</span>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>KSh {o.totalAmount.toLocaleString()}</td>
+                      <td onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button className="wp-button-secondary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Dispatched', o.paymentStatus)} title="Mark Dispatched">
+                            <Truck size={14} />
+                          </button>
+                          <button className="wp-button-primary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px', background: 'var(--color-success)', borderColor: 'var(--color-success)' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Delivered', 'Paid')} title="Mark Delivered">
+                            <CheckCircle size={14} />
+                          </button>
+                          <button className="wp-button-secondary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px', color: '#b32d2e', borderColor: '#dcdcde' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Cancelled', o.paymentStatus)} title="Cancel Order">
+                            <Ban size={14} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map(o => (
-                      <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setActiveOrderDetails(o)}>
-                        <td style={{ fontWeight: 'bold' }}>{o.id}</td>
-                        <td>{o.customerName}</td>
-                        <td>{o.customerPhone}</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>KSh {o.totalAmount.toLocaleString()}</td>
-                        <td>
-                          <span className={`status-badge ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Dispatched', o.paymentStatus)} title="Mark Dispatched">
-                              <Truck size={16} />
-                            </button>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px', backgroundColor: 'var(--success-light)', color: 'var(--success-color)' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Delivered', 'Paid')} title="Mark Delivered">
-                              <CheckCircle size={16} />
-                            </button>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px', backgroundColor: 'var(--warning-light)', color: 'var(--warning-color)' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Cancelled', o.paymentStatus)} title="Cancel Order">
-                              <Ban size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
           {/* TAB 3: Manage Products */}
           {activeTab === 'products' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h2>Product Stock List</h2>
-                  <p style={{ color: 'var(--text-secondary)' }}>Manage your inventory, pricing, and variable options.</p>
-                </div>
-                <button className="btn btn-primary" onClick={handleOpenAddProduct} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Plus size={20} />
-                  <span>Add New Product</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <h1 className="wp-admin-page-title" style={{ margin: 0 }}>Products</h1>
+                <button className="wp-button-secondary" onClick={handleOpenAddProduct} style={{ padding: '2px 8px', fontSize: '12px', minHeight: 'auto', lineHeight: '1.5' }}>
+                  Add New
                 </button>
               </div>
 
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Image</th>
-                      <th>Product Name</th>
-                      <th>Category</th>
-                      <th>Base Price</th>
-                      <th>Has Options</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map(p => (
-                      <tr key={p.id}>
-                        <td>
-                          <img src={p.image} alt={p.name} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: 'var(--radius-none)' }} />
-                        </td>
-                        <td style={{ fontWeight: 'bold' }}>{p.name}</td>
-                        <td>{p.category}</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--accent-primary)' }}>KSh {p.basePrice.toLocaleString()}</td>
-                        <td>
-                          {p.attributes && p.attributes.length > 0 ? (
-                            <span className="badge" style={{ backgroundColor: 'var(--accent-light)', color: 'var(--accent-primary)' }}>
-                              Yes ({p.variants.length} Variants)
-                            </span>
-                          ) : (
-                            <span className="badge" style={{ backgroundColor: '#eee', color: '#666' }}>No</span>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px' }} onClick={() => handleEditProductClick(p)}>
-                              <Edit2 size={16} />
-                            </button>
-                            <button className="btn btn-secondary btn-small" style={{ minHeight: '36px', padding: '4px 8px', color: 'var(--warning-color)' }} onClick={() => handleDeleteProductClick(p.id, p.name)}>
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* Subsubsub links */}
+              <ul className="wp-subsubsub">
+                <li><a href="#" className="current">All <span className="count">({products.length})</span></a> |</li>
+                <li><a href="#">Published <span className="count">({products.length})</span></a> |</li>
+                <li><a href="#">Trash <span className="count">(0)</span></a></li>
+              </ul>
+
+              {/* Bulk action / filter row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <select style={{ padding: '3px 8px', fontSize: '13px', border: '1px solid #c3c4c7' }}>
+                    <option>Bulk actions</option>
+                    <option>Delete Permanently</option>
+                  </select>
+                  <button className="wp-button-secondary" style={{ padding: '2px 10px', minHeight: '28px', fontSize: '12px' }}>Apply</button>
+                </div>
+                
+                {/* Search */}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <input 
+                    type="search" 
+                    placeholder="Search Products..." 
+                    style={{ padding: '3px 8px', fontSize: '13px', border: '1px solid #c3c4c7' }} 
+                  />
+                  <button className="wp-button-secondary" style={{ padding: '2px 10px', minHeight: '28px', fontSize: '12px' }}>Search Products</button>
+                </div>
               </div>
+
+              {/* List Table */}
+              <table className="wp-list-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '40px', paddingLeft: '10px' }}><input type="checkbox" /></th>
+                    <th style={{ width: '64px' }}>Image</th>
+                    <th>Name</th>
+                    <th style={{ width: '120px' }}>Price</th>
+                    <th style={{ width: '150px' }}>Categories</th>
+                    <th style={{ width: '180px' }}>Attributes</th>
+                    <th style={{ width: '120px' }}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map(p => (
+                    <tr key={p.id}>
+                      <td style={{ paddingLeft: '10px' }}><input type="checkbox" /></td>
+                      <td>
+                        <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'cover', border: '1px solid #dcdcde' }} />
+                      </td>
+                      <td>
+                        <a onClick={() => handleEditProductClick(p)} style={{ fontWeight: 600, color: '#2271b1', cursor: 'pointer', fontSize: '14px', textDecoration: 'none' }}>
+                          {p.name}
+                        </a>
+                        <div className="row-actions">
+                          <span className="edit"><a onClick={() => handleEditProductClick(p)}>Edit</a> | </span>
+                          <span className="trash"><a onClick={() => handleDeleteProductClick(p.id, p.name)}>Trash</a> | </span>
+                          <span className="view"><a href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer">View</a></span>
+                        </div>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>KSh {p.basePrice.toLocaleString()}</td>
+                      <td>{p.category}</td>
+                      <td>
+                        {p.attributes && p.attributes.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {p.attributes.map(a => (
+                              <span key={a.name} style={{ background: '#f0f2f5', padding: '2px 6px', borderRadius: '3px', fontSize: '11px', border: '1px solid #dcdcde' }}>
+                                {a.name}: {a.options.length}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#a7aaad' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        <span style={{ display: 'block', fontSize: '12px' }}>Published</span>
+                        <span style={{ color: '#646970', fontSize: '11px' }}>{new Date().toLocaleDateString()}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
           {/* TAB 4: Shop Settings */}
           {activeTab === 'settings' && (
             <form onSubmit={handleSaveSettingsSubmit}>
-              <h2>Shop Configurations</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Modify contact lines, payment configs, and assistant speed.</p>
-
-              <div className="card">
-                {/* Shop Name */}
-                <div className="form-group">
-                  <label className="form-label">Shop Name:</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={localSettings.shopName}
-                    onChange={e => setLocalSettings({ ...localSettings, shopName: e.target.value })}
-                    required
-                  />
+              <h1 className="wp-admin-page-title">Settings</h1>
+              
+              <div className="wp-postbox">
+                <h2 className="wp-postbox-title">General Settings</h2>
+                <div className="wp-postbox-inside">
+                  <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                          <label>Shop Title</label>
+                        </th>
+                        <td style={{ padding: '10px 0' }}>
+                          <input 
+                            type="text" 
+                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                            value={localSettings.shopName}
+                            onChange={e => setLocalSettings({ ...localSettings, shopName: e.target.value })}
+                            required
+                          />
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                          <label>Contact Phone</label>
+                        </th>
+                        <td style={{ padding: '10px 0' }}>
+                          <input 
+                            type="text" 
+                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                            value={localSettings.phone}
+                            onChange={e => setLocalSettings({ ...localSettings, phone: e.target.value })}
+                            required
+                          />
+                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Used for notifications and customer order lines.</p>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                          <label>Shop Address</label>
+                        </th>
+                        <td style={{ padding: '10px 0' }}>
+                          <textarea 
+                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                            rows={3}
+                            value={localSettings.address}
+                            onChange={e => setLocalSettings({ ...localSettings, address: e.target.value })}
+                            required
+                          />
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                          <label>Payment Mode</label>
+                        </th>
+                        <td style={{ padding: '10px 0' }}>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={localSettings.demoMode}
+                              onChange={e => setLocalSettings({ ...localSettings, demoMode: e.target.checked })}
+                            />
+                            <span>Enable Payment Demo Mode (Simulates Paystack Checkout)</span>
+                          </label>
+                        </td>
+                      </tr>
+                      {!localSettings.demoMode && (
+                        <tr>
+                          <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                            <label>Paystack Public Key</label>
+                          </th>
+                          <td style={{ padding: '10px 0' }}>
+                            <input 
+                              type="text" 
+                              placeholder="pk_test_..."
+                              style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                              value={localSettings.paystackPublicKey}
+                              onChange={e => setLocalSettings({ ...localSettings, paystackPublicKey: e.target.value })}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                  <button type="submit" className="wp-button-primary">Save Changes</button>
                 </div>
-
-                {/* Shop Phone */}
-                <div className="form-group">
-                  <label className="form-label">Contact Phone (For orders):</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={localSettings.phone}
-                    onChange={e => setLocalSettings({ ...localSettings, phone: e.target.value })}
-                    required
-                  />
-                </div>
-
-                {/* Shop Address */}
-                <div className="form-group">
-                  <label className="form-label">Contact Address:</label>
-                  <textarea 
-                    className="form-input" 
-                    value={localSettings.address}
-                    onChange={e => setLocalSettings({ ...localSettings, address: e.target.value })}
-                    style={{ minHeight: '80px', fontFamily: 'inherit' }}
-                    required
-                  />
-                </div>
-
-                {/* Demo Mode Toggle */}
-                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0' }}>
-                  <input 
-                    id="set-demo"
-                    type="checkbox" 
-                    style={{ width: '24px', height: '24px', cursor: 'pointer' }}
-                    checked={localSettings.demoMode}
-                    onChange={e => setLocalSettings({ ...localSettings, demoMode: e.target.checked })}
-                  />
-                  <label htmlFor="set-demo" className="form-label" style={{ margin: 0, cursor: 'pointer' }}>
-                    Enable Payment Demo Mode (Simulates Paystack Checkout)
-                  </label>
-                </div>
-
-                {/* Paystack Public Key */}
-                {!localSettings.demoMode && (
-                  <div className="form-group">
-                    <label className="form-label">Paystack Public Key (pk_test_...):</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="pk_test_..."
-                      value={localSettings.paystackPublicKey}
-                      onChange={e => setLocalSettings({ ...localSettings, paystackPublicKey: e.target.value })}
-                    />
-                  </div>
-                )}
-
-                <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
-                  <Save size={20} />
-                  <span>Save Configuration</span>
-                </button>
               </div>
             </form>
           )}
@@ -697,71 +897,67 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* TAB 5: Customers */}
           {activeTab === 'customers' && (
             <div>
-              <h2>Customer Base</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Review buyers, contact lines, and cumulative spending.</p>
+              <h1 className="wp-admin-page-title">Customers</h1>
               
-              <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
-                <table className="cart-table">
-                  <thead>
-                    <tr>
-                      <th style={{ padding: '12px' }}>Name</th>
-                      <th style={{ padding: '12px' }}>Phone</th>
-                      <th style={{ padding: '12px' }}>Email</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Total Orders</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Cumulative Spent</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      // Aggregate customer records from orders
-                      const customerMap: Record<string, { name: string; phone: string; email: string; orderCount: number; spent: number }> = {};
-                      orders.forEach(o => {
-                        const key = o.customerPhone || o.buyerEmail || o.customerName;
-                        if (!customerMap[key]) {
-                          customerMap[key] = {
-                            name: o.customerName,
-                            phone: o.customerPhone,
-                            email: o.buyerEmail || 'Guest Shopper',
-                            orderCount: 0,
-                            spent: 0
-                          };
-                        }
-                        customerMap[key].orderCount += 1;
-                        customerMap[key].spent += o.totalAmount;
-                      });
-
-                      const customersList = Object.values(customerMap);
-                      if (customersList.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                              No customers found yet.
-                            </td>
-                          </tr>
-                        );
+              <table className="wp-list-table">
+                <thead>
+                  <tr>
+                    <th>Customer Name</th>
+                    <th>Phone</th>
+                    <th>Email Address</th>
+                    <th style={{ textAlign: 'right' }}>Total Orders</th>
+                    <th style={{ textAlign: 'right' }}>Cumulative Spent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // Aggregate customer records from orders
+                    const customerMap: Record<string, { name: string; phone: string; email: string; orderCount: number; spent: number }> = {};
+                    orders.forEach(o => {
+                      const key = o.customerPhone || o.buyerEmail || o.customerName;
+                      if (!customerMap[key]) {
+                        customerMap[key] = {
+                          name: o.customerName,
+                          phone: o.customerPhone,
+                          email: o.buyerEmail || 'Guest Shopper',
+                          orderCount: 0,
+                          spent: 0
+                        };
                       }
+                      customerMap[key].orderCount += 1;
+                      customerMap[key].spent += o.totalAmount;
+                    });
 
-                      return customersList.map((c, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
-                          <td style={{ padding: '12px', fontWeight: 600 }}>{c.name}</td>
-                          <td style={{ padding: '12px' }}>{c.phone}</td>
-                          <td style={{ padding: '12px' }}>{c.email}</td>
-                          <td style={{ padding: '12px', textAlign: 'right' }}>{c.orderCount}</td>
-                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>KSh {c.spent.toLocaleString()}</td>
+                    const customersList = Object.values(customerMap);
+                    if (customersList.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                            No customers found yet.
+                          </td>
                         </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+                      );
+                    }
+
+                    return customersList.map((c, i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600 }}>{c.name}</td>
+                        <td>{c.phone}</td>
+                        <td>{c.email}</td>
+                        <td style={{ textAlign: 'right' }}>{c.orderCount}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>KSh {c.spent.toLocaleString()}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
             </div>
           )}
 
           {/* TAB 6: Reports */}
           {activeTab === 'reports' && (
             <div>
-              <h2>Performance Reports</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Analyze sales graphs, volume, and inventory movement.</p>
+              <h1 className="wp-admin-page-title">Reports</h1>
 
               {(() => {
                 const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
@@ -781,48 +977,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 const topSellers = Object.values(prodSales).sort((a, b) => b.qty - a.qty).slice(0, 5);
 
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    
                     {/* Key metrics grid */}
-                    <div className="metrics-grid">
-                      <div className="metric-box">
-                        <span className="metric-title">GROSS REVENUE</span>
-                        <span className="metric-value">KSh {totalRevenue.toLocaleString()}</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                      <div className="wp-postbox">
+                        <h2 className="wp-postbox-title">Gross Revenue</h2>
+                        <div className="wp-postbox-inside" style={{ fontSize: '24px', fontWeight: 'bold', color: '#2271b1' }}>
+                          KSh {totalRevenue.toLocaleString()}
+                        </div>
                       </div>
-                      <div className="metric-box">
-                        <span className="metric-title">TOTAL ORDERS</span>
-                        <span className="metric-value">{orders.length}</span>
+                      <div className="wp-postbox">
+                        <h2 className="wp-postbox-title">Total Orders</h2>
+                        <div className="wp-postbox-inside" style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3338' }}>
+                          {orders.length}
+                        </div>
                       </div>
-                      <div className="metric-box">
-                        <span className="metric-title">AVERAGE ORDER VALUE</span>
-                        <span className="metric-value">KSh {averageOrder.toLocaleString()}</span>
+                      <div className="wp-postbox">
+                        <h2 className="wp-postbox-title">Average Order Value</h2>
+                        <div className="wp-postbox-inside" style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3338' }}>
+                          KSh {averageOrder.toLocaleString()}
+                        </div>
                       </div>
                     </div>
 
                     {/* Top selling products table */}
-                    <div className="card">
-                      <h3 style={{ textTransform: 'uppercase', marginBottom: '16px' }}>Top Selling Products</h3>
-                      <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
-                        <table className="cart-table">
+                    <div className="wp-postbox">
+                      <h2 className="wp-postbox-title">Top Selling Products</h2>
+                      <div className="wp-postbox-inside" style={{ padding: 0 }}>
+                        <table className="wp-list-table" style={{ border: 'none' }}>
                           <thead>
                             <tr>
-                              <th style={{ padding: '12px' }}>Product</th>
-                              <th style={{ padding: '12px', textAlign: 'right' }}>Units Sold</th>
-                              <th style={{ padding: '12px', textAlign: 'right' }}>Revenue Generated</th>
+                              <th>Product</th>
+                              <th style={{ textAlign: 'right' }}>Units Sold</th>
+                              <th style={{ textAlign: 'right' }}>Revenue Generated</th>
                             </tr>
                           </thead>
                           <tbody>
                             {topSellers.length === 0 ? (
                               <tr>
-                                <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
                                   No sales recorded yet.
                                 </td>
                               </tr>
                             ) : (
                               topSellers.map((ts, i) => (
-                                <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
-                                  <td style={{ padding: '12px', fontWeight: 600 }}>{ts.name}</td>
-                                  <td style={{ padding: '12px', textAlign: 'right' }}>{ts.qty}</td>
-                                  <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>KSh {ts.revenue.toLocaleString()}</td>
+                                <tr key={i}>
+                                  <td style={{ fontWeight: 600 }}>{ts.name}</td>
+                                  <td style={{ textAlign: 'right' }}>{ts.qty}</td>
+                                  <td style={{ textAlign: 'right', fontWeight: 600 }}>KSh {ts.revenue.toLocaleString()}</td>
                                 </tr>
                               ))
                             )}
@@ -839,421 +1042,557 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* TAB 7: Categories */}
           {activeTab === 'categories' && (
             <div>
-              <h2>Product Categories</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Overview of catalog segments and category counts.</p>
+              <h1 className="wp-admin-page-title">Categories</h1>
 
-              <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
-                <table className="cart-table">
-                  <thead>
-                    <tr>
-                      <th style={{ padding: '12px' }}>Category Name</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Product Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const catMap: Record<string, number> = {};
-                      products.forEach(p => {
-                        catMap[p.category] = (catMap[p.category] || 0) + 1;
-                      });
-                      const categoriesList = Object.entries(catMap);
+              <table className="wp-list-table">
+                <thead>
+                  <tr>
+                    <th>Category Name</th>
+                    <th style={{ textAlign: 'right' }}>Product Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const catMap: Record<string, number> = {};
+                    products.forEach(p => {
+                      catMap[p.category] = (catMap[p.category] || 0) + 1;
+                    });
+                    const categoriesList = Object.entries(catMap);
 
-                      if (categoriesList.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                              No categories found.
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return categoriesList.map(([cat, count], i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
-                          <td style={{ padding: '12px', fontWeight: 600 }}>{cat}</td>
-                          <td style={{ padding: '12px', textAlign: 'right' }}>{count}</td>
+                    if (categoriesList.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                            No categories found.
+                          </td>
                         </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+                      );
+                    }
+
+                    return categoriesList.map(([cat, count], i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600 }}>{cat}</td>
+                        <td style={{ textAlign: 'right' }}>{count}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
             </div>
           )}
 
           {/* TAB 8: Tags */}
           {activeTab === 'tags' && (
             <div>
-              <h2>Promo Tags</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Manage and review catalog promo badges and highlights.</p>
+              <h1 className="wp-admin-page-title">Promo Tags</h1>
 
-              <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
-                <table className="cart-table">
-                  <thead>
-                    <tr>
-                      <th style={{ padding: '12px' }}>Promo Badge / Tag</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Applied Products Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const tagMap: Record<string, number> = {};
-                      products.forEach(p => {
-                        if (p.badge) {
-                          tagMap[p.badge] = (tagMap[p.badge] || 0) + 1;
-                        }
-                      });
-                      const tagsList = Object.entries(tagMap);
-
-                      if (tagsList.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                              No product badges applied yet.
-                            </td>
-                          </tr>
-                        );
+              <table className="wp-list-table">
+                <thead>
+                  <tr>
+                    <th>Promo Badge / Tag</th>
+                    <th style={{ textAlign: 'right' }}>Applied Products Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const tagMap: Record<string, number> = {};
+                    products.forEach(p => {
+                      if (p.badge) {
+                        tagMap[p.badge] = (tagMap[p.badge] || 0) + 1;
                       }
+                    });
+                    const tagsList = Object.entries(tagMap);
 
-                      return tagsList.map(([tag, count], i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
-                          <td style={{ padding: '12px', fontWeight: 600 }}>{tag}</td>
-                          <td style={{ padding: '12px', textAlign: 'right' }}>{count}</td>
+                    if (tagsList.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                            No product badges applied yet.
+                          </td>
                         </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+                      );
+                    }
+
+                    return tagsList.map(([tag, count], i) => (
+                      <tr key={i}>
+                        <td style={{ fontWeight: 600 }}>{tag}</td>
+                        <td style={{ textAlign: 'right' }}>{count}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
             </div>
           )}
 
         </main>
       </div>
 
-      {/* DRAWER: Order Details */}
+      {/* DRAWER/MODAL: Order Details (WP Postbox Style) */}
       {activeOrderDetails && (
         <div className="modal-overlay" onClick={() => setActiveOrderDetails(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', padding: '32px' }}>
-            <button className="modal-close" onClick={() => setActiveOrderDetails(null)}>
-              <X size={24} />
-            </button>
-
-            <h2>Order Details ({activeOrderDetails.id})</h2>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px' }}>
-              Placed on {new Date(activeOrderDetails.createdAt).toLocaleString()}
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px', padding: 0, border: '1px solid #c3c4c7', borderRadius: '0' }}>
+            <div style={{ borderBottom: '1px solid #c3c4c7', padding: '12px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f6f7f7' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>Order Details — #{activeOrderDetails.id.substring(6, 12)}</h3>
+              <button className="modal-close" onClick={() => setActiveOrderDetails(null)} style={{ position: 'static', padding: 0 }}>
+                <X size={20} />
+              </button>
             </div>
 
-            {/* Buyer contact card */}
-            <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-              <h4 style={{ marginBottom: '8px' }}>Customer Contact:</h4>
-              <p style={{ margin: 0, fontWeight: 'bold' }}>{activeOrderDetails.customerName}</p>
-              <p style={{ margin: '4px 0' }}>Phone: {activeOrderDetails.customerPhone}</p>
-              <p style={{ margin: 0 }}>Address: {activeOrderDetails.customerAddress}</p>
-            </div>
+            <div style={{ padding: '20px' }}>
+              <div style={{ color: '#646970', fontSize: '12px', marginBottom: '20px' }}>
+                Placed on {new Date(activeOrderDetails.createdAt).toLocaleString()}
+              </div>
 
-            {/* Items table */}
-            <h4 style={{ marginBottom: '8px' }}>Items Ordered:</h4>
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-none)', overflow: 'hidden', marginBottom: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.95rem' }}>
-                <thead style={{ backgroundColor: 'var(--bg-secondary)' }}>
+              {/* Customer Info */}
+              <div className="wp-postbox" style={{ marginBottom: '20px' }}>
+                <h4 className="wp-postbox-title">Fulfillment Address</h4>
+                <div className="wp-postbox-inside" style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                  <p style={{ margin: '0 0 8px' }}><strong>{activeOrderDetails.customerName}</strong></p>
+                  <p style={{ margin: '0 0 8px' }}>Phone: {activeOrderDetails.customerPhone}</p>
+                  <p style={{ margin: 0 }}>Location: {activeOrderDetails.customerAddress}</p>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <h4 style={{ fontSize: '13px', margin: '0 0 10px' }}>Items Ordered:</h4>
+              <table className="wp-list-table" style={{ marginBottom: '20px' }}>
+                <thead>
                   <tr>
-                    <th style={{ padding: '10px' }}>Item</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Qty</th>
-                    <th style={{ padding: '10px', textAlign: 'right' }}>Price</th>
+                    <th>Item</th>
+                    <th style={{ textAlign: 'right', width: '60px' }}>Qty</th>
+                    <th style={{ textAlign: 'right', width: '100px' }}>Price</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeOrderDetails.items.map((it, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '10px' }}>
-                        <div>{it.name}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{it.variantDetails}</div>
+                    <tr key={idx}>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{it.name}</div>
+                        <div style={{ fontSize: '11px', color: '#646970' }}>{it.variantDetails}</div>
                       </td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>{it.quantity}</td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>KSh {it.price.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right' }}>{it.quantity}</td>
+                      <td style={{ textAlign: 'right' }}>KSh {it.price.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
 
-            {/* Status updates */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <span style={{ fontWeight: 'bold' }}>Fulfillment Status: </span>
-                <span className={`status-badge ${activeOrderDetails.orderStatus.toLowerCase()}`}>{activeOrderDetails.orderStatus}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  className="btn btn-secondary btn-small"
-                  onClick={() => handleUpdateOrderStatusClick(activeOrderDetails.id, 'Dispatched', activeOrderDetails.paymentStatus)}
-                  disabled={activeOrderDetails.orderStatus === 'Delivered' || activeOrderDetails.orderStatus === 'Cancelled'}
-                  style={{ minHeight: '40px' }}
-                >
-                  Mark Dispatched
-                </button>
-                <button 
-                  className="btn btn-primary btn-small"
-                  onClick={() => handleUpdateOrderStatusClick(activeOrderDetails.id, 'Delivered', 'Paid')}
-                  disabled={activeOrderDetails.orderStatus === 'Delivered' || activeOrderDetails.orderStatus === 'Cancelled'}
-                  style={{ minHeight: '40px' }}
-                >
-                  Mark Delivered
-                </button>
+              {/* Action Toolbar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #c3c4c7', paddingTop: '15px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600 }}>Order Status: </span>
+                  <span className={`wp-badge-status ${activeOrderDetails.orderStatus.toLowerCase()}`}>{activeOrderDetails.orderStatus}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    type="button"
+                    className="wp-button-secondary"
+                    onClick={() => handleUpdateOrderStatusClick(activeOrderDetails.id, 'Dispatched', activeOrderDetails.paymentStatus)}
+                    disabled={activeOrderDetails.orderStatus === 'Delivered' || activeOrderDetails.orderStatus === 'Cancelled'}
+                  >
+                    Mark Dispatched
+                  </button>
+                  <button 
+                    type="button"
+                    className="wp-button-primary"
+                    onClick={() => handleUpdateOrderStatusClick(activeOrderDetails.id, 'Delivered', 'Paid')}
+                    disabled={activeOrderDetails.orderStatus === 'Delivered' || activeOrderDetails.orderStatus === 'Cancelled'}
+                  >
+                    Mark Delivered
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: Add/Edit Product */}
+      {/* MODAL/GUTENBERG SCREEN: Add/Edit Product */}
       {productModalOpen && (
         <div className="modal-overlay" onClick={() => { setProductModalOpen(false); setEditingProduct(null); }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '750px', padding: '32px' }}>
-            <button className="modal-close" onClick={() => { setProductModalOpen(false); setEditingProduct(null); }}>
-              <X size={24} />
-            </button>
-
-            <h2>{editingProduct ? `Edit ${editingProduct.name}` : 'Add New Variable Product'}</h2>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '960px', width: '95%', padding: 0, border: '1px solid #c3c4c7', borderRadius: '0' }}>
             
-            <form onSubmit={handleSaveProduct} style={{ marginTop: '24px' }}>
-              {/* Name */}
-              <div className="form-group">
-                <label className="form-label">Product Name:</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={prodName}
-                  onChange={e => setProdName(e.target.value)}
-                  placeholder="e.g. Memory Foam Cushion"
-                  required
-                />
-              </div>
+            {/* Header */}
+            <div style={{ borderBottom: '1px solid #c3c4c7', padding: '12px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f6f7f7' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+                {editingProduct ? `Edit Product — ${editingProduct.name}` : 'Add New Product'}
+              </h3>
+              <button className="modal-close" onClick={() => { setProductModalOpen(false); setEditingProduct(null); }} style={{ position: 'static', padding: 0 }}>
+                <X size={20} />
+              </button>
+            </div>
 
-              {/* Description */}
-              <div className="form-group">
-                <label className="form-label">Description:</label>
-                <textarea 
-                  className="form-input" 
-                  value={prodDesc}
-                  onChange={e => setProdDesc(e.target.value)}
-                  placeholder="Product benefits..."
-                  style={{ minHeight: '80px', fontFamily: 'inherit' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                {/* Category */}
-                <div className="form-group">
-                  <label className="form-label">Category:</label>
+            <form onSubmit={handleSaveProduct} style={{ padding: '20px' }}>
+              <div className="wp-editor-layout">
+                
+                {/* Left Column: Editor Pane */}
+                <div>
+                  {/* Title field */}
                   <input 
                     type="text" 
-                    className="form-input" 
-                    value={prodCat}
-                    onChange={e => setProdCat(e.target.value)}
-                    placeholder="e.g. Mobility Aids"
+                    className="wp-editor-title-field"
+                    value={prodName}
+                    onChange={e => setProdName(e.target.value)}
+                    placeholder="Enter product title here"
                     required
                   />
-                </div>
-                
-                {/* Base Price */}
-                <div className="form-group">
-                  <label className="form-label">Base Price (KSh):</label>
-                  <input 
-                    type="number" 
-                    className="form-input" 
-                    value={prodPrice}
-                    onChange={e => setProdPrice(Number(e.target.value))}
-                    required
-                  />
-                </div>
-              </div>
 
-              {/* Cloudinary Dynamic Upload */}
-              <div className="form-group" style={{ border: '1px solid var(--color-hairline)', padding: '20px', borderRadius: 'var(--radius-none)', backgroundColor: 'var(--bg-secondary)', marginBottom: '20px' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <Upload size={20} />
-                  <span>Upload Image to Cloudinary:</span>
-                </label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleImageUpload}
-                  disabled={uploadingImage}
-                  style={{ marginTop: '8px', cursor: 'pointer' }}
-                />
-                {uploadingImage && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', color: 'var(--accent-primary)', fontWeight: 'bold' }}>
-                    <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
-                    <span>Uploading to Cloudinary...</span>
+                  {/* Description textarea */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Product Description</h2>
+                    <div className="wp-postbox-inside" style={{ padding: 0 }}>
+                      <textarea 
+                        value={prodDesc}
+                        onChange={e => setProdDesc(e.target.value)}
+                        placeholder="Describe the product specifications, materials, and features..."
+                        style={{ width: '100%', border: 'none', padding: '15px', minHeight: '140px', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: '13px', outline: 'none', resize: 'vertical' }}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* Image URL Display */}
-              <div className="form-group">
-                <label className="form-label">Active Image URL:</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={prodImg}
-                  onChange={e => setProdImg(e.target.value)}
-                  placeholder="https://..."
-                />
-              </div>
-
-              {/* Preset Cloudinary Samples Carousel */}
-              <div className="form-group">
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ImageIcon size={18} />
-                  <span>Or Pick from Preconfigured Samples:</span>
-                </label>
-                <div 
-                  style={{ 
-                    display: 'flex', 
-                    gap: '12px', 
-                    overflowX: 'auto', 
-                    padding: '8px 0', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: 'var(--radius-none)', 
-                    backgroundColor: '#fff' 
-                  }}
-                >
-                  {CLOUDINARY_SAMPLES.map(sample => (
-                    <div 
-                      key={sample.name} 
-                      onClick={() => setProdImg(sample.url)}
-                      style={{ 
-                        flexShrink: 0, 
-                        width: '72px', 
-                        cursor: 'pointer', 
-                        textAlign: 'center',
-                        border: prodImg === sample.url ? '2px solid var(--accent-primary)' : '1px solid transparent',
-                        borderRadius: 'var(--radius-none)',
-                        padding: '4px',
-                        backgroundColor: '#fafafa'
-                      }}
+                  {/* Product Data Metabox (WooCommerce Style Tabs) */}
+                  <div className="wp-metabox-tabs">
+                    <button 
+                      type="button" 
+                      className={`wp-metabox-tab ${editorTab === 'general' ? 'active' : ''}`}
+                      onClick={() => setEditorTab('general')}
                     >
-                      <img src={sample.url} alt={sample.name} style={{ width: '100%', height: '48px', objectFit: 'cover', borderRadius: 'var(--radius-none)' }} />
-                      <div style={{ fontSize: '10px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', marginTop: '2px', color: '#666' }}>{sample.name}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Variables (Attributes) Section */}
-              <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '24px', marginTop: '24px' }}>
-                <h3>Product Options (Variables)</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Add options if this product has variations.
-                </p>
-
-                {/* Display Current Attributes */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '16px 0' }}>
-                  {prodAttrs.map((attr, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '10px 16px', borderRadius: 'var(--radius-none)' }}>
-                      <div>
-                        <strong>{attr.name}</strong>: {attr.options.join(', ')}
-                      </div>
-                      <button type="button" style={{ background: 'none', border: 'none', color: 'var(--warning-color)', cursor: 'pointer' }} onClick={() => handleRemoveAttribute(idx)}>
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Attribute Inputs */}
-                <div className="attr-row">
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Option Name (e.g. Size)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      style={{ minHeight: '44px', padding: '8px 12px' }}
-                      value={newAttrName}
-                      onChange={e => setNewAttrName(e.target.value)}
-                      placeholder="Size"
-                    />
+                      General
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`wp-metabox-tab ${editorTab === 'attributes' ? 'active' : ''}`}
+                      onClick={() => setEditorTab('attributes')}
+                    >
+                      Attributes
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`wp-metabox-tab ${editorTab === 'variations' ? 'active' : ''}`}
+                      onClick={() => setEditorTab('variations')}
+                    >
+                      Variations ({prodVariants.length})
+                    </button>
                   </div>
-                  <div style={{ flex: 2 }}>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Options (Comma-separated)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      style={{ minHeight: '44px', padding: '8px 12px' }}
-                      value={newAttrOptions}
-                      onChange={e => setNewAttrOptions(e.target.value)}
-                      placeholder="Small, Medium, Large"
-                    />
-                  </div>
-                  <button type="button" className="btn btn-secondary btn-small" onClick={handleAddAttribute} style={{ minHeight: '44px' }}>
-                    Add Option
-                  </button>
-                </div>
-              </div>
 
-              {/* Variants Matrix Display */}
-              {prodVariants.length > 0 && (
-                <div style={{ marginTop: '24px' }}>
-                  <h3>Variation Prices & Stock</h3>
-                  <div className="variant-matrix-card">
-                    <div className="variant-matrix-row variant-matrix-header">
-                      <span>Combination</span>
-                      <span>Price (KSh)</span>
-                      <span>Stock</span>
-                      <span>SKU</span>
-                    </div>
-                    {prodVariants.map((v, idx) => {
-                      const label = Object.values(v.options).map(optVal => `${optVal}`).join(' / ');
-                      return (
-                        <div className="variant-matrix-row" key={v.id}>
-                          <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{label}</span>
+                  <div className="wp-metabox-tabs-content">
+                    {/* General Tab */}
+                    {editorTab === 'general' && (
+                      <div style={{ fontSize: '13px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '15px' }}>
+                          <label style={{ width: '160px', fontWeight: 600 }}>Regular Price (KSh):</label>
                           <input 
                             type="number" 
-                            className="form-input"
-                            style={{ minHeight: '36px', padding: '6px', fontSize: '0.9rem' }}
-                            value={v.price} 
-                            onChange={e => handleVariantFieldChange(idx, 'price', Number(e.target.value))}
-                            required
-                          />
-                          <input 
-                            type="number" 
-                            className="form-input"
-                            style={{ minHeight: '36px', padding: '6px', fontSize: '0.9rem' }}
-                            value={v.stock} 
-                            onChange={e => handleVariantFieldChange(idx, 'stock', Number(e.target.value))}
-                            required
-                          />
-                          <input 
-                            type="text" 
-                            className="form-input"
-                            style={{ minHeight: '36px', padding: '6px', fontSize: '0.9rem' }}
-                            value={v.sku} 
-                            onChange={e => handleVariantFieldChange(idx, 'sku', e.target.value)}
+                            style={{ width: '200px', padding: '5px 8px', border: '1px solid #c3c4c7' }}
+                            value={prodPrice}
+                            onChange={e => setProdPrice(Number(e.target.value))}
                             required
                           />
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
+
+                    {/* Attributes Tab */}
+                    {editorTab === 'attributes' && (
+                      <div style={{ fontSize: '13px' }}>
+                        <p style={{ margin: '0 0 15px', color: '#646970' }}>Add attributes (e.g. Size, Color) to generate product variations.</p>
+                        
+                        {/* List Attributes */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                          {prodAttrs.map((attr, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c3c4c7', padding: '8px 12px', background: '#f6f7f7' }}>
+                              <div>
+                                <strong>{attr.name}</strong>: {attr.options.join(' | ')}
+                              </div>
+                              <button 
+                                type="button" 
+                                className="wp-button-link-delete" 
+                                onClick={() => handleRemoveAttribute(idx)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add Attribute Row */}
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#fafafa', border: '1px solid #c3c4c7', padding: '12px' }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Name (e.g. Color)</label>
+                            <input 
+                              type="text" 
+                              style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                              value={newAttrName}
+                              onChange={e => setNewAttrName(e.target.value)}
+                              placeholder="Color"
+                            />
+                          </div>
+                          <div style={{ flex: 2 }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Options (Comma-separated)</label>
+                            <input 
+                              type="text" 
+                              style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                              value={newAttrOptions}
+                              onChange={e => setNewAttrOptions(e.target.value)}
+                              placeholder="Stealth Black, Matte Carbon, Cyber Silver"
+                            />
+                          </div>
+                          <button 
+                            type="button" 
+                            className="wp-button-secondary"
+                            onClick={handleAddAttribute}
+                          >
+                            Add Option
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Variations Tab */}
+                    {editorTab === 'variations' && (
+                      <div style={{ fontSize: '13px' }}>
+                        {prodVariants.length === 0 ? (
+                          <p style={{ margin: 0, color: '#a7aaad', textAlign: 'center', padding: '30px' }}>No variations generated. Add attributes first to configure options.</p>
+                        ) : (
+                          <div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.2fr', gap: '10px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '8px', marginBottom: '8px' }}>
+                              <span>Option Combination</span>
+                              <span>Price (KSh)</span>
+                              <span>Stock</span>
+                              <span>SKU</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
+                              {prodVariants.map((v, idx) => {
+                                const label = Object.values(v.options).join(' / ');
+                                return (
+                                  <div key={v.id} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.2fr', gap: '10px', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{label}</span>
+                                    <input 
+                                      type="number" 
+                                      style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                                      value={v.price} 
+                                      onChange={e => handleVariantFieldChange(idx, 'price', Number(e.target.value))}
+                                      required
+                                    />
+                                    <input 
+                                      type="number" 
+                                      style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                                      value={v.stock} 
+                                      onChange={e => handleVariantFieldChange(idx, 'stock', Number(e.target.value))}
+                                      required
+                                    />
+                                    <input 
+                                      type="text" 
+                                      style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                                      value={v.sku} 
+                                      onChange={e => handleVariantFieldChange(idx, 'sku', e.target.value)}
+                                      required
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
 
-              <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '20px', marginTop: '24px', display: 'flex', gap: '16px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  {editingProduct ? 'Save Changes' : 'Create Product'}
-                </button>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setProductModalOpen(false); setEditingProduct(null); }}>
-                  Cancel
-                </button>
+                {/* Right Column: Metabox Sidepane */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  {/* Publish Metabox */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Publish</h2>
+                    <div className="wp-postbox-inside" style={{ fontSize: '13px' }}>
+                      <div style={{ marginBottom: '10px' }}>
+                        <span>Status: <strong>Published</strong></span>
+                      </div>
+                      <div style={{ marginBottom: '15px' }}>
+                        <span>Visibility: <strong>Public</strong></span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0f1f1', paddingTop: '12px' }}>
+                        {editingProduct ? (
+                          <button 
+                            type="button" 
+                            className="wp-button-link-delete"
+                            onClick={() => {
+                              handleDeleteProductClick(editingProduct.id, editingProduct.name);
+                              setProductModalOpen(false);
+                            }}
+                          >
+                            Move to Trash
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                        <button type="submit" className="wp-button-primary">
+                          {editingProduct ? 'Update' : 'Publish'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Categories Metabox */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Product Categories</h2>
+                    <div className="wp-postbox-inside">
+                      <input 
+                        type="text" 
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
+                        value={prodCat}
+                        onChange={e => setProdCat(e.target.value)}
+                        placeholder="e.g. Mobility Aids"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Main Product Image Metabox */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Product Image</h2>
+                    <div className="wp-postbox-inside">
+                      {prodImg ? (
+                        <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1', border: '1px solid #c3c4c7', marginBottom: '10px', background: '#fafafa', overflow: 'hidden' }}>
+                          <img src={prodImg} alt="product main" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button 
+                            type="button" 
+                            style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer' }}
+                            onClick={() => setProdImg('')}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ border: '2px dashed #c3c4c7', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#a7aaad', marginBottom: '10px' }}>
+                          <ImageIcon size={28} />
+                          <span style={{ fontSize: '11px', marginTop: '4px' }}>No main image set</span>
+                        </div>
+                      )}
+
+                      {/* Main Image Upload */}
+                      <div style={{ marginBottom: '10px' }}>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          style={{ fontSize: '12px', cursor: 'pointer' }}
+                        />
+                      </div>
+                      
+                      {/* Paste main image URL */}
+                      <input 
+                        type="text" 
+                        placeholder="Or paste image URL"
+                        style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '12px', marginBottom: '12px' }}
+                        value={prodImg}
+                        onChange={e => setProdImg(e.target.value)}
+                      />
+
+                      {/* Samples slider */}
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#646970', marginBottom: '6px' }}>Select Preset Sample:</label>
+                      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                        {CLOUDINARY_SAMPLES.map(sample => (
+                          <button
+                            key={sample.name}
+                            type="button"
+                            onClick={() => setProdImg(sample.url)}
+                            style={{ flexShrink: 0, width: '48px', height: '48px', border: prodImg === sample.url ? '2px solid #2271b1' : '1px solid #c3c4c7', padding: 0, cursor: 'pointer', overflow: 'hidden' }}
+                          >
+                            <img src={sample.url} alt={sample.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Product Gallery Metabox (NEW) */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Product Gallery</h2>
+                    <div className="wp-postbox-inside">
+                      {prodGallery.length > 0 ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: '8px', marginBottom: '12px' }}>
+                          {prodGallery.map((imgUrl, index) => (
+                            <div key={index} style={{ position: 'relative', width: '56px', height: '56px', border: '1px solid #c3c4c7', overflow: 'hidden' }}>
+                              <img src={imgUrl} alt={`gallery-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <button 
+                                type="button" 
+                                onClick={() => setProdGallery(prev => prev.filter((_, i) => i !== index))}
+                                style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'rgba(179, 45, 46, 0.9)', color: '#fff', border: 'none', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 'bold' }}
+                                title="Remove image"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={{ margin: '0 0 12px', fontSize: '11px', color: '#a7aaad', fontStyle: 'italic' }}>No gallery images added yet.</p>
+                      )}
+
+                      {/* Cloudinary Gallery Upload */}
+                      <div style={{ marginBottom: '10px' }}>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#646970', marginBottom: '4px' }}>Upload Gallery Images:</label>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          multiple
+                          onChange={handleGalleryImagesUpload}
+                          disabled={uploadingImage}
+                          style={{ fontSize: '12px', cursor: 'pointer' }}
+                        />
+                      </div>
+
+                      {/* Paste URL */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#646970', marginBottom: '4px' }}>Add Image URL:</label>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <input 
+                            type="text" 
+                            id="newGalleryUrlInput"
+                            placeholder="https://..."
+                            style={{ flexGrow: 1, padding: '3px 6px', fontSize: '12px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val) {
+                                  setProdGallery(prev => [...prev, val]);
+                                  e.currentTarget.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <button 
+                            type="button" 
+                            className="wp-button-secondary"
+                            style={{ minHeight: '26px', padding: '0 8px', fontSize: '12px' }}
+                            onClick={() => {
+                              const input = document.getElementById('newGalleryUrlInput') as HTMLInputElement;
+                              if (input && input.value.trim()) {
+                                setProdGallery(prev => [...prev, input.value.trim()]);
+                                input.value = '';
+                              }
+                            }}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
-
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 };

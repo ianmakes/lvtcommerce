@@ -328,21 +328,25 @@ function App() {
   else if (path === '/terms' || path === '/terms-of-use' || path === '/terms-of-sale') derivedView = 'terms';
   else if (path === '/auth') derivedView = 'auth';
 
+  const isDashboardRoute = path.startsWith('/dashboard');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       
       {/* Brand navigation bar */}
-      <Navbar
-        settings={settings}
-        cart={cart}
-        currentView={derivedView}
-        currentUser={currentUser}
-        isAdminAuthenticated={isAdminAuthenticated}
-        onSignOut={handleSignOut}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        wishlistCount={wishlist.length}
-      />
+      {!isDashboardRoute && (
+        <Navbar
+          settings={settings}
+          cart={cart}
+          currentView={derivedView}
+          currentUser={currentUser}
+          isAdminAuthenticated={isAdminAuthenticated}
+          onSignOut={handleSignOut}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          wishlistCount={wishlist.length}
+        />
+      )}
 
       {/* Main Views router */}
       <main style={{ flexGrow: 1 }}>
@@ -729,48 +733,50 @@ function App() {
       </main>
 
       {/* Nike Premium Footer */}
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-columns">
-            <div className="footer-links">
-              <h4 className="footer-col-header">Resources</h4>
-              <Link to="/gift-cards" className="footer-link">Gift Cards</Link>
-              <Link to="/find-a-store" className="footer-link">Find a Store</Link>
-              <Link to="/customer-care" className="footer-link">Customer Care</Link>
-              <Link to="/feedback" className="footer-link">Site Feedback</Link>
+      {!isDashboardRoute && (
+        <footer className="footer">
+          <div className="container">
+            <div className="footer-columns">
+              <div className="footer-links">
+                <h4 className="footer-col-header">Resources</h4>
+                <Link to="/gift-cards" className="footer-link">Gift Cards</Link>
+                <Link to="/find-a-store" className="footer-link">Find a Store</Link>
+                <Link to="/customer-care" className="footer-link">Customer Care</Link>
+                <Link to="/feedback" className="footer-link">Site Feedback</Link>
+              </div>
+              <div className="footer-links">
+                <h4 className="footer-col-header">Help</h4>
+                <Link to="/help" className="footer-link">Get Help</Link>
+                <Link to="/order-status" className="footer-link">Order Status</Link>
+                <Link to="/shipping-delivery" className="footer-link">Shipping & Delivery</Link>
+                <Link to="/payment-options" className="footer-link">Payment Options</Link>
+              </div>
+              <div className="footer-links">
+                <h4 className="footer-col-header">Company</h4>
+                <Link to="/about" className="footer-link">About GoldenCare</Link>
+                <Link to="/news" className="footer-link">News</Link>
+                <Link to="/careers" className="footer-link">Careers</Link>
+                <Link to="/sustainability" className="footer-link">Sustainability</Link>
+              </div>
+              <div className="footer-links">
+                <h4 className="footer-col-header">Promotions & Discounts</h4>
+                <Link to="/coupons" className="footer-link">Member Coupons</Link>
+                <Link to="/newsletter" className="footer-link">Newsletter Signup</Link>
+              </div>
             </div>
-            <div className="footer-links">
-              <h4 className="footer-col-header">Help</h4>
-              <Link to="/help" className="footer-link">Get Help</Link>
-              <Link to="/order-status" className="footer-link">Order Status</Link>
-              <Link to="/shipping-delivery" className="footer-link">Shipping & Delivery</Link>
-              <Link to="/payment-options" className="footer-link">Payment Options</Link>
-            </div>
-            <div className="footer-links">
-              <h4 className="footer-col-header">Company</h4>
-              <Link to="/about" className="footer-link">About GoldenCare</Link>
-              <Link to="/news" className="footer-link">News</Link>
-              <Link to="/careers" className="footer-link">Careers</Link>
-              <Link to="/sustainability" className="footer-link">Sustainability</Link>
-            </div>
-            <div className="footer-links">
-              <h4 className="footer-col-header">Promotions & Discounts</h4>
-              <Link to="/coupons" className="footer-link">Member Coupons</Link>
-              <Link to="/newsletter" className="footer-link">Newsletter Signup</Link>
+            <hr className="footer-divider" />
+            <div className="footer-fineprint">
+              <span className="font-utility-xs">&copy; 2026 GoldenCare Market, Inc. All Rights Reserved</span>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <Link to="/guides" className="font-utility-xs">Guides</Link>
+                <Link to="/terms-of-sale" className="font-utility-xs">Terms of Sale</Link>
+                <Link to="/terms" className="font-utility-xs">Terms of Use</Link>
+                <Link to="/policy" className="font-utility-xs">Privacy Policy</Link>
+              </div>
             </div>
           </div>
-          <hr className="footer-divider" />
-          <div className="footer-fineprint">
-            <span className="font-utility-xs">&copy; 2026 GoldenCare Market, Inc. All Rights Reserved</span>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <Link to="/guides" className="font-utility-xs">Guides</Link>
-              <Link to="/terms-of-sale" className="font-utility-xs">Terms of Sale</Link>
-              <Link to="/terms" className="font-utility-xs">Terms of Use</Link>
-              <Link to="/policy" className="font-utility-xs">Privacy Policy</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* Sleek Custom Toast Notifications Overlay */}
       <div className="toast-overlay">
