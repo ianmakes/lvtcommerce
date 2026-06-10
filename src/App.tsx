@@ -607,9 +607,6 @@ function App() {
             <ProductDetail
               product={matchedProduct}
               products={products}
-              onBack={() => {
-                navigate('/shop');
-              }}
               onAddToCart={handleAddToCart}
               onBuyNow={handleBuyNow}
               currentUser={currentUser}

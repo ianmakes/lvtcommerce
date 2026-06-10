@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ArrowLeft, Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp } from 'lucide-react';
 import { Product, ProductVariant, CartItem, ProductReview } from '../types';
 import { getProductReviews, addProductReview } from '../db';
+import { Link } from '../Router';
 
 interface ProductDetailProps {
   product: Product;
   products: Product[];
-  onBack: () => void;
   onAddToCart: (item: CartItem) => void;
   onBuyNow: (item: CartItem) => void;
   currentUser: FirebaseUser | null;
@@ -20,7 +20,6 @@ interface ProductDetailProps {
 export const ProductDetail: React.FC<ProductDetailProps> = ({
   product,
   products,
-  onBack,
   onAddToCart,
   onBuyNow,
   currentUser,
@@ -255,53 +254,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
   return (
     <div className="container" style={{ padding: '30px 0' }}>
-      {/* Back button (Nike Pill style) */}
-      <button 
-        className="btn btn-secondary btn-small"
-        onClick={onBack}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}
-      >
-        <ArrowLeft size={16} />
-        <span>Back to Store</span>
-      </button>
+      {/* Breadcrumbs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 500, color: 'var(--text-mute)', marginBottom: '32px', letterSpacing: '0.5px' }}>
+        <Link to="/" style={{ color: 'var(--text-mute)', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-ink)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-mute)'}>Home</Link>
+        <span style={{ color: 'var(--color-hairline)' }}>/</span>
+        <Link to="/shop" style={{ color: 'var(--text-mute)', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-ink)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-mute)'}>Shop</Link>
+        <span style={{ color: 'var(--color-hairline)' }}>/</span>
+        <span style={{ textTransform: 'capitalize', color: 'var(--text-mute)' }}>{product.category.toLowerCase()}</span>
+        <span style={{ color: 'var(--color-hairline)' }}>/</span>
+        <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>{product.name}</span>
+      </div>
 
       {/* Main PDP Grid Layout */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '48px', marginBottom: '48px' }}>
         
-        {/* Left Side: Vertical Thumbnail Rail + Main Image */}
-        <div style={{ display: 'grid', gridTemplateColumns: galleryImages.length > 1 ? '72px 1fr' : '1fr', gap: '16px' }}>
-          {/* Vertical thumbnails */}
-          {galleryImages.length > 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
-              {galleryImages.map((imgUrl, index) => {
-                const isCurrent = imgUrl === activeImage;
-                return (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => setActiveImage(imgUrl)}
-                    style={{
-                      width: '72px',
-                      height: '72px',
-                      borderRadius: 'var(--radius-none)',
-                      overflow: 'hidden',
-                      border: isCurrent ? '2px solid var(--color-ink)' : '1px solid var(--color-hairline-soft)',
-                      backgroundColor: 'var(--color-soft-cloud)',
-                      cursor: 'pointer',
-                      padding: 0,
-                      flexShrink: 0,
-                      boxSizing: 'border-box'
-                    }}
-                  >
-                    <img src={imgUrl} alt={`thumbnail-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
+        {/* Left Side: Main Image + Horizontal Thumbnails Underneath */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Large Main 1:1 Image */}
-          <div className="prod-img-container" style={{ aspectRatio: '1 / 1', height: 'auto', border: '1px solid var(--color-hairline-soft)' }}>
+          <div className="prod-img-container" style={{ aspectRatio: '1 / 1', height: 'auto', border: '1px solid var(--color-hairline-soft)', width: '100%' }}>
             {product.badge && (
               <span className="badge-promo">{product.badge}</span>
             )}
@@ -311,6 +281,43 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           </div>
+
+          {/* Horizontal thumbnails under the main image */}
+          {galleryImages.length > 1 && (
+            <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '4px 0' }}>
+              {galleryImages.map((imgUrl, index) => {
+                const isCurrent = imgUrl === activeImage;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setActiveImage(imgUrl)}
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: 'var(--radius-none)',
+                      overflow: 'hidden',
+                      border: isCurrent ? '2px solid var(--color-ink)' : '1px solid var(--color-hairline-soft)',
+                      backgroundColor: 'var(--color-soft-cloud)',
+                      cursor: 'pointer',
+                      padding: 0,
+                      flexShrink: 0,
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isCurrent) e.currentTarget.style.borderColor = 'var(--text-stone)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isCurrent) e.currentTarget.style.borderColor = 'var(--color-hairline-soft)';
+                    }}
+                  >
+                    <img src={imgUrl} alt={`thumbnail-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Right Side: Product Details & Purchase Form */}
