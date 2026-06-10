@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, Plus, Trash2, Edit2, 
-  Save, CheckCircle, Truck, Ban, X, Upload, Loader2, Image as ImageIcon, PackageCheck
+  Save, CheckCircle, Truck, Ban, X, Upload, Loader2, Image as ImageIcon, PackageCheck,
+  Users, FileText, Layers, Tag
 } from 'lucide-react';
 import { Product, Order, ShopSettings, Attribute, ProductVariant } from '../types';
 import { getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings } from '../db';
+import { useLocation, navigate } from '../Router';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
@@ -40,7 +42,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeSettings,
   onRefreshProducts,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'settings'>('overview');
+  const path = useLocation();
+
+  // activeTab derived from URL path
+  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'tags' = 'overview';
+  if (path === '/dashboard/orders') activeTab = 'orders';
+  else if (path === '/dashboard/products') activeTab = 'products';
+  else if (path === '/dashboard/settings') activeTab = 'settings';
+  else if (path === '/dashboard/customers') activeTab = 'customers';
+  else if (path === '/dashboard/reports') activeTab = 'reports';
+  else if (path === '/dashboard/categories') activeTab = 'categories';
+  else if (path === '/dashboard/tags') activeTab = 'tags';
   
   // Lists from Firestore DB
   const [products, setProducts] = useState<Product[]>([]);
@@ -356,32 +368,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             Manager Tabs
           </h3>
           <button 
+            type="button"
             className={`admin-nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
+            onClick={() => navigate('/dashboard/home')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
             <BarChart3 size={20} />
             <span>Sales Overview</span>
           </button>
           
           <button 
+            type="button"
             className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`}
-            onClick={() => setActiveTab('orders')}
+            onClick={() => navigate('/dashboard/orders')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
             <ShoppingBag size={20} />
             <span>Manage Orders ({orders.length})</span>
           </button>
           
           <button 
+            type="button"
             className={`admin-nav-item ${activeTab === 'products' ? 'active' : ''}`}
-            onClick={() => setActiveTab('products')}
+            onClick={() => navigate('/dashboard/products')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
             <PackageCheck size={20} />
             <span>Manage Products ({products.length})</span>
           </button>
+
+          <button 
+            type="button"
+            className={`admin-nav-item ${activeTab === 'customers' ? 'active' : ''}`}
+            onClick={() => navigate('/dashboard/customers')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
+          >
+            <Users size={20} />
+            <span>Customers</span>
+          </button>
+
+          <button 
+            type="button"
+            className={`admin-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
+            onClick={() => navigate('/dashboard/reports')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
+          >
+            <FileText size={20} />
+            <span>Reports</span>
+          </button>
+
+          <button 
+            type="button"
+            className={`admin-nav-item ${activeTab === 'categories' ? 'active' : ''}`}
+            onClick={() => navigate('/dashboard/categories')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
+          >
+            <Layers size={20} />
+            <span>Categories</span>
+          </button>
+
+          <button 
+            type="button"
+            className={`admin-nav-item ${activeTab === 'tags' ? 'active' : ''}`}
+            onClick={() => navigate('/dashboard/tags')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
+          >
+            <Tag size={20} />
+            <span>Promo Tags</span>
+          </button>
           
           <button 
+            type="button"
             className={`admin-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
+            onClick={() => navigate('/dashboard/settings')}
+            style={{ border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', background: 'none' }}
           >
             <Settings size={20} />
             <span>Shop Settings</span>
@@ -632,6 +692,240 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </form>
+          )}
+
+          {/* TAB 5: Customers */}
+          {activeTab === 'customers' && (
+            <div>
+              <h2>Customer Base</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Review buyers, contact lines, and cumulative spending.</p>
+              
+              <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
+                <table className="cart-table">
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '12px' }}>Name</th>
+                      <th style={{ padding: '12px' }}>Phone</th>
+                      <th style={{ padding: '12px' }}>Email</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Total Orders</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Cumulative Spent</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      // Aggregate customer records from orders
+                      const customerMap: Record<string, { name: string; phone: string; email: string; orderCount: number; spent: number }> = {};
+                      orders.forEach(o => {
+                        const key = o.customerPhone || o.buyerEmail || o.customerName;
+                        if (!customerMap[key]) {
+                          customerMap[key] = {
+                            name: o.customerName,
+                            phone: o.customerPhone,
+                            email: o.buyerEmail || 'Guest Shopper',
+                            orderCount: 0,
+                            spent: 0
+                          };
+                        }
+                        customerMap[key].orderCount += 1;
+                        customerMap[key].spent += o.totalAmount;
+                      });
+
+                      const customersList = Object.values(customerMap);
+                      if (customersList.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                              No customers found yet.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return customersList.map((c, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{c.name}</td>
+                          <td style={{ padding: '12px' }}>{c.phone}</td>
+                          <td style={{ padding: '12px' }}>{c.email}</td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>{c.orderCount}</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>KSh {c.spent.toLocaleString()}</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: Reports */}
+          {activeTab === 'reports' && (
+            <div>
+              <h2>Performance Reports</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Analyze sales graphs, volume, and inventory movement.</p>
+
+              {(() => {
+                const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+                const averageOrder = orders.length > 0 ? Math.round(totalRevenue / orders.length) : 0;
+                
+                // Count product sales frequency
+                const prodSales: Record<string, { name: string; qty: number; revenue: number }> = {};
+                orders.forEach(o => {
+                  o.items.forEach(it => {
+                    if (!prodSales[it.productId]) {
+                      prodSales[it.productId] = { name: it.name, qty: 0, revenue: 0 };
+                    }
+                    prodSales[it.productId].qty += it.quantity;
+                    prodSales[it.productId].revenue += it.price * it.quantity;
+                  });
+                });
+                const topSellers = Object.values(prodSales).sort((a, b) => b.qty - a.qty).slice(0, 5);
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                    {/* Key metrics grid */}
+                    <div className="metrics-grid">
+                      <div className="metric-box">
+                        <span className="metric-title">GROSS REVENUE</span>
+                        <span className="metric-value">KSh {totalRevenue.toLocaleString()}</span>
+                      </div>
+                      <div className="metric-box">
+                        <span className="metric-title">TOTAL ORDERS</span>
+                        <span className="metric-value">{orders.length}</span>
+                      </div>
+                      <div className="metric-box">
+                        <span className="metric-title">AVERAGE ORDER VALUE</span>
+                        <span className="metric-value">KSh {averageOrder.toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Top selling products table */}
+                    <div className="card">
+                      <h3 style={{ textTransform: 'uppercase', marginBottom: '16px' }}>Top Selling Products</h3>
+                      <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
+                        <table className="cart-table">
+                          <thead>
+                            <tr>
+                              <th style={{ padding: '12px' }}>Product</th>
+                              <th style={{ padding: '12px', textAlign: 'right' }}>Units Sold</th>
+                              <th style={{ padding: '12px', textAlign: 'right' }}>Revenue Generated</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {topSellers.length === 0 ? (
+                              <tr>
+                                <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                  No sales recorded yet.
+                                </td>
+                              </tr>
+                            ) : (
+                              topSellers.map((ts, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
+                                  <td style={{ padding: '12px', fontWeight: 600 }}>{ts.name}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right' }}>{ts.qty}</td>
+                                  <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>KSh {ts.revenue.toLocaleString()}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* TAB 7: Categories */}
+          {activeTab === 'categories' && (
+            <div>
+              <h2>Product Categories</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Overview of catalog segments and category counts.</p>
+
+              <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
+                <table className="cart-table">
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '12px' }}>Category Name</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Product Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const catMap: Record<string, number> = {};
+                      products.forEach(p => {
+                        catMap[p.category] = (catMap[p.category] || 0) + 1;
+                      });
+                      const categoriesList = Object.entries(catMap);
+
+                      if (categoriesList.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                              No categories found.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return categoriesList.map(([cat, count], i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{cat}</td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>{count}</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 8: Tags */}
+          {activeTab === 'tags' && (
+            <div>
+              <h2>Promo Tags</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Manage and review catalog promo badges and highlights.</p>
+
+              <div style={{ border: '1px solid var(--color-hairline)', overflowX: 'auto' }}>
+                <table className="cart-table">
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '12px' }}>Promo Badge / Tag</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Applied Products Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const tagMap: Record<string, number> = {};
+                      products.forEach(p => {
+                        if (p.badge) {
+                          tagMap[p.badge] = (tagMap[p.badge] || 0) + 1;
+                        }
+                      });
+                      const tagsList = Object.entries(tagMap);
+
+                      if (tagsList.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                              No product badges applied yet.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return tagsList.map(([tag, count], i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{tag}</td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>{count}</td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
         </main>

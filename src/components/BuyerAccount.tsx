@@ -3,10 +3,11 @@ import { User as FirebaseUser, updateProfile, updatePassword } from 'firebase/au
 import { ShoppingBag, MapPin, User, Bell, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart } from 'lucide-react';
 import { Order, BuyerProfile, Product, CartItem } from '../types';
 import { getOrders, getBuyerProfile, saveBuyerProfile } from '../db';
+import { navigate } from '../Router';
+
 
 interface BuyerAccountProps {
   currentUser: FirebaseUser;
-  onReturnToStore: () => void;
   wishlist: string[];
   products: Product[];
   onRemoveWishlist: (productId: string) => void;
@@ -17,7 +18,6 @@ interface BuyerAccountProps {
 
 export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   currentUser,
-  onReturnToStore,
   wishlist,
   products,
   onRemoveWishlist,
@@ -183,7 +183,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
             Manage your profile, shipping addresses, and track active orders.
           </p>
         </div>
-        <button className="btn btn-secondary btn-small" onClick={onReturnToStore}>
+        <button className="btn btn-secondary btn-small" onClick={() => navigate('/shop')}>
           Back to Store
         </button>
       </div>
@@ -288,7 +288,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                   <ShoppingBag size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
                   <h3 className="font-heading-md">No Orders Found</h3>
                   <p style={{ fontSize: '14px' }}>You haven't purchased any items yet. Browse our store to make your first order.</p>
-                  <button className="btn btn-primary mt-24" onClick={onReturnToStore}>
+                  <button className="btn btn-primary mt-24" onClick={() => navigate('/shop')}>
                     Start Shopping
                   </button>
                 </div>
@@ -551,7 +551,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                   <Heart size={40} style={{ margin: '0 auto 16px', opacity: 0.5, color: 'var(--color-sale)' }} />
                   <h3 className="font-heading-md">Your Wishlist is Empty</h3>
                   <p style={{ fontSize: '14px' }}>Browse our catalog and tap the heart icon on any product to save it here.</p>
-                  <button className="btn btn-primary mt-24" onClick={onReturnToStore}>
+                  <button className="btn btn-primary mt-24" onClick={() => navigate('/shop')}>
                     Browse Products
                   </button>
                 </div>

@@ -5,12 +5,13 @@ import { CartItem, ShopSettings, Order, OrderItem } from '../types';
 import { PaystackPayment } from './PaystackPayment';
 import { BuyerAuth } from './BuyerAuth';
 import { getBuyerProfile } from '../db';
+import { navigate } from '../Router';
+
 
 interface CheckoutProps {
   settings: ShopSettings;
   cart: CartItem[];
   currentUser: FirebaseUser | null;
-  onCancel: () => void;
   onSubmitOrder: (order: Order) => void;
   discountPercent: number;
   flatDiscount: number;
@@ -21,7 +22,6 @@ export const Checkout: React.FC<CheckoutProps> = ({
   settings,
   cart,
   currentUser,
-  onCancel,
   onSubmitOrder,
   discountPercent,
   flatDiscount,
@@ -64,7 +64,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       <div className="container" style={{ maxWidth: '600px', padding: '40px 0' }}>
         <button 
           className="btn btn-secondary btn-small"
-          onClick={onCancel}
+          onClick={() => navigate('/cart')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}
         >
           <ArrowLeft size={16} />
@@ -166,7 +166,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       {/* Back button */}
       <button 
         className="btn btn-secondary btn-small"
-        onClick={step === 1 ? onCancel : () => setStep(1)}
+        onClick={step === 1 ? () => navigate('/cart') : () => setStep(1)}
         style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}
       >
         <ArrowLeft size={16} />

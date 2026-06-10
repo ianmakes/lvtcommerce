@@ -4,12 +4,19 @@ import { auth } from './firebase';
 import { Navbar } from './components/Navbar';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
-import { Cart } from './components/Cart';
+
 import { Checkout } from './components/Checkout';
 import { SuccessView } from './components/SuccessView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
 import { BuyerAccount } from './components/BuyerAccount';
+import { AboutPage } from './components/AboutPage';
+import { PolicyPage } from './components/PolicyPage';
+import { TermsPage } from './components/TermsPage';
+import { BuyerAuth } from './components/BuyerAuth';
+import { CartPage } from './components/CartPage';
+import { ComingSoonPage } from './components/ComingSoonPage';
+import { useLocation, navigate, Link } from './Router';
 
 import { Product, CartItem, Order, ShopSettings } from './types';
 import { initDb, getProducts, getSettings, addOrder } from './db';
@@ -19,8 +26,7 @@ import './App.css';
 const SUPER_ADMIN_UID = "avIScAH5NQMWN2zf6Z3YwEEQw302";
 
 function App() {
-  // Page routing and layout
-  const [view, setView] = useState<'landing' | 'store' | 'product-details' | 'checkout' | 'success' | 'admin' | 'account'>('landing');
+  const path = useLocation();
   const [settings, setSettings] = useState<ShopSettings>({
     shopName: "GoldenCare Market",
     phone: "",
@@ -38,9 +44,10 @@ function App() {
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   
   // Modals & Panels UI
-  const [cartOpen, setCartOpen] = useState(false);
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const isAdminAuthenticated = currentUser !== null && currentUser.uid === SUPER_ADMIN_UID;
 
   // Wishlist and UI states
   const [wishlist, setWishlist] = useState<string[]>(() => {
@@ -55,7 +62,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('featured');
-  const [accountTab, setAccountTab] = useState<string>('orders');
+  const accountTab = 'orders';
 
   // Coupon states
   const [promoCode, setPromoCode] = useState('');
@@ -107,6 +114,47 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  // Dynamic route helper mapping
+  const isProductDetail = path.startsWith('/product/');
+  const pathProductId = isProductDetail ? path.replace('/product/', '') : null;
+  const matchedProduct = products.find(p => p.id === pathProductId);
+
+  const comingSoonTitles: Record<string, string> = {
+    '/gift-cards': 'Gift Cards',
+    '/find-a-store': 'Find a Store',
+    '/customer-care': 'Customer Care',
+    '/feedback': 'Site Feedback',
+    '/help': 'Get Help',
+    '/order-status': 'Order Status',
+    '/shipping-delivery': 'Shipping & Delivery',
+    '/payment-options': 'Payment Options',
+    '/news': 'News',
+    '/careers': 'Careers',
+    '/sustainability': 'Sustainability',
+    '/coupons': 'Member Coupons',
+    '/newsletter': 'Newsletter Signup',
+    '/guides': 'Guides'
+  };
+
+  // Client-side access control redirects
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (path.startsWith('/dashboard')) {
+      if (!isAdminAuthenticated) {
+        navigate('/admin-login');
+      }
+    } else if (path === '/admin-login') {
+      if (isAdminAuthenticated) {
+        navigate('/dashboard/home');
+      }
+    } else if (path === '/account') {
+      if (!currentUser) {
+        navigate('/auth');
+      }
+    }
+  }, [path, currentUser, isAdminAuthenticated, authLoading]);
+
   const handleSettingsChange = (newSettings: ShopSettings) => {
     setSettings(newSettings);
   };
@@ -155,7 +203,7 @@ function App() {
     // Add to cart first
     handleAddToCart(item);
     // Open checkout immediately
-    setView('checkout');
+    navigate('/checkout');
   };
 
   const handleUpdateCartQty = (id: string, qty: number) => {
@@ -226,7 +274,7 @@ function App() {
       setFlatDiscount(0);
       setOrderNote('');
       handleShowToast("Order placed successfully!", "success");
-      setView('success');
+      navigate('/success');
     } catch (err) {
       console.error("Error saving order:", err);
       handleShowToast("Failed to save order to the database. Please try again.", "warning");
@@ -237,20 +285,11 @@ function App() {
     try {
       await signOut(auth);
       setWishlist([]); // Clear buyer wishlist on logout
-      setView('store');
+      navigate('/shop');
     } catch (err) {
       console.error("Sign out error:", err);
     }
   };
-
-  const handleNavigate = (targetView: typeof view, tabName?: string) => {
-    setView(targetView);
-    if (targetView === 'account' && tabName) {
-      setAccountTab(tabName);
-    }
-  };
-
-  const isAdminAuthenticated = currentUser !== null && currentUser.uid === SUPER_ADMIN_UID;
 
   // Filter and Sort products
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
@@ -275,6 +314,20 @@ function App() {
       return 0; // featured default
     });
 
+  // Derive currentView from path for Navbar tab activation and UI highlights
+  let derivedView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account' | 'about' | 'policy' | 'terms' | 'auth' = 'landing';
+  if (path === '/') derivedView = 'landing';
+  else if (path === '/shop') derivedView = 'store';
+  else if (path.startsWith('/product/')) derivedView = 'product-details';
+  else if (path === '/checkout') derivedView = 'checkout';
+  else if (path === '/success') derivedView = 'success';
+  else if (path.startsWith('/dashboard')) derivedView = 'admin';
+  else if (path === '/account') derivedView = 'account';
+  else if (path === '/about') derivedView = 'about';
+  else if (path === '/policy' || path === '/privacy-policy') derivedView = 'policy';
+  else if (path === '/terms' || path === '/terms-of-use' || path === '/terms-of-sale') derivedView = 'terms';
+  else if (path === '/auth') derivedView = 'auth';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       
@@ -282,9 +335,7 @@ function App() {
       <Navbar
         settings={settings}
         cart={cart}
-        currentView={view}
-        onNavigate={handleNavigate}
-        onOpenCart={() => setCartOpen(true)}
+        currentView={derivedView}
         currentUser={currentUser}
         isAdminAuthenticated={isAdminAuthenticated}
         onSignOut={handleSignOut}
@@ -297,7 +348,7 @@ function App() {
       <main style={{ flexGrow: 1 }}>
         
         {/* VIEW G: Landing Page */}
-        {view === 'landing' && (
+        {path === '/' && (
           <div>
             {/* Nike Campaign Hero */}
             <section 
@@ -306,33 +357,35 @@ function App() {
                 backgroundImage: 'linear-gradient(to bottom, rgba(17,17,17,0.1) 0%, rgba(17,17,17,0.4) 100%), url(https://images.unsplash.com/photo-1476480862126-209bbcafd4eb?q=80&w=1600)' 
               }}
             >
-              <div className="campaign-hero-content">
-                <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, display: 'block', marginBottom: '12px' }}>
-                  GoldenCare GC System &bull; Est. 2026
-                </span>
-                <h1 className="font-display-campaign">
-                  WELLNESS REDEFINED.<br />FUNCTION OVER CHROME.
-                </h1>
-                <p className="font-body-md" style={{ color: 'rgba(255,255,255,0.9)', margin: '0 0 32px', maxWidth: '600px' }}>
-                  Curated daily recovery and lifestyle design objects built with 3K Carbon Fiber, AeroGel insulation, and integrated Bluetooth sensors.
-                </p>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <button 
-                    className="btn btn-outline-on-image" 
-                    onClick={() => setView('store')}
-                  >
-                    Shop the Collection
-                  </button>
-                  <button 
-                    className="btn" 
-                    onClick={() => {
-                      const visionEl = document.getElementById('brand-vision');
-                      if (visionEl) visionEl.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    style={{ backgroundColor: 'transparent', color: '#ffffff', borderColor: '#ffffff', padding: '12px 24px', height: '44px', minHeight: '44px' }}
-                  >
-                    Our Philosophy
-                  </button>
+              <div className="campaign-hero-inner">
+                <div className="campaign-hero-content">
+                  <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, display: 'block', marginBottom: '12px' }}>
+                    GoldenCare GC System &bull; Est. 2026
+                  </span>
+                  <h1 className="font-display-campaign">
+                    WELLNESS REDEFINED.<br />FUNCTION OVER CHROME.
+                  </h1>
+                  <p className="font-body-md" style={{ color: 'rgba(255,255,255,0.9)', margin: '0 0 32px', maxWidth: '600px' }}>
+                    Curated daily recovery and lifestyle design objects built with 3K Carbon Fiber, AeroGel insulation, and integrated Bluetooth sensors.
+                  </p>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <button 
+                      className="btn btn-outline-on-image" 
+                      onClick={() => navigate('/shop')}
+                    >
+                      Shop the Collection
+                    </button>
+                    <button 
+                      className="btn" 
+                      onClick={() => {
+                        const visionEl = document.getElementById('brand-vision');
+                        if (visionEl) visionEl.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      style={{ backgroundColor: 'transparent', color: '#ffffff', borderColor: '#ffffff', padding: '12px 24px', height: '44px', minHeight: '44px' }}
+                    >
+                      Our Philosophy
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>
@@ -374,7 +427,7 @@ function App() {
               <div className="container">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', borderBottom: '1px solid var(--color-hairline)', paddingBottom: '16px' }}>
                   <h2 className="font-heading-xl">Featured Systems</h2>
-                  <button onClick={() => setView('store')} style={{ background: 'none', border: 'none', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer', fontSize: '15px', color: 'var(--color-ink)' }}>
+                  <button onClick={() => navigate('/shop')} style={{ background: 'none', border: 'none', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer', fontSize: '15px', color: 'var(--color-ink)' }}>
                     View All Products &rarr;
                   </button>
                 </div>
@@ -385,8 +438,7 @@ function App() {
                       key={prod.id} 
                       className="prod-card" 
                       onClick={() => {
-                        setSelectedProduct(prod);
-                        setView('product-details');
+                        navigate(`/product/${prod.id}`);
                       }}
                       style={{ cursor: 'pointer' }}
                     >
@@ -469,7 +521,7 @@ function App() {
         )}
 
         {/* VIEW A: Storefront */}
-        {view === 'store' && (
+        {path === '/shop' && (
           <div>
             {/* Stark campaign hero for Shop page */}
             <section 
@@ -480,16 +532,18 @@ function App() {
                 backgroundImage: 'linear-gradient(to bottom, rgba(17,17,17,0.2) 0%, rgba(17,17,17,0.5) 100%), url(https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1600)' 
               }}
             >
-              <div className="campaign-hero-content" style={{ paddingBottom: '0px' }}>
-                <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                  Engineered Catalog
-                </span>
-                <h1 className="font-display-campaign" style={{ fontSize: '64px', marginBottom: '8px' }}>
-                  SYSTEMS SHOP
-                </h1>
-                <p className="font-body-md" style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '15px', marginBottom: '0px', maxWidth: '600px' }}>
-                  Explore our engineered wellness objects. Pure geometry, carbon fiber construction, and smart alert integrations.
-                </p>
+              <div className="campaign-hero-inner">
+                <div className="campaign-hero-content" style={{ paddingBottom: '0px' }}>
+                  <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+                    Engineered Catalog
+                  </span>
+                  <h1 className="font-display-campaign" style={{ fontSize: '64px', marginBottom: '8px' }}>
+                    SYSTEMS SHOP
+                  </h1>
+                  <p className="font-body-md" style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '15px', marginBottom: '0px', maxWidth: '600px' }}>
+                    Explore our engineered wellness objects. Pure geometry, carbon fiber construction, and smart alert integrations.
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -536,10 +590,7 @@ function App() {
                     <ProductCard
                       key={prod.id}
                       product={prod}
-                      onSelectProduct={(p) => {
-                        setSelectedProduct(p);
-                        setView('product-details');
-                      }}
+                      onSelectProduct={() => {}}
                       isWishlisted={wishlist.includes(prod.id)}
                       onToggleWishlist={handleToggleWishlist}
                     />
@@ -551,31 +602,36 @@ function App() {
         )}
 
         {/* VIEW B: Product Details */}
-        {view === 'product-details' && selectedProduct && (
-          <ProductDetail
-            product={selectedProduct}
-            products={products}
-            onBack={() => {
-              setView('store');
-              setSelectedProduct(null);
-            }}
-            onAddToCart={handleAddToCart}
-            onBuyNow={handleBuyNow}
-            currentUser={currentUser}
-            onSelectProduct={(p) => setSelectedProduct(p)}
-            isWishlisted={wishlist.includes(selectedProduct.id)}
-            onToggleWishlist={handleToggleWishlist}
-            onReviewSubmitted={handleRefreshProducts}
-          />
+        {isProductDetail && (
+          matchedProduct ? (
+            <ProductDetail
+              product={matchedProduct}
+              products={products}
+              onBack={() => {
+                navigate('/shop');
+              }}
+              onAddToCart={handleAddToCart}
+              onBuyNow={handleBuyNow}
+              currentUser={currentUser}
+              onSelectProduct={(p) => navigate(`/product/${p.id}`)}
+              isWishlisted={wishlist.includes(matchedProduct.id)}
+              onToggleWishlist={handleToggleWishlist}
+              onReviewSubmitted={handleRefreshProducts}
+            />
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+              <h3>Product not found or loading...</h3>
+            </div>
+          )
         )}
 
         {/* VIEW C: Checkout flow */}
-        {view === 'checkout' && (
+        {path === '/checkout' && (
           <Checkout
             settings={settings}
             cart={cart}
             currentUser={currentUser}
-            onCancel={() => setView('store')}
+            onCancel={() => navigate('/cart')}
             onSubmitOrder={handleSubmitOrder}
             discountPercent={discountPercent}
             flatDiscount={flatDiscount}
@@ -584,16 +640,23 @@ function App() {
         )}
 
         {/* VIEW D: Order Successful */}
-        {view === 'success' && activeOrder && (
+        {path === '/success' && activeOrder && (
           <SuccessView
             order={activeOrder}
             settings={settings}
-            onReturnToStore={() => setView('store')}
           />
         )}
 
-        {/* VIEW E: Admin Management */}
-        {view === 'admin' && (
+        {/* VIEW E-1: Admin Login */}
+        {path === '/admin-login' && (
+          <AdminLogin
+            superAdminUid={SUPER_ADMIN_UID}
+            onLoginSuccess={() => navigate('/dashboard/home')}
+          />
+        )}
+
+        {/* VIEW E-2: Admin Management */}
+        {path.startsWith('/dashboard') && (
           authLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
               <h3>Checking authorization...</h3>
@@ -604,19 +667,13 @@ function App() {
               onChangeSettings={handleSettingsChange}
               onRefreshProducts={handleRefreshProducts}
             />
-          ) : (
-            <AdminLogin
-              superAdminUid={SUPER_ADMIN_UID}
-              onLoginSuccess={() => setView('admin')}
-            />
-          )
+          ) : null
         )}
 
         {/* VIEW F: Buyer Account settings */}
-        {view === 'account' && currentUser && (
+        {path === '/account' && currentUser && (
           <BuyerAccount
             currentUser={currentUser}
-            onReturnToStore={() => setView('store')}
             wishlist={wishlist}
             products={products}
             onRemoveWishlist={handleRemoveWishlist}
@@ -624,6 +681,53 @@ function App() {
             onShowToast={handleShowToast}
             initialTab={accountTab}
           />
+        )}
+
+        {/* VIEW H: Buyer Authentication */}
+        {path === '/auth' && (
+          <div className="container" style={{ maxWidth: '600px', padding: '60px 0' }}>
+            <h1 className="font-heading-xl text-center" style={{ marginBottom: '12px', textTransform: 'uppercase' }}>Access GoldenCare System</h1>
+            <p className="font-body-md text-center" style={{ color: 'var(--text-mute)', marginBottom: '32px' }}>
+              Sign in or register an account to manage shipping details, wishlist, and track orders.
+            </p>
+            <BuyerAuth onSuccess={() => navigate('/account')} />
+          </div>
+        )}
+
+        {/* VIEW I: About Page */}
+        {path === '/about' && (
+          <AboutPage />
+        )}
+
+        {/* VIEW J: Policy Page */}
+        {(path === '/policy' || path === '/privacy-policy') && (
+          <PolicyPage />
+        )}
+
+        {/* VIEW K: Terms Page */}
+        {(path === '/terms' || path === '/terms-of-use' || path === '/terms-of-sale') && (
+          <TermsPage />
+        )}
+
+        {/* VIEW L: Cart Page */}
+        {path === '/cart' && (
+          <CartPage
+            cart={cart}
+            onUpdateQuantity={handleUpdateCartQty}
+            onRemoveItem={handleRemoveCartItem}
+            promoCode={promoCode}
+            onApplyPromo={handleApplyPromo}
+            discountPercent={discountPercent}
+            flatDiscount={flatDiscount}
+            orderNote={orderNote}
+            onUpdateOrderNote={setOrderNote}
+            onShowToast={handleShowToast}
+          />
+        )}
+
+        {/* VIEW M: Coming Soon / Placeholder Page */}
+        {comingSoonTitles[path] && (
+          <ComingSoonPage title={comingSoonTitles[path]} />
         )}
 
       </main>
@@ -634,61 +738,43 @@ function App() {
           <div className="footer-columns">
             <div className="footer-links">
               <h4 className="footer-col-header">Resources</h4>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setView('store'); }}>Gift Cards</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setView('store'); }}>Find a Store</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("Contact support: support@goldencare.com | +254 700 000 000"); }}>Customer Care</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); setView('landing'); }}>Site Feedback</a>
+              <Link to="/gift-cards" className="footer-link">Gift Cards</Link>
+              <Link to="/find-a-store" className="footer-link">Find a Store</Link>
+              <Link to="/customer-care" className="footer-link">Customer Care</Link>
+              <Link to="/feedback" className="footer-link">Site Feedback</Link>
             </div>
             <div className="footer-links">
               <h4 className="footer-col-header">Help</h4>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("Orders are processed within 24 hours."); }}>Get Help</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("We offer free returns within 30 days."); }}>Order Status</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("Free shipping on orders over KSh 30,000."); }}>Shipping & Delivery</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("We accept Paystack, card, and cash on delivery."); }}>Payment Options</a>
+              <Link to="/help" className="footer-link">Get Help</Link>
+              <Link to="/order-status" className="footer-link">Order Status</Link>
+              <Link to="/shipping-delivery" className="footer-link">Shipping & Delivery</Link>
+              <Link to="/payment-options" className="footer-link">Payment Options</Link>
             </div>
             <div className="footer-links">
               <h4 className="footer-col-header">Company</h4>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("About GoldenCare System: Rebuilding active wellness."); }}>About GoldenCare</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("Designed for premium athletic recovery."); }}>News</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("Careers at GoldenCare: contact careers@goldencare.com"); }}>Careers</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("All products are manufactured locally and sustainably."); }}>Sustainability</a>
+              <Link to="/about" className="footer-link">About GoldenCare</Link>
+              <Link to="/news" className="footer-link">News</Link>
+              <Link to="/careers" className="footer-link">Careers</Link>
+              <Link to="/sustainability" className="footer-link">Sustainability</Link>
             </div>
             <div className="footer-links">
               <h4 className="footer-col-header">Promotions & Discounts</h4>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("Use code GOLDENCARE for 10% off your first order!"); }}>Member Coupons</a>
-              <a href="#" className="footer-link" onClick={e => { e.preventDefault(); alert("Sign up for our newsletter to get early access to drops."); }}>Newsletter Signup</a>
+              <Link to="/coupons" className="footer-link">Member Coupons</Link>
+              <Link to="/newsletter" className="footer-link">Newsletter Signup</Link>
             </div>
           </div>
           <hr className="footer-divider" />
           <div className="footer-fineprint">
             <span className="font-utility-xs">&copy; 2026 GoldenCare Market, Inc. All Rights Reserved</span>
             <div style={{ display: 'flex', gap: '16px' }}>
-              <a href="#" className="font-utility-xs" onClick={e => e.preventDefault()}>Guides</a>
-              <a href="#" className="font-utility-xs" onClick={e => e.preventDefault()}>Terms of Sale</a>
-              <a href="#" className="font-utility-xs" onClick={e => e.preventDefault()}>Terms of Use</a>
-              <a href="#" className="font-utility-xs" onClick={e => e.preventDefault()}>Privacy Policy</a>
+              <Link to="/guides" className="font-utility-xs">Guides</Link>
+              <Link to="/terms-of-sale" className="font-utility-xs">Terms of Sale</Link>
+              <Link to="/terms" className="font-utility-xs">Terms of Use</Link>
+              <Link to="/policy" className="font-utility-xs">Privacy Policy</Link>
             </div>
           </div>
         </div>
       </footer>
-
-      {/* Shopping Cart Overlay Drawer */}
-      <Cart
-        settings={settings}
-        isOpen={cartOpen}
-        cart={cart}
-        onClose={() => setCartOpen(false)}
-        onUpdateQuantity={handleUpdateCartQty}
-        onRemoveItem={handleRemoveCartItem}
-        onCheckout={() => setView('checkout')}
-        promoCode={promoCode}
-        onApplyPromo={handleApplyPromo}
-        discountPercent={discountPercent}
-        flatDiscount={flatDiscount}
-        orderNote={orderNote}
-        onUpdateOrderNote={setOrderNote}
-        onShowToast={handleShowToast}
-      />
 
       {/* Sleek Custom Toast Notifications Overlay */}
       <div className="toast-overlay">

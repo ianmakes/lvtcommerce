@@ -1,6 +1,8 @@
 import React from 'react';
 import { Heart } from 'lucide-react';
 import { Product } from '../types';
+import { navigate } from '../Router';
+
 
 interface ProductCardProps {
   product: Product;
@@ -44,6 +46,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       return;
     }
     onSelectProduct(product);
+    navigate(`/product/${product.id}`);
   };
 
   return (

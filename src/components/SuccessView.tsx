@@ -1,17 +1,16 @@
 import React from 'react';
 import { CheckCircle, Printer, ShoppingBag } from 'lucide-react';
 import { Order, ShopSettings } from '../types';
+import { navigate } from '../Router';
 
 interface SuccessViewProps {
   order: Order;
   settings: ShopSettings;
-  onReturnToStore: () => void;
 }
 
 export const SuccessView: React.FC<SuccessViewProps> = ({
   order,
   settings,
-  onReturnToStore,
 }) => {
   const handlePrint = () => {
     window.print();
@@ -112,7 +111,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           
           <button 
             className="btn btn-primary" 
-            onClick={onReturnToStore}
+            onClick={() => navigate('/shop')}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <ShoppingBag size={16} />
