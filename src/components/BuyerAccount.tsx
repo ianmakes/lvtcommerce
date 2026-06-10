@@ -56,15 +56,12 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const allOrders = await getOrders();
-      const userOrders = allOrders.filter(
-        o => o.buyerEmail === currentUser.email || o.customerPhone === profile.phone
-      );
-      setOrders(userOrders);
-
+      // 1. Fetch user profile first to get the phone number
+      let currentPhone = '';
       const userProfile = await getBuyerProfile(currentUser.uid);
       if (userProfile) {
         setProfile(userProfile);
+        currentPhone = userProfile.phone;
       } else {
         const initialProfile: BuyerProfile = {
           uid: currentUser.uid,
@@ -79,6 +76,13 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
         await saveBuyerProfile(initialProfile);
         setProfile(initialProfile);
       }
+
+      // 2. Fetch and filter orders using the loaded profile data
+      const allOrders = await getOrders();
+      const userOrders = allOrders.filter(
+        o => o.buyerEmail === currentUser.email || (currentPhone && o.customerPhone === currentPhone)
+      );
+      setOrders(userOrders);
     } catch (err) {
       console.error("Error loading account data:", err);
     } finally {

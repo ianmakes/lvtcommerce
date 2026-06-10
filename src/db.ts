@@ -2,6 +2,26 @@ import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from '
 import { db } from './firebase';
 import { Product, Order, ShopSettings, BuyerProfile, ProductReview } from './types';
 
+// Helper to clean undefined properties recursively before saving to Firestore
+function cleanObject<T extends object>(obj: T): T {
+  const clean = { ...obj } as Record<string, unknown>;
+  Object.keys(clean).forEach(key => {
+    const value = clean[key];
+    if (value === undefined) {
+      delete clean[key];
+    } else if (value !== null && typeof value === 'object') {
+      if (Array.isArray(value)) {
+        clean[key] = value.map((item: unknown) => 
+          (item !== null && typeof item === 'object') ? cleanObject(item as object) : item
+        );
+      } else {
+        clean[key] = cleanObject(value as object);
+      }
+    }
+  });
+  return clean as T;
+}
+
 // Default Shop Settings
 const DEFAULT_SETTINGS: ShopSettings = {
   shopName: "GoldenCare Market",
@@ -241,8 +261,11 @@ const SEED_ORDERS: Order[] = [
   }
 ];
 
+let isDbInitialized = false;
+
 // Initialize Database if empty in Firestore
 export async function initDb(): Promise<void> {
+  if (isDbInitialized) return;
   try {
     const settingsRef = doc(db, "settings", "general");
     const settingsSnap = await getDoc(settingsRef);
@@ -268,6 +291,7 @@ export async function initDb(): Promise<void> {
 
       console.log("Firebase Database seeded successfully with reviews and specifications.");
     }
+    isDbInitialized = true;
   } catch (error) {
     console.error("Error initializing Firebase Database:", error);
   }
@@ -286,7 +310,7 @@ export async function getSettings(): Promise<ShopSettings> {
 
 export async function saveSettings(settings: ShopSettings): Promise<void> {
   const settingsRef = doc(db, "settings", "general");
-  await setDoc(settingsRef, settings);
+  await setDoc(settingsRef, cleanObject(settings));
 }
 
 // Products GET/ADD/UPDATE/DELETE
@@ -300,7 +324,7 @@ export async function getProducts(): Promise<Product[]> {
 
 export async function saveProduct(product: Product): Promise<void> {
   const prodRef = doc(db, "products", product.id);
-  await setDoc(prodRef, product);
+  await setDoc(prodRef, cleanObject(product));
 }
 
 export async function deleteProduct(id: string): Promise<void> {
@@ -320,8 +344,8 @@ export async function getOrders(): Promise<Order[]> {
 }
 
 export async function addOrder(order: Order): Promise<void> {
-  // Save order to Firestore
-  await setDoc(doc(db, "orders", order.id), order);
+  // Save order to Firestore (with undefined clean-up)
+  await setDoc(doc(db, "orders", order.id), cleanObject(order));
 
   // Deduct stock for products/variants sold
   const products = await getProducts();
@@ -331,6 +355,9 @@ export async function addOrder(order: Order): Promise<void> {
 
     if (product.variants && product.variants.length > 0) {
       const variant = product.variants.find(v => {
+        if (orderItem.variantId) {
+          return v.id === orderItem.variantId;
+        }
         const variantDesc = Object.entries(v.options)
           .map(([key, val]) => `${key}: ${val}`)
           .join(", ");
@@ -364,7 +391,7 @@ export async function getBuyerProfile(uid: string): Promise<BuyerProfile | null>
 
 export async function saveBuyerProfile(profile: BuyerProfile): Promise<void> {
   const profileRef = doc(db, "users", profile.uid);
-  await setDoc(profileRef, profile);
+  await setDoc(profileRef, cleanObject(profile));
 }
 
 // Product Reviews GET/ADD
@@ -381,7 +408,7 @@ export async function getProductReviews(productId: string): Promise<ProductRevie
 
 export async function addProductReview(review: ProductReview): Promise<void> {
   const reviewRef = doc(db, "reviews", review.id);
-  await setDoc(reviewRef, review);
+  await setDoc(reviewRef, cleanObject(review));
 
   // Recalculate and update average product rating and review count in Firestore
   const reviews = await getProductReviews(review.productId);
@@ -394,6 +421,6 @@ export async function addProductReview(review: ProductReview): Promise<void> {
     const product = productSnap.data() as Product;
     product.rating = averageRating;
     product.reviewCount = reviews.length;
-    await setDoc(productRef, product);
+    await setDoc(productRef, cleanObject(product));
   }
 }

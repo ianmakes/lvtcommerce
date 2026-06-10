@@ -125,7 +125,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
         ? Object.entries(item.selectedVariant.options).map(([k, v]) => `${k}: ${v}`).join(', ') 
         : 'Standard Option',
       price: item.selectedVariant ? item.selectedVariant.price : item.product.basePrice,
-      quantity: item.quantity
+      quantity: item.quantity,
+      variantId: item.selectedVariant?.id
     }));
 
     // Create unique order ID

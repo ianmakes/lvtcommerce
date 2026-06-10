@@ -47,7 +47,13 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   const [payChannel, setPayChannel] = useState<'card' | 'mobile_money'>('mobile_money');
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [refCode, setRefCode] = useState('');
-  
+
+  // Keep callbacks in refs to avoid re-triggering useEffect when parent passes inline functions
+  const callbacksRef = React.useRef({ onSuccess, onCancel });
+  useEffect(() => {
+    callbacksRef.current = { onSuccess, onCancel };
+  }, [onSuccess, onCancel]);
+
   // Input states for Demo Mode
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
@@ -104,11 +110,11 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
           },
           callback: function (response: { reference: string }) {
             console.log("Paystack Payment Successful! Transaction reference code:", response.reference);
-            onSuccess(response.reference);
+            callbacksRef.current.onSuccess(response.reference);
           },
           onClose: function () {
             setPaymentInitiated(false);
-            onCancel();
+            callbacksRef.current.onCancel();
           }
         });
         handler.openIframe();
@@ -130,7 +136,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     return () => {
       // Keep script loaded
     };
-  }, [isDemo, paymentInitiated, settings, customerPhone, totalCents, refCode, customerName, onSuccess, onCancel]);
+  }, [isDemo, paymentInitiated, settings.paystackPublicKey, customerPhone, totalCents, refCode, customerName]);
 
   // Handle Demo Mode card formatting
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -227,7 +227,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       image: prodImg.trim() || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
       basePrice: Number(prodPrice),
       attributes: prodAttrs,
-      variants: prodVariants
+      variants: prodVariants,
+      ...(editingProduct ? {
+        rating: editingProduct.rating,
+        reviewCount: editingProduct.reviewCount,
+        specifications: editingProduct.specifications,
+        images: editingProduct.images,
+        badge: editingProduct.badge
+      } : {})
     };
 
     try {

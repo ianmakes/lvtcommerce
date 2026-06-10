@@ -55,6 +55,7 @@ export interface OrderItem {
   variantDetails: string; // e.g. "Size: Medium, Color: Blue" or "Standard"
   price: number;
   quantity: number;
+  variantId?: string; // Optional variant ID for accurate stock deduction
 }
 
 export interface Order {
