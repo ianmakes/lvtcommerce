@@ -141,7 +141,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 className="btn-icon-circular"
-                onClick={() => navigate('/account')}
+                onClick={() => navigate('/account?tab=wishlist')}
                 title="View Wishlist"
               >
                 <Heart size={20} fill={wishlistCount > 0 ? "var(--color-sale)" : "none"} style={{ color: wishlistCount > 0 ? "var(--color-sale)" : "var(--color-ink)" }} />

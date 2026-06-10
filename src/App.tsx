@@ -62,7 +62,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('featured');
-  const accountTab = 'orders';
+  const accountTab = 'overview';
 
   // Coupon states
   const [promoCode, setPromoCode] = useState('');

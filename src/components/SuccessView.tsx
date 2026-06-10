@@ -111,11 +111,11 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
           
           <button 
             className="btn btn-primary" 
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/account?tab=orders')}
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
             <ShoppingBag size={16} />
-            <span>Return to Shop</span>
+            <span>See my order</span>
           </button>
         </div>
 

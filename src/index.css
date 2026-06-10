@@ -1396,3 +1396,194 @@ tr:hover .row-actions {
     font-size: 48px;
   }
 }
+
+/* ==========================================================================
+   Storefront My Account Dashboard
+   ========================================================================== */
+.account-dashboard-wrapper {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .account-dashboard-wrapper {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+.account-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--color-ink);
+  color: #ffffff;
+  padding: 32px;
+  margin-bottom: 32px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .account-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 24px;
+  }
+}
+
+.account-banner-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.account-avatar {
+  width: 60px;
+  height: 60px;
+  background-color: #ffffff;
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.account-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 991px) {
+  .account-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .account-stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.account-stat-card {
+  background-color: var(--color-soft-cloud);
+  border: 1px solid var(--color-hairline-soft);
+  padding: 20px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.account-stat-card:hover {
+  border-color: var(--text-stone);
+}
+
+.account-stat-val {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.account-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Order timeline */
+.order-timeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 32px 0 24px;
+  position: relative;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.order-timeline-line {
+  position: absolute;
+  top: 13px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-hairline-soft);
+  z-index: 1;
+}
+
+.order-timeline-progress {
+  position: absolute;
+  top: 13px;
+  left: 0;
+  height: 2px;
+  background-color: var(--color-ink);
+  z-index: 1;
+  transition: width 0.3s ease;
+}
+
+.order-timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+  position: relative;
+  background-color: #ffffff;
+  padding: 0 12px;
+}
+
+.order-timeline-bubble {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--color-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-stone);
+  transition: all 0.2s ease;
+}
+
+.order-timeline-step.active .order-timeline-bubble {
+  border-color: var(--color-ink);
+  background-color: var(--color-ink);
+  color: #ffffff;
+}
+
+.order-timeline-step.completed .order-timeline-bubble {
+  border-color: var(--color-success);
+  background-color: var(--color-success);
+  color: #ffffff;
+}
+
+.order-timeline-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.order-timeline-step.active .order-timeline-label {
+  color: var(--color-ink);
+}
+
+.order-timeline-step.completed .order-timeline-label {
+  color: var(--color-success);
+}
