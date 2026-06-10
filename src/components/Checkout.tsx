@@ -61,7 +61,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   if (!currentUser) {
     return (
-      <div className="container" style={{ maxWidth: '600px', padding: '40px 0' }}>
+      <div className="container" style={{ padding: '40px 0' }}>
         <button 
           className="btn btn-secondary btn-small"
           onClick={() => navigate('/cart')}

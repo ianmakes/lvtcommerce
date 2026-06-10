@@ -66,7 +66,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
       <div className="auth-brand-column">
         <div>
           <span className="auth-brand-badge">GoldenCare Co.</span>
-          <h2 className="auth-brand-title">EVERYTHING YOU NEED TO RECOVER.</h2>
+          <h2 className="auth-brand-title" style={{ color: '#ffffff' }}>EVERYTHING YOU NEED TO RECOVER.</h2>
           <p className="auth-brand-subtitle">
             Join the GoldenCare membership to unlock a smarter recovery and mobility shopping experience.
           </p>
@@ -254,6 +254,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           line-height: 1.2;
           margin: 0 0 16px 0;
           letter-spacing: 0.5px;
+          color: #ffffff;
         }
         .auth-brand-subtitle {
           font-size: 14px;
