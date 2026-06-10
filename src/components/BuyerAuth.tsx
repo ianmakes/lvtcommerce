@@ -258,7 +258,8 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         .auth-brand-subtitle {
           font-size: 14px;
           line-height: 1.5;
-          opacity: 0.7;
+          color: #ffffff;
+          opacity: 0.95;
           margin: 0 0 40px 0;
         }
         .auth-benefits-list {
@@ -280,16 +281,17 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           margin: 0 0 4px 0;
           font-size: 14px;
           font-weight: 600;
+          color: #ffffff;
         }
         .auth-benefit-desc {
           margin: 0;
           font-size: 12px;
-          opacity: 0.7;
+          color: rgba(255, 255, 255, 0.85);
           line-height: 1.4;
         }
         .auth-brand-footer {
           font-size: 11px;
-          opacity: 0.5;
+          color: rgba(255, 255, 255, 0.7);
           margin-top: 40px;
         }
         .auth-form-column {

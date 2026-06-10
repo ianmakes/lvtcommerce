@@ -93,3 +93,22 @@ export interface ShopSettings {
   voiceAssistDefault: boolean;
   voiceRate: number;
 }
+
+export interface HomeSlide {
+  id: string;
+  image: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonLink: string;
+  order: number;
+}
+
+export interface MediaFile {
+  id: string;
+  url: string;
+  name: string;
+  type: 'image' | 'video' | 'document' | 'url';
+  size?: number;
+  createdAt: string;
+}

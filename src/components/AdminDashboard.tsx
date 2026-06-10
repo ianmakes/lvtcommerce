@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
-  Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity
+  Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant } from '../types';
-import { getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings } from '../db';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile } from '../types';
+import { 
+  getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
+  getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile
+} from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
@@ -13,6 +16,7 @@ interface AdminDashboardProps {
   settings: ShopSettings;
   onChangeSettings: (newSettings: ShopSettings) => void;
   onRefreshProducts: () => void;
+  onRefreshSlides: () => void;
 }
 
 // Cloudinary Preset Samples
@@ -42,11 +46,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   settings,
   onChangeSettings,
   onRefreshProducts,
+  onRefreshSlides,
 }) => {
   const path = useLocation();
 
   // activeTab derived from URL path
-  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'tags' = 'overview';
+  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'tags' | 'media' | 'slides' = 'overview';
   if (path === '/dashboard/orders') activeTab = 'orders';
   else if (path === '/dashboard/products') activeTab = 'products';
   else if (path === '/dashboard/settings') activeTab = 'settings';
@@ -54,11 +59,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/reports') activeTab = 'reports';
   else if (path === '/dashboard/categories') activeTab = 'categories';
   else if (path === '/dashboard/tags') activeTab = 'tags';
+  else if (path === '/dashboard/media') activeTab = 'media';
+  else if (path === '/dashboard/slides') activeTab = 'slides';
   
   // Lists from Firestore DB
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
+  
+  // Slides & Media manager states
+  const [slides, setSlides] = useState<HomeSlide[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [newMediaUrl, setNewMediaUrl] = useState('');
+  const [newMediaName, setNewMediaName] = useState('');
+  const [mediaUploadType, setMediaUploadType] = useState<'image' | 'video' | 'document' | 'url'>('image');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Media picker modal states
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
+  const [mediaModalTarget, setMediaModalTarget] = useState<'product-main' | 'product-gallery' | 'slide-image' | null>(null);
+
+  // Slide CRUD state
+  const [slideModalOpen, setSlideModalOpen] = useState(false);
+  const [editingSlide, setEditingSlide] = useState<HomeSlide | null>(null);
+  
+  // Editing slide fields
+  const [slideImage, setSlideImage] = useState('');
+  const [slideTitle, setSlideTitle] = useState('');
+  const [slideDescription, setSlideDescription] = useState('');
+  const [slideButtonText, setSlideButtonText] = useState('');
+  const [slideButtonLink, setSlideButtonLink] = useState('');
+  const [slideOrder, setSlideOrder] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
   // Form Modals
@@ -88,12 +121,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const loadAdminData = async () => {
     setIsLoading(true);
     try {
-      const dbProds = await getProducts();
-      const dbOrders = await getOrders();
-      const dbSettings = await getSettings();
+      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia] = await Promise.all([
+        getProducts(),
+        getOrders(),
+        getSettings(),
+        getHomeSlides(),
+        getMediaFiles()
+      ]);
       setProducts(dbProds);
       setOrders(dbOrders);
       setLocalSettings(dbSettings);
+      setSlides(dbSlides);
+      setMediaFiles(dbMedia);
     } catch (e) {
       console.error("Error loading data from Firestore:", e);
     } finally {
@@ -104,7 +143,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAdminData();
-  }, []);
+  }, [path]);
 
   // Web Crypto SHA-1 Generation for Cloudinary Signed Upload
   const generateSha1 = async (str: string): Promise<string> => {
@@ -208,6 +247,204 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       setUploadingImage(false);
     }
+  };
+
+  // Centralized media library and slideshow actions
+  const handleMediaLibraryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingMedia(true);
+
+    try {
+      const cloudinaryCloudName = "dhvnbtkgw";
+      const cloudinaryApiKey = "826498111838123";
+      const cloudinaryApiSecret = "tZkjGNGSkZFKBckwfCh9wkxniy0";
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+
+      const signatureString = `timestamp=${timestamp}${cloudinaryApiSecret}`;
+      const signature = await generateSha1(signatureString);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", cloudinaryApiKey);
+      formData.append("timestamp", timestamp);
+      formData.append("signature", signature);
+
+      let uploadCategory = "auto";
+      if (file.type.startsWith("video/")) {
+        uploadCategory = "video";
+      } else if (file.type.startsWith("image/")) {
+        uploadCategory = "image";
+      } else {
+        uploadCategory = "raw";
+      }
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/${uploadCategory}/upload`, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!res.ok) {
+        throw new Error(`Upload failed with status: ${res.status}`);
+      }
+
+      const json = await res.json();
+      const newUrl = json.secure_url;
+
+      let type: 'image' | 'video' | 'document' | 'url' = 'document';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+
+      const newMedia: MediaFile = {
+        id: `media-${Date.now()}`,
+        name: file.name,
+        url: newUrl,
+        type,
+        size: file.size,
+        createdAt: new Date().toISOString()
+      };
+
+      await saveMediaFile(newMedia);
+      
+      const dbMedia = await getMediaFiles();
+      setMediaFiles(dbMedia);
+      setSelectedMedia(newMedia);
+      alert("Asset uploaded to Media Library!");
+    } catch (err) {
+      console.error("Cloudinary upload error:", err);
+      alert("Failed to upload asset. Please try again.");
+    } finally {
+      setUploadingMedia(false);
+      e.target.value = ""; // reset file input
+    }
+  };
+
+  const handleAddMediaUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMediaUrl.trim() || !newMediaName.trim()) {
+      alert("Please enter a name and a valid URL.");
+      return;
+    }
+
+    try {
+      const newMedia: MediaFile = {
+        id: `media-${Date.now()}`,
+        name: newMediaName.trim(),
+        url: newMediaUrl.trim(),
+        type: mediaUploadType,
+        createdAt: new Date().toISOString()
+      };
+
+      await saveMediaFile(newMedia);
+      
+      setNewMediaUrl('');
+      setNewMediaName('');
+      
+      const dbMedia = await getMediaFiles();
+      setMediaFiles(dbMedia);
+      setSelectedMedia(newMedia);
+      alert("URL asset added to Media Library!");
+    } catch (err) {
+      console.error("Error adding URL media:", err);
+      alert("Failed to add URL asset.");
+    }
+  };
+
+  const handleDeleteMedia = async (id: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this media asset?")) return;
+
+    try {
+      await deleteMediaFile(id);
+      setSelectedMedia(null);
+      const dbMedia = await getMediaFiles();
+      setMediaFiles(dbMedia);
+      alert("Media asset deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting media:", err);
+      alert("Failed to delete media asset.");
+    }
+  };
+
+  const handleOpenAddSlide = () => {
+    setEditingSlide(null);
+    setSlideImage('');
+    setSlideTitle('');
+    setSlideDescription('');
+    setSlideButtonText('');
+    setSlideButtonLink('');
+    setSlideOrder(slides.length + 1);
+    setSlideModalOpen(true);
+  };
+
+  const handleOpenEditSlide = (slide: HomeSlide) => {
+    setEditingSlide(slide);
+    setSlideImage(slide.image);
+    setSlideTitle(slide.title);
+    setSlideDescription(slide.description);
+    setSlideButtonText(slide.buttonText);
+    setSlideButtonLink(slide.buttonLink);
+    setSlideOrder(slide.order);
+    setSlideModalOpen(true);
+  };
+
+  const handleSaveSlideSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!slideImage.trim() || !slideTitle.trim()) {
+      alert("Slide background image and title are required.");
+      return;
+    }
+
+    try {
+      const slideData: HomeSlide = {
+        id: editingSlide ? editingSlide.id : `slide-${Date.now()}`,
+        image: slideImage.trim(),
+        title: slideTitle.trim(),
+        description: slideDescription.trim(),
+        buttonText: slideButtonText.trim(),
+        buttonLink: slideButtonLink.trim() || '/shop',
+        order: Number(slideOrder)
+      };
+
+      await saveHomeSlide(slideData);
+      setSlideModalOpen(false);
+      setEditingSlide(null);
+      
+      const dbSlides = await getHomeSlides();
+      setSlides(dbSlides);
+      onRefreshSlides();
+      alert("Hero slide saved successfully!");
+    } catch (err) {
+      console.error("Error saving slide:", err);
+      alert("Failed to save hero slide.");
+    }
+  };
+
+  const handleDeleteSlide = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this slide?")) return;
+
+    try {
+      await deleteHomeSlide(id);
+      const dbSlides = await getHomeSlides();
+      setSlides(dbSlides);
+      onRefreshSlides();
+      alert("Slide deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting slide:", err);
+      alert("Failed to delete slide.");
+    }
+  };
+
+  const handleSelectMedia = (url: string) => {
+    if (mediaModalTarget === 'product-main') {
+      setProdImg(url);
+    } else if (mediaModalTarget === 'product-gallery') {
+      setProdGallery(prev => [...prev, url]);
+    } else if (mediaModalTarget === 'slide-image') {
+      setSlideImage(url);
+    }
+    setMediaModalOpen(false);
+    setMediaModalTarget(null);
   };
 
   // Cartesian Product Helper for Variant Generation
@@ -515,6 +752,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>Promo Tags</span>
           </button>
           
+          <button 
+            type="button"
+            className={`wp-admin-menu-item ${activeTab === 'media' ? 'active' : ''}`}
+            onClick={() => navigate('/dashboard/media')}
+          >
+            <ImageIcon size={18} />
+            <span>Media Library</span>
+          </button>
+
+          <button 
+            type="button"
+            className={`wp-admin-menu-item ${activeTab === 'slides' ? 'active' : ''}`}
+            onClick={() => navigate('/dashboard/slides')}
+          >
+            <Sliders size={18} />
+            <span>Hero Slides</span>
+          </button>
+
           <button 
             type="button"
             className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
@@ -1125,6 +1380,286 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
+          {/* TAB: Media Library */}
+          {activeTab === 'media' && (
+            <div>
+              <h1 className="wp-admin-page-title">Media Library</h1>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', alignItems: 'start' }}>
+                
+                {/* Left panel: Upload & Media Grid */}
+                <div>
+                  {/* Upload box */}
+                  <div className="wp-postbox" style={{ marginBottom: '20px' }}>
+                    <h2 className="wp-postbox-title">Add New Media Asset</h2>
+                    <div className="wp-postbox-inside" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* Local File Upload */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#646970', marginBottom: '6px' }}>Upload local file:</label>
+                        <input 
+                          type="file" 
+                          accept="image/*,video/*,application/pdf"
+                          onChange={handleMediaLibraryUpload}
+                          disabled={uploadingMedia}
+                          style={{ fontSize: '12px' }}
+                        />
+                        {uploadingMedia && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-stone)', marginTop: '8px' }}>
+                            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} />
+                            <span>Uploading to Cloudinary...</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: '#646970', fontWeight: 600 }}>
+                        <span style={{ borderBottom: '1px solid #c3c4c7', flexGrow: 1 }} />
+                        <span>OR ADD FROM URL</span>
+                        <span style={{ borderBottom: '1px solid #c3c4c7', flexGrow: 1 }} />
+                      </div>
+
+                      {/* Add by URL */}
+                      <form onSubmit={handleAddMediaUrl} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>Asset Name</label>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="e.g. Walking cane side view" 
+                              value={newMediaName}
+                              onChange={e => setNewMediaName(e.target.value)}
+                              style={{ borderRadius: 0, padding: '6px' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>Asset Type</label>
+                            <select 
+                              className="form-input"
+                              value={mediaUploadType}
+                              onChange={e => setMediaUploadType(e.target.value as 'image' | 'video' | 'document' | 'url')}
+                              style={{ borderRadius: 0, padding: '6px', height: '32px' }}
+                            >
+                              <option value="image">Image</option>
+                              <option value="video">Video</option>
+                              <option value="document">Document (PDF/etc)</option>
+                              <option value="url">External Link/URL</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>Asset Source URL</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="https://..." 
+                            value={newMediaUrl}
+                            onChange={e => setNewMediaUrl(e.target.value)}
+                            style={{ borderRadius: 0, padding: '6px' }}
+                          />
+                        </div>
+
+                        <button type="submit" className="wp-button-secondary" style={{ alignSelf: 'flex-start', minHeight: '30px' }}>
+                          Add URL Asset
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  {/* Grid Container */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">All Media Assets ({mediaFiles.length})</h2>
+                    <div className="wp-postbox-inside" style={{ minHeight: '300px' }}>
+                      {mediaFiles.length === 0 ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '260px', color: '#a7aaad', fontStyle: 'italic' }}>
+                          No assets in the media library yet.
+                        </div>
+                      ) : (
+                        <div className="media-manager-grid">
+                          {mediaFiles.map(file => {
+                            const isSelected = selectedMedia?.id === file.id;
+                            return (
+                              <div 
+                                key={file.id} 
+                                className={`media-item-card ${isSelected ? 'selected' : ''}`}
+                                onClick={() => setSelectedMedia(file)}
+                              >
+                                {file.type === 'image' ? (
+                                  <img src={file.url} alt={file.name} className="media-item-thumbnail" />
+                                ) : (
+                                  <div className="media-item-icon-wrapper">
+                                    {file.type === 'video' ? <Film size={32} /> : file.type === 'document' ? <FileText size={32} /> : <LinkIcon size={32} />}
+                                    <span className="media-item-filename">{file.name}</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right panel: Details Sidebar */}
+                <div className="wp-postbox">
+                  <h2 className="wp-postbox-title">Attachment Details</h2>
+                  <div className="wp-postbox-inside">
+                    {selectedMedia ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '12px' }}>
+                        <div style={{ width: '100%', aspectRatio: '4/3', border: '1px solid #c3c4c7', background: '#f0f0f1', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          {selectedMedia.type === 'image' ? (
+                            <img src={selectedMedia.url} alt={selectedMedia.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#646970' }}>
+                              {selectedMedia.type === 'video' ? <Film size={48} /> : selectedMedia.type === 'document' ? <FileText size={48} /> : <LinkIcon size={48} />}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '13px', wordBreak: 'break-all', marginBottom: '8px' }}>{selectedMedia.name}</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px 8px', color: '#646970' }}>
+                            <span>Type:</span><span style={{ textTransform: 'capitalize' }}>{selectedMedia.type}</span>
+                            <span>Created:</span><span>{new Date(selectedMedia.createdAt).toLocaleDateString()}</span>
+                            {selectedMedia.size && (
+                              <>
+                                <span>Size:</span>
+                                <span>{(selectedMedia.size / 1024).toFixed(1)} KB</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <label style={{ fontWeight: 600, color: '#646970' }}>Copy URL Link:</label>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <input 
+                              type="text" 
+                              readOnly 
+                              value={selectedMedia.url} 
+                              style={{ flexGrow: 1, padding: '4px 6px', fontSize: '11px', border: '1px solid #c3c4c7', background: '#f6f7f7' }}
+                              onClick={e => (e.target as HTMLInputElement).select()}
+                            />
+                            <button 
+                              type="button" 
+                              className="wp-button-secondary"
+                              style={{ minHeight: '22px', fontSize: '11px', padding: '0 8px' }}
+                              onClick={() => {
+                                navigator.clipboard.writeText(selectedMedia.url);
+                                setCopiedId(selectedMedia.id);
+                                setTimeout(() => setCopiedId(null), 2000);
+                              }}
+                            >
+                              {copiedId === selectedMedia.id ? "Copied" : "Copy"}
+                            </button>
+                          </div>
+                        </div>
+
+                        <button 
+                          type="button" 
+                          className="wp-button-secondary"
+                          style={{ color: '#b32d2e', borderColor: '#b32d2e', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                          onClick={() => handleDeleteMedia(selectedMedia.id)}
+                        >
+                          <Trash2 size={14} />
+                          <span>Delete Permanently</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#a7aaad', fontStyle: 'italic', textAlign: 'center', padding: '40px 0' }}>
+                        Select an asset to view its details.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Slides Manager */}
+          {activeTab === 'slides' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h1 className="wp-admin-page-title" style={{ margin: 0 }}>Homepage Slides</h1>
+                <button 
+                  type="button" 
+                  className="wp-button-primary"
+                  onClick={handleOpenAddSlide}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={16} />
+                  <span>Add New Slide</span>
+                </button>
+              </div>
+
+              <table className="wp-list-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '80px' }}>Slide Image</th>
+                    <th>Title & Description</th>
+                    <th>Button Details</th>
+                    <th style={{ width: '80px', textAlign: 'center' }}>Display Order</th>
+                    <th style={{ width: '120px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {slides.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                        No slides found. Click "Add New Slide" to create one.
+                      </td>
+                    </tr>
+                  ) : (
+                    slides.map(slide => (
+                      <tr key={slide.id}>
+                        <td>
+                          <div style={{ width: '80px', aspectRatio: '16/9', border: '1px solid #c3c4c7', background: '#f0f0f1', overflow: 'hidden' }}>
+                            <img src={slide.image} alt={slide.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, fontSize: '13px' }}>{slide.title}</div>
+                          <div style={{ fontSize: '11px', color: '#646970', marginTop: '2px', maxWidth: '400px' }}>{slide.description}</div>
+                        </td>
+                        <td>
+                          {slide.buttonText ? (
+                            <div style={{ fontSize: '12px' }}>
+                              <strong>Label:</strong> {slide.buttonText} <br/>
+                              <span style={{ fontSize: '11px', color: '#646970' }}><strong>Link:</strong> {slide.buttonLink}</span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#a7aaad', fontStyle: 'italic' }}>No action button</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center', fontWeight: 600 }}>{slide.order}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button 
+                            type="button"
+                            className="wp-button-secondary"
+                            style={{ minHeight: '26px', padding: '0 8px', fontSize: '11px', marginRight: '6px' }}
+                            onClick={() => handleOpenEditSlide(slide)}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            type="button"
+                            className="wp-button-secondary"
+                            style={{ minHeight: '26px', padding: '0 8px', fontSize: '11px', color: '#b32d2e', borderColor: '#ffe3e3' }}
+                            onClick={() => handleDeleteSlide(slide.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
         </main>
       </div>
 
@@ -1474,14 +2009,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       )}
 
                       {/* Main Image Upload */}
-                      <div style={{ marginBottom: '10px' }}>
+                      <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <input 
                           type="file" 
                           accept="image/*" 
                           onChange={handleImageUpload}
                           disabled={uploadingImage}
-                          style={{ fontSize: '12px', cursor: 'pointer' }}
+                          style={{ fontSize: '12px', cursor: 'pointer', maxWidth: '140px' }}
                         />
+                        <button
+                          type="button"
+                          className="wp-button-secondary"
+                          style={{ minHeight: '26px', padding: '0 8px', fontSize: '11px', flexShrink: 0 }}
+                          onClick={() => {
+                            setMediaModalTarget('product-main');
+                            setMediaModalOpen(true);
+                          }}
+                        >
+                          Choose from Library
+                        </button>
                       </div>
                       
                       {/* Paste main image URL */}
@@ -1535,16 +2081,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       )}
 
                       {/* Cloudinary Gallery Upload */}
-                      <div style={{ marginBottom: '10px' }}>
-                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#646970', marginBottom: '4px' }}>Upload Gallery Images:</label>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          multiple
-                          onChange={handleGalleryImagesUpload}
-                          disabled={uploadingImage}
-                          style={{ fontSize: '12px', cursor: 'pointer' }}
-                        />
+                      <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#646970', marginBottom: '4px' }}>Upload Gallery Images:</label>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            multiple
+                            onChange={handleGalleryImagesUpload}
+                            disabled={uploadingImage}
+                            style={{ fontSize: '12px', cursor: 'pointer', maxWidth: '140px' }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="wp-button-secondary"
+                          style={{ minHeight: '26px', padding: '0 8px', fontSize: '11px', flexShrink: 0, marginTop: '14px' }}
+                          onClick={() => {
+                            setMediaModalTarget('product-gallery');
+                            setMediaModalOpen(true);
+                          }}
+                        >
+                          Choose from Library
+                        </button>
                       </div>
 
                       {/* Paste URL */}
@@ -1590,6 +2149,238 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Slide Editor */}
+      {slideModalOpen && (
+        <div className="modal-overlay" onClick={() => setSlideModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', padding: 0, border: '1px solid #c3c4c7', borderRadius: '0' }}>
+            <div style={{ borderBottom: '1px solid #c3c4c7', padding: '12px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f6f7f7' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+                {editingSlide ? 'Edit Homepage Slide' : 'Add New Homepage Slide'}
+              </h3>
+              <button type="button" className="modal-close" onClick={() => setSlideModalOpen(false)} style={{ position: 'static', padding: 0 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSlideSubmit}>
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Image URL with Media Library picker */}
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Background Image URL</label>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="https://..." 
+                      value={slideImage}
+                      onChange={e => setSlideImage(e.target.value)}
+                      required
+                      style={{ flexGrow: 1, borderRadius: 0 }}
+                    />
+                    <button
+                      type="button"
+                      className="wp-button-secondary"
+                      onClick={() => {
+                        setMediaModalTarget('slide-image');
+                        setMediaModalOpen(true);
+                      }}
+                      style={{ minHeight: '30px', flexShrink: 0 }}
+                    >
+                      Choose Media
+                    </button>
+                  </div>
+                  {slideImage && (
+                    <div style={{ marginTop: '8px', width: '100%', aspectRatio: '16/9', border: '1px solid #c3c4c7', overflow: 'hidden' }}>
+                      <img src={slideImage} alt="slide preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Slide Title (Typography)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. WELLNESS REDEFINED." 
+                    value={slideTitle}
+                    onChange={e => setSlideTitle(e.target.value)}
+                    required
+                    style={{ borderRadius: 0, marginTop: '6px' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Description</label>
+                  <textarea 
+                    className="form-input" 
+                    placeholder="Slide description text..." 
+                    value={slideDescription}
+                    onChange={e => setSlideDescription(e.target.value)}
+                    style={{ borderRadius: 0, marginTop: '6px', height: '80px', fontFamily: 'inherit' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label className="form-label" style={{ fontWeight: 600 }}>Button Label</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. SHOP MOBILITY" 
+                      value={slideButtonText}
+                      onChange={e => setSlideButtonText(e.target.value)}
+                      style={{ borderRadius: 0, marginTop: '6px' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontWeight: 600 }}>Button Link URL</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. /shop" 
+                      value={slideButtonLink}
+                      onChange={e => setSlideButtonLink(e.target.value)}
+                      style={{ borderRadius: 0, marginTop: '6px' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Slide Sorting Order Index</label>
+                  <input 
+                    type="number" 
+                    className="form-input" 
+                    value={slideOrder}
+                    onChange={e => setSlideOrder(Number(e.target.value))}
+                    required
+                    style={{ borderRadius: 0, marginTop: '6px', width: '100px' }}
+                  />
+                </div>
+
+              </div>
+
+              <div style={{ padding: '15px 20px', borderTop: '1px solid #c3c4c7', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#f6f7f7' }}>
+                <button type="button" className="wp-button-secondary" onClick={() => setSlideModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="wp-button-primary">
+                  Save Slide
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Media Library Selector popup picker */}
+      {mediaModalOpen && (
+        <div className="modal-overlay" onClick={() => { setMediaModalOpen(false); setMediaModalTarget(null); }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '90%', maxWidth: '800px', height: '80vh', padding: 0, border: '1px solid #c3c4c7', borderRadius: '0', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ borderBottom: '1px solid #c3c4c7', padding: '12px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f6f7f7' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+                Select Media Asset {mediaModalTarget === 'product-gallery' ? '(Gallery Selection)' : ''}
+              </h3>
+              <button type="button" className="modal-close" onClick={() => { setMediaModalOpen(false); setMediaModalTarget(null); }} style={{ position: 'static', padding: 0 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body: Tabs & Content split */}
+            <div style={{ flexGrow: 1, overflowY: 'auto', padding: '20px', display: 'grid', gridTemplateColumns: mediaFiles.length > 0 ? '3fr 1.2fr' : '1fr', gap: '20px' }}>
+              {/* Media gallery grid */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Upload inside modal shortcut */}
+                <div style={{ background: '#f6f7f7', border: '1px solid #c3c4c7', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#646970', marginRight: '8px' }}>Upload new file:</label>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleMediaLibraryUpload}
+                      disabled={uploadingMedia}
+                      style={{ fontSize: '12px' }}
+                    />
+                  </div>
+                  {uploadingMedia && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-stone)' }}>
+                      <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={12} />
+                      <span>Uploading...</span>
+                    </div>
+                  )}
+                </div>
+
+                {mediaFiles.length === 0 ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#a7aaad', fontStyle: 'italic' }}>
+                    No media assets available. Upload one above first!
+                  </div>
+                ) : (
+                  <div className="media-manager-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))' }}>
+                    {mediaFiles.filter(f => f.type === 'image').map(file => {
+                      const isSelected = selectedMedia?.id === file.id;
+                      return (
+                        <div 
+                          key={file.id} 
+                          className={`media-item-card ${isSelected ? 'selected' : ''}`}
+                          onClick={() => setSelectedMedia(file)}
+                          style={{ aspectRatio: '1/1' }}
+                        >
+                          <img src={file.url} alt={file.name} className="media-item-thumbnail" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Sidebar Detail (Only show if media selected) */}
+              {mediaFiles.length > 0 && (
+                <div style={{ borderLeft: '1px solid #c3c4c7', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '11px' }}>
+                  <h4 style={{ margin: '0 0 6px 0', textTransform: 'uppercase', color: '#646970', letterSpacing: '0.5px' }}>Asset Details</h4>
+                  {selectedMedia ? (
+                    <>
+                      <div style={{ width: '100%', aspectRatio: '4/3', border: '1px solid #c3c4c7', overflow: 'hidden', background: '#f0f0f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img src={selectedMedia.url} alt="detail preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      </div>
+                      <div style={{ fontWeight: 600, wordBreak: 'break-all' }}>{selectedMedia.name}</div>
+                      <div>Type: {selectedMedia.type}</div>
+                      <div>Created: {new Date(selectedMedia.createdAt).toLocaleDateString()}</div>
+                    </>
+                  ) : (
+                    <div style={{ color: '#a7aaad', fontStyle: 'italic', textAlign: 'center', paddingTop: '20px' }}>
+                      Click on an image card to view details and select.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '15px 20px', borderTop: '1px solid #c3c4c7', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#f6f7f7' }}>
+              <button 
+                type="button" 
+                className="wp-button-secondary" 
+                onClick={() => { setMediaModalOpen(false); setMediaModalTarget(null); }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="wp-button-primary" 
+                disabled={!selectedMedia}
+                onClick={() => {
+                  if (selectedMedia) {
+                    handleSelectMedia(selectedMedia.url);
+                  }
+                }}
+              >
+                Insert Selected URL
+              </button>
+            </div>
           </div>
         </div>
       )}

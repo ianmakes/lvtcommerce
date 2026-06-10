@@ -45,6 +45,15 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
 
   // Sync activeTab when initialTab prop or query parameter changes
   useEffect(() => {
+    const handleUrlTabSync = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'security'].includes(tabParam)) {
+        setActiveTab(tabParam as 'overview' | 'orders' | 'wishlist' | 'address' | 'security');
+      }
+    };
+
+    // Run on initial mount
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
     if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'security'].includes(tabParam)) {
@@ -53,6 +62,9 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     } else if (initialTab && ['overview', 'orders', 'wishlist', 'address', 'security'].includes(initialTab)) {
       setActiveTab(initialTab as 'overview' | 'orders' | 'wishlist' | 'address' | 'security');
     }
+
+    window.addEventListener('popstate', handleUrlTabSync);
+    return () => window.removeEventListener('popstate', handleUrlTabSync);
   }, [initialTab]);
 
   // Load account data (orders and profile settings)

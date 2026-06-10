@@ -18,8 +18,8 @@ import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
 
-import { Product, CartItem, Order, ShopSettings } from './types';
-import { initDb, getProducts, getSettings, addOrder } from './db';
+import { Product, CartItem, Order, ShopSettings, HomeSlide } from './types';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides } from './db';
 
 import './App.css';
 
@@ -39,6 +39,8 @@ function App() {
 
   // Data lists
   const [products, setProducts] = useState<Product[]>([]);
+  const [slides, setSlides] = useState<HomeSlide[]>([]);
+  const [activeSlide, setActiveSlide] = useState(0);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
@@ -93,12 +95,14 @@ function App() {
     const loadInitialData = async () => {
       try {
         await initDb();
-        const [loadedProducts, loadedSettings] = await Promise.all([
+        const [loadedProducts, loadedSettings, loadedSlides] = await Promise.all([
           getProducts(),
-          getSettings()
+          getSettings(),
+          getHomeSlides()
         ]);
         setProducts(loadedProducts);
         setSettings(loadedSettings);
+        setSlides(loadedSlides);
       } catch (err) {
         console.error("Error loading initial data:", err);
       }
@@ -113,6 +117,15 @@ function App() {
 
     return () => unsubscribe();
   }, []);
+
+  // Slides auto-advance logic
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveSlide(prev => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [slides.length]);
 
   // Dynamic route helper mapping
   const isProductDetail = path.startsWith('/product/');
@@ -172,6 +185,15 @@ function App() {
       }
     } catch (err) {
       console.error("Error refreshing products:", err);
+    }
+  };
+
+  const handleRefreshSlides = async () => {
+    try {
+      const loadedSlides = await getHomeSlides();
+      setSlides(loadedSlides);
+    } catch (err) {
+      console.error("Error refreshing slides:", err);
     }
   };
 
@@ -354,44 +376,102 @@ function App() {
         {/* VIEW G: Landing Page */}
         {path === '/' && (
           <div>
-            {/* Nike Campaign Hero */}
-            <section 
-              className="campaign-hero" 
-              style={{ 
-                backgroundImage: 'linear-gradient(to bottom, rgba(17,17,17,0.1) 0%, rgba(17,17,17,0.4) 100%), url(https://images.unsplash.com/photo-1476480862126-209bbcafd4eb?q=80&w=1600)' 
-              }}
-            >
-              <div className="campaign-hero-inner">
-                <div className="campaign-hero-content">
-                  <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, display: 'block', marginBottom: '12px' }}>
-                    GoldenCare GC System &bull; Est. 2026
-                  </span>
-                  <h1 className="font-display-campaign">
-                    WELLNESS REDEFINED.<br />FUNCTION OVER CHROME.
-                  </h1>
-                  <p className="font-body-md" style={{ color: 'rgba(255,255,255,0.9)', margin: '0 0 32px', maxWidth: '600px' }}>
-                    Curated daily recovery and lifestyle design objects built with 3K Carbon Fiber, AeroGel insulation, and integrated Bluetooth sensors.
-                  </p>
-                  <div style={{ display: 'flex', gap: '16px' }}>
-                    <button 
-                      className="btn btn-outline-on-image" 
-                      onClick={() => navigate('/shop')}
-                    >
-                      Shop the Collection
-                    </button>
-                    <button 
-                      className="btn" 
-                      onClick={() => {
-                        const visionEl = document.getElementById('brand-vision');
-                        if (visionEl) visionEl.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      style={{ backgroundColor: 'transparent', color: '#ffffff', borderColor: '#ffffff', padding: '12px 24px', height: '44px', minHeight: '44px' }}
-                    >
-                      Our Philosophy
-                    </button>
+            {/* Nike Campaign Hero Slider */}
+            <section className="campaign-hero-slider">
+              {slides.length > 0 ? (
+                slides.map((slide, idx) => (
+                  <div
+                    key={slide.id}
+                    className={`campaign-slide ${idx === activeSlide ? 'active' : ''}`}
+                    style={{
+                      backgroundImage: `linear-gradient(to bottom, rgba(17,17,17,0.1) 0%, rgba(17,17,17,0.4) 100%), url(${slide.image})`
+                    }}
+                  >
+                    <div className="campaign-hero-inner" style={{ width: '100%' }}>
+                      <div className="campaign-hero-content">
+                        <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, display: 'block', marginBottom: '12px' }}>
+                          GoldenCare GC System &bull; Est. 2026
+                        </span>
+                        <h1 className="font-display-campaign" style={{ color: '#ffffff' }}>
+                          {slide.title}
+                        </h1>
+                        <p className="font-body-md" style={{ color: 'rgba(255,255,255,0.9)', margin: '0 0 32px', maxWidth: '600px' }}>
+                          {slide.description}
+                        </p>
+                        <div style={{ display: 'flex', gap: '16px' }}>
+                          {slide.buttonText && (
+                            <button 
+                              className="btn btn-outline-on-image" 
+                              onClick={() => {
+                                if (slide.buttonLink.startsWith('http')) {
+                                  window.open(slide.buttonLink, '_blank');
+                                } else {
+                                  navigate(slide.buttonLink);
+                                }
+                              }}
+                            >
+                              {slide.buttonText}
+                            </button>
+                          )}
+                          <button 
+                            className="btn" 
+                            onClick={() => {
+                              const visionEl = document.getElementById('brand-vision');
+                              if (visionEl) visionEl.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            style={{ backgroundColor: 'transparent', color: '#ffffff', borderColor: '#ffffff', padding: '12px 24px', height: '44px', minHeight: '44px' }}
+                          >
+                            Our Philosophy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#ffffff' }}>
+                  <span style={{ fontSize: '14px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600 }}>Loading gallery...</span>
                 </div>
-              </div>
+              )}
+
+              {/* Slider Controls */}
+              {slides.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className="slider-arrow prev"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveSlide(prev => (prev - 1 + slides.length) % slides.length);
+                    }}
+                    aria-label="Previous slide"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    className="slider-arrow next"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveSlide(prev => (prev + 1) % slides.length);
+                    }}
+                    aria-label="Next slide"
+                  >
+                    ›
+                  </button>
+                  <div className="slider-dots">
+                    {slides.map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`slider-dot ${idx === activeSlide ? 'active' : ''}`}
+                        onClick={() => setActiveSlide(idx)}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </section>
 
             {/* Brand Vision / Philosophy (Rhythm section spacing) */}
@@ -666,6 +746,7 @@ function App() {
               settings={settings}
               onChangeSettings={handleSettingsChange}
               onRefreshProducts={handleRefreshProducts}
+              onRefreshSlides={handleRefreshSlides}
             />
           ) : null
         )}

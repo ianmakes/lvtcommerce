@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings, BuyerProfile, ProductReview } from './types';
+import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile } from './types';
 
 // Helper to clean undefined properties recursively before saving to Firestore
 function cleanObject<T extends object>(obj: T): T {
@@ -291,6 +291,86 @@ export async function initDb(): Promise<void> {
 
       console.log("Firebase Database seeded successfully with reviews and specifications.");
     }
+
+    // Seed home_slides if empty
+    const slidesRef = collection(db, "home_slides");
+    const slidesSnap = await getDocs(slidesRef);
+    if (slidesSnap.empty) {
+      const defaultSlides: HomeSlide[] = [
+        {
+          id: "slide-1",
+          image: "https://images.unsplash.com/photo-1476480862126-209bbcafd4eb?q=80&w=1600",
+          title: "GOLDENCARE MEMBERSHIP",
+          description: "YOUR ALL-ACCESS PASS TO RECOVERY AND MOBILITY TOOLS",
+          buttonText: "SHOP MOBILITY",
+          buttonLink: "/shop",
+          order: 1
+        },
+        {
+          id: "slide-2",
+          image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1600",
+          title: "GC-03 THERMAL RECOVERY",
+          description: "ADVANCED HEATING WRAPS POWERED BY LIGHTWEIGHT AEROGEL INSULATION",
+          buttonText: "EXPLORE WRAPS",
+          buttonLink: "/product/prod-wrap",
+          order: 2
+        },
+        {
+          id: "slide-3",
+          image: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?q=80&w=1600",
+          title: "RECOVER SMARTER",
+          description: "GC-02 DIGITAL DISPENSERS FEATURING BLUETOOTH COMPANION APP ALERTS",
+          buttonText: "DISCOVER PILL PODS",
+          buttonLink: "/product/prod-pill",
+          order: 3
+        }
+      ];
+      for (const s of defaultSlides) {
+        await setDoc(doc(db, "home_slides", s.id), s);
+      }
+      console.log("Firebase Database: Seeded default home slides.");
+    }
+
+    // Seed media_files if empty
+    const mediaRef = collection(db, "media_files");
+    const mediaSnap = await getDocs(mediaRef);
+    if (mediaSnap.empty) {
+      const defaultFiles: MediaFile[] = [
+        {
+          id: "media-cane",
+          name: "cane-main.png",
+          url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
+          type: "image",
+          createdAt: new Date(Date.now() - 10000).toISOString()
+        },
+        {
+          id: "media-pill",
+          name: "pill-pod.jpg",
+          url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-5.jpg",
+          type: "image",
+          createdAt: new Date(Date.now() - 20000).toISOString()
+        },
+        {
+          id: "media-wrap",
+          name: "wrap-recovery.jpg",
+          url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-3.jpg",
+          type: "image",
+          createdAt: new Date(Date.now() - 30000).toISOString()
+        },
+        {
+          id: "media-magnify",
+          name: "magnify-lens.avif",
+          url: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035259/samples/zoom.avif",
+          type: "image",
+          createdAt: new Date(Date.now() - 40000).toISOString()
+        }
+      ];
+      for (const f of defaultFiles) {
+        await setDoc(doc(db, "media_files", f.id), f);
+      }
+      console.log("Firebase Database: Seeded default media files.");
+    }
+
     isDbInitialized = true;
   } catch (error) {
     console.error("Error initializing Firebase Database:", error);
@@ -423,4 +503,42 @@ export async function addProductReview(review: ProductReview): Promise<void> {
     product.reviewCount = reviews.length;
     await setDoc(productRef, cleanObject(product));
   }
+}
+
+// Slides GET/SAVE/DELETE
+export async function getHomeSlides(): Promise<HomeSlide[]> {
+  await initDb();
+  const slidesCol = collection(db, "home_slides");
+  const slidesSnapshot = await getDocs(slidesCol);
+  const slidesList = slidesSnapshot.docs.map(doc => doc.data() as HomeSlide);
+  return slidesList.sort((a, b) => a.order - b.order);
+}
+
+export async function saveHomeSlide(slide: HomeSlide): Promise<void> {
+  const slideRef = doc(db, "home_slides", slide.id);
+  await setDoc(slideRef, cleanObject(slide));
+}
+
+export async function deleteHomeSlide(id: string): Promise<void> {
+  const slideRef = doc(db, "home_slides", id);
+  await deleteDoc(slideRef);
+}
+
+// Media Files GET/SAVE/DELETE
+export async function getMediaFiles(): Promise<MediaFile[]> {
+  await initDb();
+  const mediaCol = collection(db, "media_files");
+  const mediaSnapshot = await getDocs(mediaCol);
+  const mediaList = mediaSnapshot.docs.map(doc => doc.data() as MediaFile);
+  return mediaList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export async function saveMediaFile(file: MediaFile): Promise<void> {
+  const fileRef = doc(db, "media_files", file.id);
+  await setDoc(fileRef, cleanObject(file));
+}
+
+export async function deleteMediaFile(id: string): Promise<void> {
+  const fileRef = doc(db, "media_files", id);
+  await deleteDoc(fileRef);
 }
