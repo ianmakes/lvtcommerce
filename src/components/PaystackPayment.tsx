@@ -250,235 +250,245 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   // Live Gateway loading screen
   if (!isDemo) {
     return (
-      <div className="card text-center" style={{ border: '1px solid var(--color-hairline)', padding: '40px' }}>
-        <Loader2 className="voice-wave" size={48} style={{ margin: '0 auto 20px', color: 'var(--color-ink)', animation: 'spin 1.5s linear infinite' }} />
-        <h3 className="font-heading-md" style={{ textTransform: 'uppercase', marginBottom: '8px' }}>Loading Paystack Secure Gateway</h3>
-        <p className="font-body-md" style={{ color: 'var(--text-mute)' }}>Connecting to Paystack (M-Pesa / Card)...</p>
-        <button 
-          className="btn btn-secondary mt-24" 
-          onClick={() => {
-            setPaymentInitiated(false);
-            onCancel();
-          }}
-        >
-          Cancel Payment
-        </button>
+      <div className="modal-overlay" style={{ zIndex: 3000 }}>
+        <div className="paystack-iframe-mock text-center" style={{ width: '100%', maxWidth: '420px', padding: '40px 24px', border: '1px solid var(--color-ink)', boxSizing: 'border-box' }}>
+          <Loader2 style={{ margin: '0 auto 20px', color: 'var(--color-ink)', animation: 'spin 1.5s linear infinite' }} size={48} />
+          <h3 className="font-heading-md" style={{ textTransform: 'uppercase', marginBottom: '8px' }}>Loading Paystack secure gateway</h3>
+          <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', marginBottom: '24px' }}>Connecting to Paystack (M-Pesa / Card)...</p>
+          <button 
+            type="button"
+            className="btn btn-secondary btn-full" 
+            onClick={() => {
+              setPaymentInitiated(false);
+              onCancel();
+            }}
+          >
+            Cancel Payment
+          </button>
+        </div>
+        <style>{`
+          @keyframes spin {
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
-  // Simulated Paystack checkout
+  // Simulated Paystack checkout popup
   return (
-    <div className="paystack-iframe-mock">
-      {/* Header */}
-      <div className="paystack-header" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="paystack-merchant">
-          <span className="paystack-merchant-name" style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' }}>{settings.shopName}</span>
-          <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>{customerName} ({customerPhone})</span>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <span className="paystack-amount" style={{ fontSize: '16px', fontWeight: 700 }}>KSh {amount.toLocaleString()}</span>
-          <div style={{ fontSize: '10px', color: 'var(--color-sale)', fontWeight: 700, textTransform: 'uppercase', marginTop: '2px' }}>
-            DEMO CHECKOUT
+    <div className="modal-overlay" style={{ zIndex: 3000 }}>
+      <div className="paystack-iframe-mock" style={{ width: '100%', maxWidth: '460px', border: '1px solid var(--color-ink)', boxShadow: 'none', boxSizing: 'border-box' }}>
+        {/* Header */}
+        <div className="paystack-header" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="paystack-merchant">
+            <span className="paystack-merchant-name" style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>{settings.shopName}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>{customerName} ({customerPhone})</span>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span className="paystack-amount" style={{ fontSize: '16px', fontWeight: 700 }}>KSh {amount.toLocaleString()}</span>
+            <div style={{ fontSize: '10px', color: 'var(--color-sale)', fontWeight: 700, textTransform: 'uppercase', marginTop: '2px', letterSpacing: '0.5px' }}>
+              DEMO CHECKOUT
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Body container */}
-      <div className="paystack-body" style={{ padding: '24px' }}>
-        {demoState === 'input' && (
-          <div>
-            {/* Pay channels tabs */}
-            <div className="paystack-sidebar" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <button 
-                type="button" 
-                className={`paystack-channel ${payChannel === 'mobile_money' ? 'active' : ''}`}
-                onClick={() => setPayChannel('mobile_money')}
-                style={{ padding: '12px', border: '1px solid var(--color-hairline)', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
-              >
-                <Smartphone size={16} />
-                <span style={{ fontSize: '13px', fontWeight: 500 }}>M-Pesa</span>
-              </button>
-
-              <button 
-                type="button" 
-                className={`paystack-channel ${payChannel === 'card' ? 'active' : ''}`}
-                onClick={() => setPayChannel('card')}
-                style={{ padding: '12px', border: '1px solid var(--color-hairline)', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
-              >
-                <CreditCard size={16} />
-                <span style={{ fontSize: '13px', fontWeight: 500 }}>Card</span>
-              </button>
-            </div>
-
-            {payChannel === 'mobile_money' ? (
-              <form onSubmit={handleDemoMpesaSubmit}>
-                {/* Mpesa prompt instruction */}
-                <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success-bright)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px' }}>
-                  <span style={{ fontWeight: 600 }}>Simulated M-Pesa STK Push:</span><br />
-                  Initiate a mock STK Push. Enter your mobile number below and enter PIN '1234' on the next screen.
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>M-PESA MOBILE NUMBER</label>
-                  <input 
-                    type="tel" 
-                    className="form-input" 
-                    placeholder="e.g. 0712345678"
-                    value={mpesaNumber}
-                    onChange={e => setMpesaNumber(e.target.value)}
-                    style={{ minHeight: '44px', padding: '10px', fontSize: '15px' }}
-                    required
-                  />
-                </div>
-
-                <button type="submit" className="paystack-pay-btn" style={{ height: '48px', padding: '12px', cursor: 'pointer', textTransform: 'uppercase' }}>
-                  Send STK Push (KSh {amount.toLocaleString()})
+        {/* Body container */}
+        <div className="paystack-body" style={{ padding: '24px' }}>
+          {demoState === 'input' && (
+            <div>
+              {/* Pay channels tabs */}
+              <div className="paystack-sidebar" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <button 
+                  type="button" 
+                  className={`paystack-channel ${payChannel === 'mobile_money' ? 'active' : ''}`}
+                  onClick={() => setPayChannel('mobile_money')}
+                  style={{ padding: '12px', border: '1px solid var(--color-hairline)', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
+                >
+                  <Smartphone size={16} />
+                  <span style={{ fontSize: '13px', fontWeight: 500 }}>M-Pesa</span>
                 </button>
-              </form>
-            ) : (
-              <form onSubmit={handleDemoCardPaySubmit}>
-                {/* Test Card Cue */}
-                <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success-bright)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px' }}>
-                  <span style={{ fontWeight: 600 }}>Test Card Details (Copy to use):</span><br />
-                  Card: <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>4081 0000 0000 0000</span> | Expiry: <span style={{ fontWeight: 'bold' }}>12/28</span> | CVV: <span style={{ fontWeight: 'bold' }}>123</span>
-                </div>
 
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>CARD NUMBER</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="4081 0000 0000 0000"
-                    value={cardNumber}
-                    onChange={handleCardNumberChange}
-                    style={{ minHeight: '44px', padding: '10px', fontSize: '15px' }}
-                    required
-                  />
-                </div>
+                <button 
+                  type="button" 
+                  className={`paystack-channel ${payChannel === 'card' ? 'active' : ''}`}
+                  onClick={() => setPayChannel('card')}
+                  style={{ padding: '12px', border: '1px solid var(--color-hairline)', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
+                >
+                  <CreditCard size={16} />
+                  <span style={{ fontSize: '13px', fontWeight: 500 }}>Card</span>
+                </button>
+              </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              {payChannel === 'mobile_money' ? (
+                <form onSubmit={handleDemoMpesaSubmit}>
+                  {/* Mpesa prompt instruction */}
+                  <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px' }}>
+                    <span style={{ fontWeight: 600 }}>Simulated M-Pesa STK Push:</span><br />
+                    Initiate a mock STK Push. Enter your mobile number below and enter PIN '1234' on the next screen.
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>M-PESA MOBILE NUMBER</label>
+                    <input 
+                      type="tel" 
+                      className="form-input" 
+                      placeholder="e.g. 0712345678"
+                      value={mpesaNumber}
+                      onChange={e => setMpesaNumber(e.target.value)}
+                      style={{ minHeight: '44px', padding: '10px', fontSize: '15px' }}
+                      required
+                    />
+                  </div>
+
+                  <button type="submit" className="paystack-pay-btn" style={{ height: '48px', padding: '12px', cursor: 'pointer', textTransform: 'uppercase', width: '100%' }}>
+                    Send STK Push (KSh {amount.toLocaleString()})
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleDemoCardPaySubmit}>
+                  {/* Test Card Cue */}
+                  <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px' }}>
+                    <span style={{ fontWeight: 600 }}>Test Card Details (Copy to use):</span><br />
+                    Card: <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>4081 0000 0000 0000</span> | Expiry: <span style={{ fontWeight: 'bold' }}>12/28</span> | CVV: <span style={{ fontWeight: 'bold' }}>123</span>
+                  </div>
+
                   <div className="form-group" style={{ marginBottom: '16px' }}>
-                    <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>CARD EXPIRY</label>
+                    <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>CARD NUMBER</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="MM/YY"
-                      value={cardExpiry}
-                      onChange={handleExpiryChange}
+                      placeholder="4081 0000 0000 0000"
+                      value={cardNumber}
+                      onChange={handleCardNumberChange}
                       style={{ minHeight: '44px', padding: '10px', fontSize: '15px' }}
                       required
                     />
                   </div>
-                  <div className="form-group" style={{ marginBottom: '16px' }}>
-                    <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>CVV</label>
-                    <input 
-                      type="password" 
-                      className="form-input" 
-                      placeholder="123"
-                      maxLength={3}
-                      value={cardCvv}
-                      onChange={e => setCardCvv(e.target.value.replace(/\D/g, ''))}
-                      style={{ minHeight: '44px', padding: '10px', fontSize: '15px' }}
-                      required
-                    />
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group" style={{ marginBottom: '16px' }}>
+                      <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>CARD EXPIRY</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="MM/YY"
+                        value={cardExpiry}
+                        onChange={handleExpiryChange}
+                        style={{ minHeight: '44px', padding: '10px', fontSize: '15px' }}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: '16px' }}>
+                      <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)' }}>CVV</label>
+                      <input 
+                        type="password" 
+                        className="form-input" 
+                        placeholder="123"
+                        maxLength={3}
+                        value={cardCvv}
+                        onChange={e => setCardCvv(e.target.value.replace(/\D/g, ''))}
+                        style={{ minHeight: '44px', padding: '10px', fontSize: '15px' }}
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <button type="submit" className="paystack-pay-btn" style={{ height: '48px', padding: '12px', cursor: 'pointer', textTransform: 'uppercase' }}>
-                  Pay KSh {amount.toLocaleString()}
-                </button>
-              </form>
-            )}
+                  <button type="submit" className="paystack-pay-btn" style={{ height: '48px', padding: '12px', cursor: 'pointer', textTransform: 'uppercase', width: '100%' }}>
+                    Pay KSh {amount.toLocaleString()}
+                  </button>
+                </form>
+              )}
 
-            <button 
-              type="button" 
-              style={{ background: 'none', border: 'none', color: 'var(--text-mute)', fontSize: '13px', marginTop: '16px', textDecoration: 'underline', width: '100%', cursor: 'pointer' }}
-              onClick={() => {
-                setPaymentInitiated(false);
-                onCancel();
-              }}
-            >
-              Cancel Payment
-            </button>
-          </div>
-        )}
-
-        {demoState === 'processing' && (
-          <div style={{ textAlign: 'center', padding: '30px 0' }}>
-            <Loader2 style={{ animation: 'spin 1s linear infinite', margin: '0 auto 20px', color: 'var(--color-ink)' }} size={40} />
-            <h3 className="font-heading-md" style={{ textTransform: 'uppercase', marginBottom: '8px' }}>
-              {payChannel === 'mobile_money' ? "Sending M-Pesa STK Push..." : "Processing payment..."}
-            </h3>
-            <p style={{ color: 'var(--text-mute)', fontSize: '14px' }}>Please do not close this window or press the back button.</p>
-          </div>
-        )}
-
-        {demoState === 'otp' && (
-          <form onSubmit={handleOtpSubmit}>
-            <h3 className="font-heading-md" style={{ textTransform: 'uppercase', textAlign: 'center', marginBottom: '8px' }}>
-              {payChannel === 'mobile_money' ? "M-Pesa Authorization" : "Authorize Transaction"}
-            </h3>
-            <p style={{ textAlign: 'center', color: 'var(--text-mute)', fontSize: '13px', marginBottom: '24px' }}>
-              {payChannel === 'mobile_money' 
-                ? "Simulated: Enter the M-Pesa PIN/authorization code to confirm payment."
-                : "Enter the OTP code sent to your registered phone number."
-              }
-            </p>
-
-            <div style={{ backgroundColor: '#fffcf7', border: '1px solid #ffd4a8', padding: '12px', fontSize: '13px', color: '#b26500', marginBottom: '16px', textAlign: 'center' }}>
-              {payChannel === 'mobile_money' ? "Simulated M-Pesa PIN / PIN Code: " : "Demo Authorization Code: "}
-              <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>1234</span>
+              <button 
+                type="button" 
+                style={{ background: 'none', border: 'none', color: 'var(--text-mute)', fontSize: '13px', marginTop: '16px', textDecoration: 'underline', width: '100%', cursor: 'pointer' }}
+                onClick={() => {
+                  setPaymentInitiated(false);
+                  onCancel();
+                }}
+              >
+                Cancel Payment
+              </button>
             </div>
+          )}
 
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)', textAlign: 'center', display: 'block' }}>
-                {payChannel === 'mobile_money' ? "ENTER PIN CODE" : "ENTER OTP CODE"}
-              </label>
-              <input 
-                type="text" 
-                className="form-input" 
-                placeholder="1234"
-                value={otpValue}
-                onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))}
-                maxLength={4}
-                style={{ textAlign: 'center', letterSpacing: '8px', fontSize: '24px', minHeight: '52px' }}
-                required
-              />
+          {demoState === 'processing' && (
+            <div style={{ textAlign: 'center', padding: '30px 0' }}>
+              <Loader2 style={{ animation: 'spin 1s linear infinite', margin: '0 auto 20px', color: 'var(--color-ink)' }} size={40} />
+              <h3 className="font-heading-md" style={{ textTransform: 'uppercase', marginBottom: '8px' }}>
+                {payChannel === 'mobile_money' ? "Sending M-Pesa STK Push..." : "Processing payment..."}
+              </h3>
+              <p style={{ color: 'var(--text-mute)', fontSize: '14px' }}>Please do not close this window or press the back button.</p>
             </div>
+          )}
 
-            {otpError && (
-              <div style={{ color: 'var(--color-sale)', fontSize: '13px', marginBottom: '16px', fontWeight: 600, textAlign: 'center' }}>
-                {otpError}
+          {demoState === 'otp' && (
+            <form onSubmit={handleOtpSubmit}>
+              <h3 className="font-heading-md" style={{ textTransform: 'uppercase', textAlign: 'center', marginBottom: '8px' }}>
+                {payChannel === 'mobile_money' ? "M-Pesa Authorization" : "Authorize Transaction"}
+              </h3>
+              <p style={{ textAlign: 'center', color: 'var(--text-mute)', fontSize: '13px', marginBottom: '24px' }}>
+                {payChannel === 'mobile_money' 
+                  ? "Simulated: Enter the M-Pesa PIN/authorization code to confirm payment."
+                  : "Enter the OTP code sent to your registered phone number."
+                }
+              </p>
+
+              <div style={{ backgroundColor: '#fffcf7', border: '1px solid #ffd4a8', padding: '12px', fontSize: '13px', color: '#b26500', marginBottom: '16px', textAlign: 'center' }}>
+                {payChannel === 'mobile_money' ? "Simulated M-Pesa PIN / PIN Code: " : "Demo Authorization Code: "}
+                <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>1234</span>
               </div>
-            )}
 
-            <button type="submit" className="paystack-pay-btn" style={{ height: '48px', padding: '12px', cursor: 'pointer', textTransform: 'uppercase' }}>
-              Confirm Payment
-            </button>
-          </form>
-        )}
+              <div className="form-group">
+                <label className="form-label" style={{ fontSize: '12px', color: 'var(--color-ink)', textAlign: 'center', display: 'block' }}>
+                  {payChannel === 'mobile_money' ? "ENTER PIN CODE" : "ENTER OTP CODE"}
+                </label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="1234"
+                  value={otpValue}
+                  onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))}
+                  maxLength={4}
+                  style={{ textAlign: 'center', letterSpacing: '8px', fontSize: '24px', minHeight: '52px' }}
+                  required
+                />
+              </div>
 
-        {demoState === 'verifying' && (
-          <div style={{ textAlign: 'center', padding: '30px 0' }}>
-            <Loader2 style={{ animation: 'spin 1.5s linear infinite', margin: '0 auto 20px', color: 'var(--color-ink)' }} size={40} />
-            <h3 className="font-heading-md" style={{ textTransform: 'uppercase', marginBottom: '8px' }}>Verifying Transaction...</h3>
-            <p style={{ color: 'var(--text-mute)', fontSize: '14px' }}>Checking M-Pesa transaction status on secure networks.</p>
-          </div>
-        )}
+              {otpError && (
+                <div style={{ color: 'var(--color-sale)', fontSize: '13px', marginBottom: '16px', fontWeight: 600, textAlign: 'center' }}>
+                  {otpError}
+                </div>
+              )}
 
-        {demoState === 'success' && (
-          <div style={{ textAlign: 'center', padding: '30px 0' }}>
-            <CheckCircle style={{ margin: '0 auto 20px', color: 'var(--color-success)' }} size={48} />
-            <h2 className="font-heading-lg" style={{ color: 'var(--color-success)', marginBottom: '8px', textTransform: 'uppercase' }}>Payment Successful!</h2>
-            <p style={{ color: 'var(--text-mute)', fontSize: '14px' }}>Thank you. Your order has been placed.</p>
-          </div>
-        )}
-      </div>
+              <button type="submit" className="paystack-pay-btn" style={{ height: '48px', padding: '12px', cursor: 'pointer', textTransform: 'uppercase', width: '100%' }}>
+                Confirm Payment
+              </button>
+            </form>
+          )}
 
-      <div style={{ backgroundColor: 'var(--color-canvas)', color: 'var(--text-mute)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '16px', borderTop: '1px solid var(--color-hairline-soft)' }}>
-        <ShieldAlert size={14} />
-        <span>Secured by Paystack (Demo Checkout Interface)</span>
+          {demoState === 'verifying' && (
+            <div style={{ textAlign: 'center', padding: '30px 0' }}>
+              <Loader2 style={{ animation: 'spin 1.5s linear infinite', margin: '0 auto 20px', color: 'var(--color-ink)' }} size={40} />
+              <h3 className="font-heading-md" style={{ textTransform: 'uppercase', marginBottom: '8px' }}>Verifying Transaction...</h3>
+              <p style={{ color: 'var(--text-mute)', fontSize: '14px' }}>Checking M-Pesa transaction status on secure networks.</p>
+            </div>
+          )}
+
+          {demoState === 'success' && (
+            <div style={{ textAlign: 'center', padding: '30px 0' }}>
+              <CheckCircle style={{ margin: '0 auto 20px', color: 'var(--color-success)' }} size={48} />
+              <h2 className="font-heading-lg" style={{ color: 'var(--color-success)', marginBottom: '8px', textTransform: 'uppercase' }}>Payment Successful!</h2>
+              <p style={{ color: 'var(--text-mute)', fontSize: '14px' }}>Thank you. Your order has been placed.</p>
+            </div>
+          )}
+        </div>
+
+        <div style={{ backgroundColor: 'var(--color-canvas)', color: 'var(--text-mute)', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '16px', borderTop: '1px solid var(--color-hairline-soft)' }}>
+          <ShieldAlert size={14} />
+          <span>Secured by Paystack (Demo Checkout Interface)</span>
+        </div>
       </div>
 
       <style>{`
