@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS: ShopSettings = {
   shopName: "GoldenCare Market",
   phone: "+254 700 123 456",
   address: "12 Graceful Living Road, Kilimani, Nairobi, Kenya",
-  paystackPublicKey: "pk_test_cf9803c5179abf7fa0716570a910f2b989142ccc", // Default to test public key
+  paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94", // Default to live public key
   demoMode: false, // Turn off Demo mode so live/test gateway runs directly!
   voiceAssistDefault: false, // Simplified UI
   voiceRate: 0.95
@@ -291,8 +291,11 @@ export async function initDb(): Promise<void> {
 
       console.log("Firebase Database seeded successfully with reviews and specifications.");
     } else {
-      // Ensure demoMode is disabled for live payment flow
-      await updateDoc(settingsRef, { demoMode: false });
+      // Ensure demoMode is disabled and set the live public key
+      await updateDoc(settingsRef, { 
+        demoMode: false,
+        paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94"
+      });
     }
 
     // Seed home_slides if empty

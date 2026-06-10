@@ -31,7 +31,7 @@ function App() {
     shopName: "GoldenCare Market",
     phone: "",
     address: "",
-    paystackPublicKey: "",
+    paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94",
     demoMode: false,
     voiceAssistDefault: false,
     voiceRate: 0.95
