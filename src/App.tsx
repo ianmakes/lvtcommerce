@@ -631,7 +631,6 @@ function App() {
             settings={settings}
             cart={cart}
             currentUser={currentUser}
-            onCancel={() => navigate('/cart')}
             onSubmitOrder={handleSubmitOrder}
             discountPercent={discountPercent}
             flatDiscount={flatDiscount}
