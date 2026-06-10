@@ -290,6 +290,9 @@ export async function initDb(): Promise<void> {
       }
 
       console.log("Firebase Database seeded successfully with reviews and specifications.");
+    } else {
+      // Ensure demoMode is disabled for live payment flow
+      await updateDoc(settingsRef, { demoMode: false });
     }
 
     // Seed home_slides if empty

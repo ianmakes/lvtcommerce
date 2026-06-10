@@ -32,7 +32,7 @@ function App() {
     phone: "",
     address: "",
     paystackPublicKey: "",
-    demoMode: true,
+    demoMode: false,
     voiceAssistDefault: false,
     voiceRate: 0.95
   });
