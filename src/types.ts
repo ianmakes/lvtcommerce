@@ -71,6 +71,9 @@ export interface Order {
   createdAt: string;
   buyerEmail?: string;
   notes?: string; // Optional delivery notes
+  subtotal?: number;
+  taxAmount?: number;
+  shippingFee?: number;
 }
 
 export interface BuyerProfile {
@@ -92,6 +95,9 @@ export interface ShopSettings {
   demoMode: boolean;
   voiceAssistDefault: boolean;
   voiceRate: number;
+  shippingFee: number;
+  shippingFreeThreshold: number;
+  taxRate: number;
 }
 
 export interface HomeSlide {

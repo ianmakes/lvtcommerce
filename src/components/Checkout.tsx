@@ -93,9 +93,21 @@ export const Checkout: React.FC<CheckoutProps> = ({
     discountAmount = Math.min(flatDiscount, itemsSubtotal);
   }
 
-  // Delivery calculations: Free delivery if items > 30,000 NGN, else flat 1500 NGN
-  const deliveryFee = itemsSubtotal >= 30000 ? 0 : 1500;
-  const grandTotal = Math.max(0, itemsSubtotal - discountAmount) + deliveryFee;
+  // Retrieve configurations from settings
+  const shippingFeeSetting = typeof settings.shippingFee === 'number' ? settings.shippingFee : 1500;
+  const shippingFreeThresholdSetting = typeof settings.shippingFreeThreshold === 'number' ? settings.shippingFreeThreshold : 30000;
+  const taxRateSetting = typeof settings.taxRate === 'number' ? settings.taxRate : 16;
+
+  const subtotalAfterDiscount = Math.max(0, itemsSubtotal - discountAmount);
+  
+  // Calculate delivery fee
+  const deliveryFee = subtotalAfterDiscount >= shippingFreeThresholdSetting ? 0 : shippingFeeSetting;
+  
+  // Calculate tax (VAT) on subtotal after discount, exclusive of shipping
+  const taxAmount = Math.round(subtotalAfterDiscount * (taxRateSetting / 100));
+  
+  // Calculate final grand total
+  const grandTotal = subtotalAfterDiscount + taxAmount + deliveryFee;
 
   const handleStep1Submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,6 +142,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
     }));
 
     // Create unique order ID
+    // eslint-disable-next-line react-hooks/purity
     const orderId = `ord-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newOrder: Order = {
@@ -143,6 +156,9 @@ export const Checkout: React.FC<CheckoutProps> = ({
       paymentReference: reference,
       orderStatus: 'Paid',
       createdAt: new Date().toISOString(),
+      subtotal: itemsSubtotal,
+      taxAmount: taxAmount,
+      shippingFee: deliveryFee,
     };
 
     if (currentUser?.email) {
@@ -335,7 +351,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
               {/* Order pricing summary */}
               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-mute)' }}>Items Subtotal:</span>
+                  <span style={{ color: 'var(--text-mute)' }}>Items Subtotal (excl. tax & shipping):</span>
                   <span>KSh {itemsSubtotal.toLocaleString()}</span>
                 </div>
                 
@@ -345,6 +361,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
                     <span>-KSh {discountAmount.toLocaleString()}</span>
                   </div>
                 )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-mute)' }}>Tax ({taxRateSetting}% VAT):</span>
+                  <span>KSh {taxAmount.toLocaleString()}</span>
+                </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-mute)' }}>Delivery Fee:</span>

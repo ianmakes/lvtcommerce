@@ -1124,6 +1124,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </label>
                         </td>
                       </tr>
+                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                          <label>Default Shipping Fee (KSh)</label>
+                        </th>
+                        <td style={{ padding: '10px 0' }}>
+                          <input 
+                            type="number" 
+                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                            value={localSettings.shippingFee ?? 1500}
+                            onChange={e => setLocalSettings({ ...localSettings, shippingFee: Number(e.target.value) })}
+                            required
+                            min={0}
+                          />
+                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Flat shipping fee applied to orders below the free threshold.</p>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                          <label>Free Shipping Threshold (KSh)</label>
+                        </th>
+                        <td style={{ padding: '10px 0' }}>
+                          <input 
+                            type="number" 
+                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                            value={localSettings.shippingFreeThreshold ?? 30000}
+                            onChange={e => setLocalSettings({ ...localSettings, shippingFreeThreshold: Number(e.target.value) })}
+                            required
+                            min={0}
+                          />
+                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Free shipping is unlocked when cart total is equal or above this value.</p>
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
+                          <label>Tax Rate (%)</label>
+                        </th>
+                        <td style={{ padding: '10px 0' }}>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                            value={localSettings.taxRate ?? 16}
+                            onChange={e => setLocalSettings({ ...localSettings, taxRate: Number(e.target.value) })}
+                            required
+                            min={0}
+                            max={100}
+                          />
+                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Percentage of tax calculated on cart subtotal after discounts (e.g. 16% VAT).</p>
+                        </td>
+                      </tr>
                       {!localSettings.demoMode && (
                         <tr>
                           <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>

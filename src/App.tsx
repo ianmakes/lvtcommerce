@@ -34,7 +34,10 @@ function App() {
     paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94",
     demoMode: false,
     voiceAssistDefault: false,
-    voiceRate: 0.95
+    voiceRate: 0.95,
+    shippingFee: 1500,
+    shippingFreeThreshold: 30000,
+    taxRate: 16
   });
 
   // Data lists

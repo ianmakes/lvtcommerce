@@ -30,7 +30,10 @@ const DEFAULT_SETTINGS: ShopSettings = {
   paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94", // Default to live public key
   demoMode: false, // Turn off Demo mode so live/test gateway runs directly!
   voiceAssistDefault: false, // Simplified UI
-  voiceRate: 0.95
+  voiceRate: 0.95,
+  shippingFee: 1500,
+  shippingFreeThreshold: 30000,
+  taxRate: 16
 };
 
 
@@ -291,10 +294,14 @@ export async function initDb(): Promise<void> {
 
       console.log("Firebase Database seeded successfully with reviews and specifications.");
     } else {
-      // Ensure demoMode is disabled and set the live public key
+      // Ensure demoMode is disabled, set live public key and default shipping/taxes if not already set
+      const currentData = settingsSnap.data();
       await updateDoc(settingsRef, { 
         demoMode: false,
-        paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94"
+        paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94",
+        shippingFee: currentData?.shippingFee !== undefined ? currentData.shippingFee : 1500,
+        shippingFreeThreshold: currentData?.shippingFreeThreshold !== undefined ? currentData.shippingFreeThreshold : 30000,
+        taxRate: currentData?.taxRate !== undefined ? currentData.taxRate : 16
       });
     }
 
