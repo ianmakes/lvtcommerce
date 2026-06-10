@@ -2,26 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, Smartphone, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
 import { ShopSettings } from '../types';
 
+interface PaystackTransactionOptions {
+  key: string;
+  email: string;
+  amount: number;
+  currency: string;
+  ref: string;
+  brandColor?: string;
+  logo?: string;
+  metadata?: {
+    custom_fields: Array<{
+      display_name: string;
+      variable_name: string;
+      value: string;
+    }>;
+  };
+  onSuccess: (transaction: { reference: string }) => void;
+  onCancel: () => void;
+}
+
+interface PaystackPopInstance {
+  newTransaction: (options: PaystackTransactionOptions) => void;
+}
+
 declare global {
   interface Window {
     PaystackPop?: {
-      setup: (options: {
-        key: string;
-        email: string;
-        amount: number;
-        currency: string;
-        channels: string[];
-        ref: string;
-        metadata: {
-          custom_fields: Array<{
-            display_name: string;
-            variable_name: string;
-            value: string;
-          }>;
-        };
-        callback: (response: { reference: string }) => void;
-        onClose: () => void;
-      }) => { openIframe: () => void };
+      new (): PaystackPopInstance;
     };
   }
 }
@@ -33,6 +40,7 @@ interface PaystackPaymentProps {
   customerPhone: string;
   onSuccess: (reference: string) => void;
   onCancel: () => void;
+  orderNote?: string;
 }
 
 export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
@@ -42,11 +50,13 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   customerPhone,
   onSuccess,
   onCancel,
+  orderNote,
 }) => {
   const isDemo = settings.demoMode || !settings.paystackPublicKey;
   const [payChannel, setPayChannel] = useState<'card' | 'mobile_money'>('mobile_money');
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [refCode, setRefCode] = useState('');
+  const [cartId] = useState(() => `cart-${Math.floor(10000 + Math.random() * 90000)}`);
 
   // Keep callbacks in refs to avoid re-triggering useEffect when parent passes inline functions
   const callbacksRef = React.useRef({ onSuccess, onCancel });
@@ -87,13 +97,15 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
 
     const initializePaystack = () => {
       if (window.PaystackPop) {
-        const handler = window.PaystackPop.setup({
+        const paystack = new window.PaystackPop();
+        paystack.newTransaction({
           key: settings.paystackPublicKey,
           email: `${customerPhone.replace(/[^\d]/g, '') || 'customer'}@goldencare.com`, // Paystack requires email format
           amount: totalCents,
           currency: 'KES', // Kenya Shillings
-          channels: ['mobile_money', 'card'], // Mobile Money (M-Pesa) default, then Card
           ref: refCode,
+          brandColor: '#111111', // Match theme brand color
+          logo: 'https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png', // Business logo URL
           metadata: {
             custom_fields: [
               {
@@ -105,26 +117,35 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
                 display_name: "Customer Phone",
                 variable_name: "customer_phone",
                 value: customerPhone
+              },
+              {
+                display_name: "Cart ID",
+                variable_name: "cart_id",
+                value: cartId
+              },
+              {
+                display_name: "Customer Note",
+                variable_name: "customer_note",
+                value: orderNote || 'N/A'
               }
             ]
           },
-          callback: function (response: { reference: string }) {
-            console.log("Paystack Payment Successful! Transaction reference code:", response.reference);
-            callbacksRef.current.onSuccess(response.reference);
+          onSuccess: function (transaction: { reference: string }) {
+            console.log("Paystack Payment Successful! Transaction reference code:", transaction.reference);
+            callbacksRef.current.onSuccess(transaction.reference);
           },
-          onClose: function () {
+          onCancel: function () {
             setPaymentInitiated(false);
             callbacksRef.current.onCancel();
           }
         });
-        handler.openIframe();
       }
     };
 
     if (!script) {
       script = document.createElement('script');
       script.id = scriptId;
-      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.src = 'https://js.paystack.co/v2/inline.js';
       script.async = true;
       script.onload = initializePaystack;
       document.body.appendChild(script);
@@ -136,7 +157,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     return () => {
       // Keep script loaded
     };
-  }, [isDemo, paymentInitiated, settings.paystackPublicKey, customerPhone, totalCents, refCode, customerName]);
+  }, [isDemo, paymentInitiated, settings.paystackPublicKey, customerPhone, totalCents, refCode, customerName, cartId, orderNote]);
 
   // Handle Demo Mode card formatting
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -280,10 +301,17 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
     <div className="modal-overlay" style={{ zIndex: 3000 }}>
       <div className="paystack-iframe-mock" style={{ width: '100%', maxWidth: '460px', border: '1px solid var(--color-ink)', boxShadow: 'none', boxSizing: 'border-box' }}>
         {/* Header */}
-        <div className="paystack-header" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="paystack-merchant">
-            <span className="paystack-merchant-name" style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>{settings.shopName}</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>{customerName} ({customerPhone})</span>
+        <div className="paystack-header" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+          <div className="paystack-merchant" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img 
+              src="https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png" 
+              alt={settings.shopName} 
+              style={{ width: '36px', height: '36px', objectFit: 'contain', borderRadius: '0px' }} 
+            />
+            <div>
+              <span className="paystack-merchant-name" style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>{settings.shopName}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>{customerName} ({customerPhone})</span>
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span className="paystack-amount" style={{ fontSize: '16px', fontWeight: 700 }}>KSh {amount.toLocaleString()}</span>
@@ -297,6 +325,36 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         <div className="paystack-body" style={{ padding: '24px' }}>
           {demoState === 'input' && (
             <div>
+              {/* Metadata Recap Card */}
+              <div style={{ 
+                backgroundColor: 'var(--color-soft-cloud)', 
+                border: '1px dashed var(--color-hairline-soft)', 
+                padding: '12px', 
+                marginBottom: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                borderRadius: '0px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cart ID</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-ink)', fontFamily: 'monospace' }}>{cartId}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Customer Note</span>
+                  <span style={{ 
+                    fontWeight: 500, 
+                    color: 'var(--color-ink)', 
+                    fontStyle: orderNote ? 'italic' : 'normal',
+                    backgroundColor: 'rgba(0,0,0,0.03)',
+                    padding: '8px 10px',
+                    borderLeft: '2px solid var(--color-ink)'
+                  }}>
+                    {orderNote || 'No customer note provided.'}
+                  </span>
+                </div>
+              </div>
+
               {/* Pay channels tabs */}
               <div className="paystack-sidebar" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <button 

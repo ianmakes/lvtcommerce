@@ -385,6 +385,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 customerPhone={phone}
                 onSuccess={handlePaymentSuccess}
                 onCancel={() => setStep(1)}
+                orderNote={orderNote}
               />
             </div>
           </div>

@@ -904,7 +904,7 @@ a {
 }
 
 .paystack-channel {
-  border-radius: var(--radius-lg) !important; /* Pill shape channel tabs */
+  border-radius: var(--radius-none) !important; /* Sharp channel tabs */
   border: 1px solid var(--color-hairline);
   color: var(--text-ink);
 }
@@ -916,8 +916,8 @@ a {
 }
 
 .paystack-pay-btn {
-  border-radius: var(--radius-lg) !important;
-  background-color: var(--color-ink);
+  border-radius: var(--radius-none) !important;
+  background-color: #111111;
   color: var(--color-canvas);
   font-weight: 500;
 }
