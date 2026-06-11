@@ -79,7 +79,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Media picker modal states
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
-  const [mediaModalTarget, setMediaModalTarget] = useState<'product-main' | 'product-gallery' | 'slide-image' | null>(null);
+  const [mediaModalTarget, setMediaModalTarget] = useState<string | null>(null);
 
   // Slide CRUD state
   const [slideModalOpen, setSlideModalOpen] = useState(false);
@@ -1941,18 +1941,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <p style={{ margin: 0, color: '#a7aaad', textAlign: 'center', padding: '30px' }}>No variations generated. Add attributes first to configure options.</p>
                         ) : (
                           <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.2fr', gap: '10px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '8px', marginBottom: '8px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.8fr 1fr 1.5fr', gap: '10px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '8px', marginBottom: '8px' }}>
                               <span>Option Combination</span>
                               <span>Price (KSh)</span>
                               <span>Stock</span>
                               <span>SKU</span>
+                              <span>Image (Optional)</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
                               {prodVariants.map((v, idx) => {
                                 const label = Object.values(v.options).join(' / ');
                                 return (
-                                  <div key={v.id} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.2fr', gap: '10px', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{label}</span>
+                                  <div key={v.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.8fr 1fr 1.5fr', gap: '10px', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={label}>{label}</span>
                                     <input 
                                       type="number" 
                                       style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
@@ -1974,6 +1975,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       onChange={e => handleVariantFieldChange(idx, 'sku', e.target.value)}
                                       required
                                     />
+                                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                      <input 
+                                        type="text" 
+                                        placeholder="Image URL"
+                                        style={{ flexGrow: 1, padding: '4px 6px', border: '1px solid #c3c4c7', fontSize: '11px', boxSizing: 'border-box' }}
+                                        value={v.image || ''} 
+                                        onChange={e => handleVariantFieldChange(idx, 'image', e.target.value)}
+                                      />
+                                      <button 
+                                        type="button" 
+                                        className="wp-button-secondary"
+                                        onClick={() => {
+                                          setMediaModalTarget(`variant-image-${idx}`);
+                                          setSelectedMedia(null);
+                                          setMediaModalOpen(true);
+                                        }}
+                                        style={{ padding: '4px 6px', fontSize: '11px', minHeight: 'auto', height: '24px', whiteSpace: 'nowrap' }}
+                                      >
+                                        Choose
+                                      </button>
+                                    </div>
                                   </div>
                                 );
                               })}

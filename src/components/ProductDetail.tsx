@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Product, ProductVariant, CartItem, ProductReview } from '../types';
 import { getProductReviews, addProductReview } from '../db';
 import { Link } from '../Router';
@@ -36,6 +36,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
   // Gallery Active Image
   const [activeImage, setActiveImage] = useState(product.image);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   // Accordion open/close states
   const [detailsOpen, setDetailsOpen] = useState(true);
@@ -121,8 +122,21 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   }, [selectedOptions, product]);
 
   const handleSelectOption = (attrName: string, optionVal: string) => {
-    setSelectedOptions({ ...selectedOptions, [attrName]: optionVal });
+    const nextOptions = { ...selectedOptions, [attrName]: optionVal };
+    setSelectedOptions(nextOptions);
     setSuccessMsg('');
+
+    // Switch main image to variant specific image if one is defined
+    if (product.variants && product.variants.length > 0) {
+      const matched = product.variants.find(v => {
+        return Object.entries(v.options).every(([key, val]) => {
+          return nextOptions[key] === val;
+        });
+      });
+      if (matched && matched.image) {
+        setActiveImage(matched.image);
+      }
+    }
   };
 
   const handleQuantityAdjust = (amt: number) => {
@@ -236,10 +250,17 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     .filter(p => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
 
-  // Gallery images list
-  const galleryImages = product.images && product.images.length > 0
-    ? product.images
-    : [product.image];
+  // Gallery images list (featured image + product images list + variant images)
+  const baseGallery = product.images && product.images.length > 0 ? product.images : [];
+  const variantImages = (product.variants || [])
+    .map(v => v.image)
+    .filter((img): img is string => typeof img === 'string' && img.trim() !== '');
+
+  const galleryImages = Array.from(new Set([
+    product.image,
+    ...baseGallery,
+    ...variantImages
+  ])).filter(Boolean);
 
   // Concentric circle swatch helper
   const getColorHex = (colorName: string) => {
@@ -271,7 +292,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         {/* Left Side: Main Image + Horizontal Thumbnails Underneath */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* Large Main 1:1 Image */}
-          <div className="prod-img-container" style={{ aspectRatio: '1 / 1', height: 'auto', border: '1px solid var(--color-hairline-soft)', width: '100%' }}>
+          <div 
+            className="prod-img-container" 
+            onClick={() => setIsLightboxOpen(true)}
+            style={{ aspectRatio: '1 / 1', height: 'auto', border: '1px solid var(--color-hairline-soft)', width: '100%', cursor: 'zoom-in' }}
+          >
             {product.badge && (
               <span className="badge-promo">{product.badge}</span>
             )}
@@ -663,6 +688,66 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             ))}
           </div>
         </section>
+      )}
+
+      {/* Lightbox Overlay */}
+      {isLightboxOpen && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setIsLightboxOpen(false)}
+          style={{ 
+            zIndex: 4000, 
+            backgroundColor: 'rgba(0, 0, 0, 0.9)', 
+            cursor: 'zoom-out',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px'
+          }}
+        >
+          <button 
+            type="button" 
+            onClick={() => setIsLightboxOpen(false)}
+            style={{ 
+              position: 'absolute', 
+              top: '24px', 
+              right: '24px', 
+              background: 'none', 
+              border: 'none', 
+              color: '#ffffff', 
+              cursor: 'pointer',
+              padding: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            aria-label="Close Lightbox"
+          >
+            <X size={32} />
+          </button>
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ 
+              position: 'relative', 
+              maxWidth: '90%', 
+              maxHeight: '90%', 
+              backgroundColor: 'transparent',
+              borderRadius: '0px',
+              overflow: 'hidden'
+            }}
+          >
+            <img 
+              src={activeImage} 
+              alt={product.name} 
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '85vh', 
+                objectFit: 'contain', 
+                border: '1px solid rgba(255,255,255,0.1)' 
+              }} 
+            />
+          </div>
+        </div>
       )}
     </div>
   );

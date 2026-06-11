@@ -9,6 +9,7 @@ export interface ProductVariant {
   price: number; // Price for this specific variant
   stock: number; // Stock level
   sku: string;
+  image?: string; // Specific image for this variant option
 }
 
 export interface Product {
