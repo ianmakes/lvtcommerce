@@ -442,6 +442,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setProdGallery(prev => [...prev, url]);
     } else if (mediaModalTarget === 'slide-image') {
       setSlideImage(url);
+    } else if (mediaModalTarget && mediaModalTarget.startsWith('variant-image-')) {
+      const idx = parseInt(mediaModalTarget.replace('variant-image-', ''), 10);
+      if (!isNaN(idx)) {
+        handleVariantFieldChange(idx, 'image', url);
+      }
     }
     setMediaModalOpen(false);
     setMediaModalTarget(null);
