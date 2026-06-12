@@ -19,7 +19,7 @@ import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
-import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses } from './db';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile } from './db';
 
 import './App.css';
 
@@ -59,7 +59,14 @@ function App() {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const isAdminAuthenticated = currentUser !== null && currentUser.uid === SUPER_ADMIN_UID;
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState(false);
+
+  const isAdminAuthenticated = currentUser !== null && 
+    (currentUser.uid === SUPER_ADMIN_UID || 
+     currentUserRole === 'admin' || 
+     currentUserRole === 'shop_manager' || 
+     currentUserRole === 'contributor');
 
   // Wishlist and UI states
   const [wishlist, setWishlist] = useState<string[]>(() => {
@@ -207,6 +214,37 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  // Fetch logged-in user's role
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!currentUser) {
+        setCurrentUserRole(null);
+        setRoleLoading(false);
+        return;
+      }
+      if (currentUser.uid === SUPER_ADMIN_UID) {
+        setCurrentUserRole('admin');
+        setRoleLoading(false);
+        return;
+      }
+      setRoleLoading(true);
+      try {
+        const profile = await getBuyerProfile(currentUser.uid);
+        if (profile) {
+          setCurrentUserRole(profile.role || 'customer');
+        } else {
+          setCurrentUserRole('customer');
+        }
+      } catch (err) {
+        console.error("Error fetching user role:", err);
+        setCurrentUserRole('customer');
+      } finally {
+        setRoleLoading(false);
+      }
+    };
+    fetchUserRole();
+  }, [currentUser]);
+
   // Slides auto-advance logic
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -240,7 +278,7 @@ function App() {
 
   // Client-side access control redirects
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || roleLoading) return;
 
     if (path.startsWith('/dashboard')) {
       if (!isAdminAuthenticated) {
@@ -255,7 +293,7 @@ function App() {
         navigate('/auth');
       }
     }
-  }, [path, currentUser, isAdminAuthenticated, authLoading]);
+  }, [path, currentUser, isAdminAuthenticated, authLoading, roleLoading]);
 
   const handleSettingsChange = (newSettings: ShopSettings) => {
     setSettings(newSettings);
@@ -1024,6 +1062,9 @@ function App() {
                 const tc = await getTaxClasses();
                 setDbTaxClasses(tc);
               }}
+              currentUserRole={currentUserRole}
+              currentUserUid={currentUser ? currentUser.uid : null}
+              superAdminUid={SUPER_ADMIN_UID}
             />
           ) : null
         )}

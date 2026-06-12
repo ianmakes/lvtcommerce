@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { getBuyerProfile } from '../db';
 
 interface AdminLoginProps {
   superAdminUid: string;
@@ -27,13 +28,18 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Check UID
+      // Check UID / Role
       if (user.uid === superAdminUid) {
         onLoginSuccess();
       } else {
-        // Sign out immediately if not the super admin
-        await signOut(auth);
-        setErrorMsg("Access Denied: You are not authorized as the Super Admin.");
+        const profile = await getBuyerProfile(user.uid);
+        if (profile && (profile.role === 'admin' || profile.role === 'shop_manager' || profile.role === 'contributor')) {
+          onLoginSuccess();
+        } else {
+          // Sign out immediately if not authorized
+          await signOut(auth);
+          setErrorMsg("Access Denied: You do not have permissions to access the Admin Dashboard.");
+        }
       }
     } catch (error) {
       console.error("Login error:", error);

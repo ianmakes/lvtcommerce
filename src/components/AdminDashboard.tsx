@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
-  Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film
+  Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
   getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
   saveCategory, deleteCategory, saveCoupon, deleteCoupon,
-  saveShippingZone, deleteShippingZone, saveTaxClass, deleteTaxClass, getAuditLogs
+  saveShippingZone, deleteShippingZone, saveTaxClass, deleteTaxClass, getAuditLogs,
+  getAllUsers, deleteBuyerProfile, saveBuyerProfile
 } from '../db';
 import { useLocation, navigate } from '../Router';
-import { auth } from '../firebase';
-import { signOut } from 'firebase/auth';
+import { auth, firebaseConfig } from '../firebase';
+import { signOut, createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
@@ -27,6 +29,9 @@ interface AdminDashboardProps {
   onRefreshShippingZones: () => Promise<void>;
   taxClasses: TaxClass[];
   onRefreshTaxClasses: () => Promise<void>;
+  currentUserRole: string | null;
+  currentUserUid: string | null;
+  superAdminUid: string;
 }
 
 // Cloudinary Preset Samples
@@ -65,6 +70,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshShippingZones,
   taxClasses,
   onRefreshTaxClasses,
+  currentUserRole,
+  currentUserUid,
+  superAdminUid,
 }) => {
   const path = useLocation();
 
@@ -85,7 +93,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
   
-  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'audit' | 'shipping' | 'tax'>('general');
+  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax'>('general');
+
+  // Users list state
+  const [usersList, setUsersList] = useState<BuyerProfile[]>([]);
+  // Selected user for Edit view
+  const [selectedUser, setSelectedUser] = useState<(BuyerProfile & { orderCount?: number; spent?: number }) | null>(null);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'shop_manager' | 'contributor' | 'customer'>('all');
+
+  // User form states
+  const [userFormUsername, setUserFormUsername] = useState('');
+  const [userFormEmail, setUserFormEmail] = useState('');
+  const [userFormFirstName, setUserFormFirstName] = useState('');
+  const [userFormLastName, setUserFormLastName] = useState('');
+  const [userFormPhone, setUserFormPhone] = useState('');
+  const [userFormAddress, setUserFormAddress] = useState('');
+  const [userFormRole, setUserFormRole] = useState('customer');
+  const [userFormPassword, setUserFormPassword] = useState('');
 
   // Shipping Zones CRUD state
   const [editingZone, setEditingZone] = useState<ShippingZone | null>(null);
@@ -173,15 +198,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [couponEmails, setCouponEmails] = useState('');
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 
-  // Selected customer for history popup modal
-  const [selectedCustomer, setSelectedCustomer] = useState<{
-    name: string;
-    phone: string;
-    email: string;
-    orderCount: number;
-    spent: number;
-    orders: Order[];
-  } | null>(null);
 
   // Form Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -217,18 +233,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsAdminLoading(true);
     setIsLoading(true);
     try {
-      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia] = await Promise.all([
+      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers] = await Promise.all([
         getProducts(),
         getOrders(),
         getSettings(),
         getHomeSlides(),
-        getMediaFiles()
+        getMediaFiles(),
+        getAllUsers()
       ]);
       setProducts(dbProds);
       setOrders(dbOrders);
       setLocalSettings(dbSettings);
       setSlides(dbSlides);
       setMediaFiles(dbMedia);
+      setUsersList(dbUsers);
     } catch (e) {
       console.error("Error loading data from Firestore:", e);
     } finally {
@@ -241,6 +259,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAdminData();
   }, [path]);
+
+  // Helper to check permissions (RBAC)
+  const hasPermission = (permission: string): boolean => {
+    // Super Admin or admin role has all permissions!
+    if (currentUserUid === superAdminUid || currentUserRole === 'admin') {
+      return true;
+    }
+
+    if (!currentUserRole) return false;
+
+    // Load custom configuration from settings if it exists
+    if (localSettings.rolesConfig && localSettings.rolesConfig[currentUserRole]) {
+      const perms = localSettings.rolesConfig[currentUserRole] as Record<string, boolean>;
+      return perms[permission] === true;
+    }
+
+    // Default Fallbacks
+    const defaultRolesConfig: Record<string, Record<string, boolean>> = {
+      shop_manager: {
+        manageProducts: true,
+        manageOrders: true,
+        manageSettings: false,
+        manageUsers: false,
+        viewReports: true
+      },
+      contributor: {
+        manageProducts: true,
+        manageOrders: false,
+        manageSettings: false,
+        manageUsers: false,
+        viewReports: true
+      },
+      customer: {
+        manageProducts: false,
+        manageOrders: false,
+        manageSettings: false,
+        manageUsers: false,
+        viewReports: false
+      }
+    };
+
+    const rolePerms = defaultRolesConfig[currentUserRole];
+    return rolePerms ? rolePerms[permission] === true : false;
+  };
 
   // Web Crypto SHA-1 Generation for Cloudinary Signed Upload
   const generateSha1 = async (str: string): Promise<string> => {
@@ -912,6 +974,147 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // User CRUD Handlers
+  const handleAddUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userFormUsername || !userFormEmail || !userFormPassword) {
+      alert("Please fill in Username, Email, and Password.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      // 1. Create the Auth account using a temporary secondary app
+      const secAppName = `SecApp-${Date.now()}`;
+      const secApp = initializeApp(firebaseConfig, secAppName);
+      const secAuth = getAuth(secApp);
+      const cred = await createUserWithEmailAndPassword(secAuth, userFormEmail.trim(), userFormPassword);
+      const uid = cred.user.uid;
+      
+      // Sign out secondary auth
+      await secAuth.signOut();
+      await deleteApp(secApp);
+
+      // 2. Save the user document in Firestore
+      const newProfile: BuyerProfile = {
+        uid,
+        fullName: `${userFormFirstName} ${userFormLastName}`.trim() || userFormUsername,
+        email: userFormEmail.trim().toLowerCase(),
+        phone: userFormPhone.trim(),
+        address: userFormAddress.trim(),
+        username: userFormUsername.trim(),
+        firstName: userFormFirstName.trim(),
+        lastName: userFormLastName.trim(),
+        role: userFormRole,
+        tempPassword: userFormPassword, // Store the password in Firestore
+        notifyEmail: true,
+        notifySms: false,
+        notifyPromos: true
+      };
+
+      await saveBuyerProfile(newProfile);
+      await loadAdminData(); // Refresh list
+
+      // Reset form fields
+      setUserFormUsername('');
+      setUserFormEmail('');
+      setUserFormFirstName('');
+      setUserFormLastName('');
+      setUserFormPhone('');
+      setUserFormAddress('');
+      setUserFormRole('customer');
+      setUserFormPassword('');
+      setIsAddingUser(false);
+
+      showToast("User created successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      const firebaseError = err as { code?: string; message?: string };
+      alert(`Failed to create user: ${firebaseError.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setIsLoading(true);
+    try {
+      const updatedProfile: BuyerProfile = {
+        uid: selectedUser.uid,
+        fullName: `${userFormFirstName} ${userFormLastName}`.trim() || userFormUsername,
+        email: userFormEmail.trim().toLowerCase(),
+        phone: userFormPhone.trim(),
+        address: userFormAddress.trim(),
+        username: userFormUsername.trim(),
+        firstName: userFormFirstName.trim(),
+        lastName: userFormLastName.trim(),
+        role: userFormRole,
+        tempPassword: userFormPassword ? userFormPassword : (selectedUser.tempPassword || ''),
+        notifyEmail: selectedUser.notifyEmail !== false,
+        notifySms: selectedUser.notifySms || false,
+        notifyPromos: selectedUser.notifyPromos !== false
+      };
+
+      await saveBuyerProfile(updatedProfile);
+      
+      // If a new password was typed, show a notice
+      if (userFormPassword) {
+        showToast("Profile details updated. Password manual update saved to profile document.", "info");
+      } else {
+        showToast("User updated successfully!", "success");
+      }
+
+      // Reload
+      await loadAdminData();
+      
+      // Close form
+      setSelectedUser(null);
+      setUserFormPassword('');
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update user profile.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendPasswordReset = async (email: string) => {
+    if (!email) return;
+    setIsLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showToast(`Password reset email sent to ${email} successfully!`, "success");
+    } catch (err) {
+      console.error(err);
+      const firebaseError = err as { code?: string; message?: string };
+      alert(`Failed to send password reset: ${firebaseError.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (uid: string, name: string) => {
+    if (uid === currentUserUid || uid === superAdminUid) {
+      alert("You cannot delete the currently logged in administrator or super admin.");
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete user "${name}"?`)) {
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await deleteBuyerProfile(uid);
+      showToast("User deleted successfully.", "success");
+      await loadAdminData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete user profile.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Shipping Zones CRUD Handlers
   const handleSaveShippingZoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1056,90 +1259,115 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>Dashboard</span>
           </button>
           
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/orders')}
-          >
-            <ShoppingBag size={18} />
-            <span>Orders ({orders.length})</span>
-          </button>
+          {hasPermission('manageOrders') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/orders')}
+            >
+              <ShoppingBag size={18} />
+              <span>Orders ({orders.length})</span>
+            </button>
+          )}
           
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'products' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/products')}
-          >
-            <PackageCheck size={18} />
-            <span>Products ({products.length})</span>
-          </button>
+          {hasPermission('manageProducts') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'products' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/products')}
+            >
+              <PackageCheck size={18} />
+              <span>Products ({products.length})</span>
+            </button>
+          )}
 
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'customers' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/customers')}
-          >
-            <Users size={18} />
-            <span>Customers</span>
-          </button>
+          {hasPermission('manageUsers') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'customers' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/customers')}
+            >
+              <Users size={18} />
+              <span>Users ({usersList.length})</span>
+            </button>
+          )}
 
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/reports')}
-          >
-            <FileText size={18} />
-            <span>Reports</span>
-          </button>
+          {hasPermission('viewReports') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'reports' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/reports')}
+            >
+              <FileText size={18} />
+              <span>Reports</span>
+            </button>
+          )}
 
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'categories' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/categories')}
-          >
-            <Layers size={18} />
-            <span>Categories</span>
-          </button>
+          {hasPermission('manageProducts') && (
+            <>
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'categories' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/categories')}
+              >
+                <Layers size={18} />
+                <span>Categories</span>
+              </button>
 
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'promos' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/promos')}
-          >
-            <Tag size={18} />
-            <span>Promos</span>
-          </button>
-          
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'media' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/media')}
-          >
-            <ImageIcon size={18} />
-            <span>Media Library</span>
-          </button>
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'promos' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/promos')}
+              >
+                <Tag size={18} />
+                <span>Promos</span>
+              </button>
+              
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'media' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/media')}
+              >
+                <ImageIcon size={18} />
+                <span>Media Library</span>
+              </button>
 
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'slides' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/slides')}
-          >
-            <Sliders size={18} />
-            <span>Hero Slides</span>
-          </button>
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'slides' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/slides')}
+              >
+                <Sliders size={18} />
+                <span>Hero Slides</span>
+              </button>
+            </>
+          )}
 
-          <button 
-            type="button"
-            className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/settings')}
-          >
-            <Settings size={18} />
-            <span>Settings</span>
-          </button>
+          {hasPermission('manageSettings') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/settings')}
+            >
+              <Settings size={18} />
+              <span>Settings</span>
+            </button>
+          )}
         </aside>
 
         {/* Content Panel */}
         <main className="wp-admin-main-content">
+          {((activeTab === 'orders' && !hasPermission('manageOrders')) ||
+            (['products', 'categories', 'promos', 'media', 'slides'].includes(activeTab) && !hasPermission('manageProducts')) ||
+            (activeTab === 'customers' && !hasPermission('manageUsers')) ||
+            (activeTab === 'reports' && !hasPermission('viewReports')) ||
+            (activeTab === 'settings' && !hasPermission('manageSettings'))) ? (
+            <div style={{ padding: '24px', background: '#fff', border: '1px solid #d30005', marginTop: '20px' }}>
+              <h1 style={{ fontSize: '20px', color: '#d30005', fontWeight: 600, margin: '0 0 10px' }}>Access Denied</h1>
+              <p style={{ fontSize: '13px', margin: 0 }}>You do not have the required permissions to view this administrative page. Please contact your system administrator.</p>
+            </div>
+          ) : (
+            <>
           
           {/* TAB 1: Overview */}
           {activeTab === 'overview' && (
@@ -1502,6 +1730,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'payment' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'payment' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Payment Options
+                  </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'rbac' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('rbac')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'rbac' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'rbac' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Roles & Permissions
                   </button>
                   <button
                     type="button"
@@ -2091,6 +2327,125 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </form>
                     )}
 
+                    {/* SUB-TAB: Roles & Permissions (RBAC) */}
+                    {settingsSubTab === 'rbac' && (
+                      <form onSubmit={handleSaveSettingsSubmit}>
+                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 8px', textTransform: 'uppercase' }}>Role-Based Access Control (RBAC)</h2>
+                        <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 20px' }}>
+                          Configure what each user role is permitted to manage inside the store management dashboard.
+                        </p>
+                        
+                        <table className="wp-list-table" style={{ width: '100%', fontSize: '13px', border: '1px solid #c3c4c7' }}>
+                          <thead>
+                            <tr style={{ background: '#f6f7f7' }}>
+                              <th style={{ padding: '12px 10px', textAlign: 'left', fontWeight: 600 }}>Role</th>
+                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Products</th>
+                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Orders</th>
+                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Users</th>
+                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Settings</th>
+                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>View Reports</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {['shop_manager', 'contributor', 'customer'].map(role => {
+                              // Retrieve permissions for this role or fall back to defaults
+                              const getRolePerm = (perm: string): boolean => {
+                                if (localSettings.rolesConfig?.[role]) {
+                                  return localSettings.rolesConfig[role][perm] === true;
+                                }
+                                // Defaults
+                                const defaults: Record<string, Record<string, boolean>> = {
+                                  shop_manager: { manageProducts: true, manageOrders: true, manageUsers: false, manageSettings: false, viewReports: true },
+                                  contributor: { manageProducts: true, manageOrders: false, manageUsers: false, manageSettings: false, viewReports: true },
+                                  customer: { manageProducts: false, manageOrders: false, manageUsers: false, manageSettings: false, viewReports: false }
+                                };
+                                return defaults[role]?.[perm] === true;
+                              };
+
+                              const handleTogglePerm = (perm: string, checked: boolean) => {
+                                const currentRolesConfig = localSettings.rolesConfig || {};
+                                const currentRolePerms = currentRolesConfig[role] || {
+                                  manageProducts: role === 'shop_manager' || role === 'contributor',
+                                  manageOrders: role === 'shop_manager',
+                                  manageUsers: false,
+                                  manageSettings: false,
+                                  viewReports: role === 'shop_manager' || role === 'contributor'
+                                };
+                                
+                                const updatedRolesConfig = {
+                                  ...currentRolesConfig,
+                                  [role]: {
+                                    ...currentRolePerms,
+                                    [perm]: checked
+                                  }
+                                };
+                                
+                                setLocalSettings({
+                                  ...localSettings,
+                                  rolesConfig: updatedRolesConfig
+                                });
+                              };
+
+                              const getRoleLabel = (r: string) => {
+                                if (r === 'shop_manager') return 'Shop Manager';
+                                if (r === 'contributor') return 'Contributor';
+                                if (r === 'customer') return 'Customer (Subscriber)';
+                                return r;
+                              };
+
+                              return (
+                                <tr key={role} style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                  <td style={{ padding: '15px 10px', fontWeight: 600 }}>{getRoleLabel(role)}</td>
+                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={getRolePerm('manageProducts')} 
+                                      onChange={e => handleTogglePerm('manageProducts', e.target.checked)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={getRolePerm('manageOrders')} 
+                                      onChange={e => handleTogglePerm('manageOrders', e.target.checked)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={getRolePerm('manageUsers')} 
+                                      onChange={e => handleTogglePerm('manageUsers', e.target.checked)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={getRolePerm('manageSettings')} 
+                                      onChange={e => handleTogglePerm('manageSettings', e.target.checked)}
+                                    />
+                                  </td>
+                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={getRolePerm('viewReports')} 
+                                      onChange={e => handleTogglePerm('viewReports', e.target.checked)}
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        
+                        <div style={{ marginTop: '20px', padding: '12px', background: '#fafafa', borderLeft: '4px solid #72aee6', fontSize: '12px', color: '#50575e' }}>
+                          <strong>Note:</strong> Super Administrators (`admin` role or user matching superAdminUid) always bypass access checks and have all capabilities enabled.
+                        </div>
+
+                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                        <button type="submit" className="wp-button-primary">Save Permissions Settings</button>
+                      </form>
+                    )}
+
                     {/* SUB-TAB: Audit Logs */}
                     {settingsSubTab === 'audit' && (
                       <div>
@@ -2365,221 +2720,536 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* TAB 5: Customers */}
+          {/* TAB 5: Users & Customers Management */}
           {activeTab === 'customers' && (
             <div>
-              <h1 className="wp-admin-page-title">Customers</h1>
-              <p style={{ fontSize: '13px', color: '#646970', marginBottom: '16px' }}>Click on any customer to view their complete details and order history.</p>
-              
-              <table className="wp-list-table">
-                <thead>
-                  <tr>
-                    <th>Customer Name</th>
-                    <th>Phone</th>
-                    <th>Email Address</th>
-                    <th style={{ textAlign: 'right', width: '120px' }}>Total Orders</th>
-                    <th style={{ textAlign: 'right', width: '180px' }}>Cumulative Spent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isAdminLoading ? (
-                    [1, 2, 3].map(n => (
-                      <tr key={n}>
-                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
-                      </tr>
-                    ))
-                  ) : (() => {
-                    // Aggregate customer records from orders
-                    const customerMap: Record<string, { name: string; phone: string; email: string; orderCount: number; spent: number }> = {};
-                    orders.forEach(o => {
-                      const key = o.customerPhone || o.buyerEmail || o.customerName;
-                      if (!customerMap[key]) {
-                        customerMap[key] = {
-                          name: o.customerName,
-                          phone: o.customerPhone,
-                          email: o.buyerEmail || 'Guest Shopper',
-                          orderCount: 0,
-                          spent: 0
-                        };
-                      }
-                      customerMap[key].orderCount += 1;
-                      customerMap[key].spent += o.totalAmount;
-                    });
-
-                    const customersList = Object.values(customerMap);
-                    if (customersList.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
-                            No customers found yet.
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    return customersList.map((c, i) => (
-                      <tr 
-                        key={i} 
-                        className="wp-row-hover" 
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => {
-                          const customerOrders = orders.filter(o => 
-                            (o.buyerEmail && o.buyerEmail.toLowerCase() === c.email.toLowerCase()) || 
-                            (o.customerPhone && o.customerPhone === c.phone) ||
-                            (o.customerName.toLowerCase() === c.name.toLowerCase())
-                          );
-                          setSelectedCustomer({
-                            ...c,
-                            orders: customerOrders
-                          });
-                        }}
-                      >
-                        <td style={{ fontWeight: 600, color: '#2271b1' }}>{c.name}</td>
-                        <td>{c.phone}</td>
-                        <td>{c.email}</td>
-                        <td style={{ textAlign: 'right' }}>{c.orderCount}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>KSh {c.spent.toLocaleString()}</td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
-
-              {/* Customer Detail History Modal */}
-              {selectedCustomer && (
-                <div 
-                  className="modal-overlay"
-                  onClick={() => setSelectedCustomer(null)}
-                  style={{ 
-                    zIndex: 5000, 
-                    backgroundColor: 'rgba(0, 0, 0, 0.6)', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    padding: '20px' 
-                  }}
-                >
-                  <div 
-                    onClick={e => e.stopPropagation()}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      width: '100%',
-                      maxWidth: '750px',
-                      maxHeight: '85vh',
-                      borderRadius: 'var(--radius-none)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
-                      boxSizing: 'border-box',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {/* Modal Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #f0f1f1' }}>
-                      <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#1d2327' }}>Customer Profile & Order History</h2>
-                      <button 
-                        type="button" 
-                        onClick={() => setSelectedCustomer(null)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: '#646970' }}
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-
-                    {/* Modal Body */}
-                    <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      
-                      {/* Customer Info Card */}
-                      <div style={{ padding: '16px', background: '#f6f7f7', border: '1px solid #dcdcde', boxSizing: 'border-box' }}>
-                        <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#1d2327' }}>Customer Details</h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
-                          <div><strong>Name:</strong> {selectedCustomer.name}</div>
-                          <div><strong>Phone:</strong> {selectedCustomer.phone}</div>
-                          <div><strong>Email:</strong> {selectedCustomer.email}</div>
-                          <div>
-                            <strong>Delivery Addresses:</strong>{' '}
-                            {Array.from(new Set(selectedCustomer.orders.map(o => o.customerAddress).filter(Boolean))).join('; ') || 'N/A'}
-                          </div>
-                          <div><strong>Total Orders:</strong> {selectedCustomer.orderCount}</div>
-                          <div><strong>Total Spent:</strong> <strong style={{ color: '#2271b1' }}>KSh {selectedCustomer.spent.toLocaleString()}</strong></div>
-                        </div>
+              {isAddingUser ? (
+                // Add New User Form
+                <div className="wp-postbox" style={{ margin: 0 }}>
+                  <div className="wp-postbox-inside" style={{ padding: '24px' }}>
+                    <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>Add New User</h2>
+                    <form onSubmit={handleAddUserSubmit}>
+                      <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                        <tbody>
+                          <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Username <span style={{ color: '#d30005' }}>*</span></th>
+                            <td style={{ padding: '10px 0' }}>
+                              <input 
+                                type="text" 
+                                style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={userFormUsername}
+                                onChange={e => setUserFormUsername(e.target.value)}
+                                required
+                              />
+                            </td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Email Address <span style={{ color: '#d30005' }}>*</span></th>
+                            <td style={{ padding: '10px 0' }}>
+                              <input 
+                                type="email" 
+                                style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={userFormEmail}
+                                onChange={e => setUserFormEmail(e.target.value)}
+                                required
+                              />
+                            </td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Password <span style={{ color: '#d30005' }}>*</span></th>
+                            <td style={{ padding: '10px 0' }}>
+                              <input 
+                                type="password" 
+                                placeholder="Min 6 characters"
+                                style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={userFormPassword}
+                                onChange={e => setUserFormPassword(e.target.value)}
+                                required
+                                minLength={6}
+                              />
+                            </td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Role</th>
+                            <td style={{ padding: '10px 0' }}>
+                              <select 
+                                style={{ width: '200px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={userFormRole}
+                                onChange={e => setUserFormRole(e.target.value)}
+                              >
+                                <option value="customer">Customer (Subscriber)</option>
+                                <option value="contributor">Contributor</option>
+                                <option value="shop_manager">Shop Manager</option>
+                                <option value="admin">Administrator</option>
+                              </select>
+                            </td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>First Name</th>
+                            <td style={{ padding: '10px 0' }}>
+                              <input 
+                                type="text" 
+                                style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={userFormFirstName}
+                                onChange={e => setUserFormFirstName(e.target.value)}
+                              />
+                            </td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Last Name</th>
+                            <td style={{ padding: '10px 0' }}>
+                              <input 
+                                type="text" 
+                                style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={userFormLastName}
+                                onChange={e => setUserFormLastName(e.target.value)}
+                              />
+                            </td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Phone</th>
+                            <td style={{ padding: '10px 0' }}>
+                              <input 
+                                type="text" 
+                                style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={userFormPhone}
+                                onChange={e => setUserFormPhone(e.target.value)}
+                              />
+                            </td>
+                          </tr>
+                          <tr>
+                            <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Address</th>
+                            <td style={{ padding: '10px 0' }}>
+                              <textarea 
+                                style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                rows={3}
+                                value={userFormAddress}
+                                onChange={e => setUserFormAddress(e.target.value)}
+                              />
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button type="submit" className="wp-button-primary">Add New User</button>
+                        <button 
+                          type="button" 
+                          className="wp-button-secondary" 
+                          onClick={() => setIsAddingUser(false)}
+                        >
+                          Cancel
+                        </button>
                       </div>
-
-                      {/* Orders History List */}
-                      <div>
-                        <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#1d2327' }}>Order History</h3>
-                        {selectedCustomer.orders.length === 0 ? (
-                          <p style={{ margin: 0, color: '#a7aaad', fontStyle: 'italic', fontSize: '13px' }}>No orders found for this customer.</p>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {selectedCustomer.orders.map(o => {
-                              const dateStr = new Date(o.createdAt).toLocaleDateString('en-KE', { 
-                                year: 'numeric', 
-                                month: 'short', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              });
-                              return (
-                                <div 
-                                  key={o.id}
-                                  style={{ 
-                                    border: '1px solid #dcdcde', 
-                                    padding: '16px', 
-                                    display: 'flex', 
-                                    flexDirection: 'column', 
-                                    gap: '8px', 
-                                    boxSizing: 'border-box' 
-                                  }}
+                    </form>
+                  </div>
+                </div>
+              ) : selectedUser ? (
+                // Edit User Form (WordPress style)
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 1.2fr)', gap: '30px', alignItems: 'start' }}>
+                  
+                  {/* Left Column: Form details */}
+                  <div className="wp-postbox" style={{ margin: 0 }}>
+                    <div className="wp-postbox-inside" style={{ padding: '24px' }}>
+                      <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>
+                        Edit User Profile: {selectedUser.fullName || selectedUser.username}
+                      </h2>
+                      <form onSubmit={handleEditUserSubmit}>
+                        <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <tbody>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Username</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', background: '#f0f0f1' }}
+                                  value={userFormUsername}
+                                  onChange={e => setUserFormUsername(e.target.value)}
+                                  readOnly={!selectedUser.isGuest} // Username read-only for auth users
+                                  required
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Email Address</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="email" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', background: selectedUser.isGuest ? '#fff' : '#f0f0f1' }}
+                                  value={userFormEmail}
+                                  onChange={e => setUserFormEmail(e.target.value)}
+                                  readOnly={!selectedUser.isGuest}
+                                  required
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Role</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <select 
+                                  style={{ width: '200px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={userFormRole}
+                                  onChange={e => setUserFormRole(e.target.value)}
                                 >
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>Order ID: {o.id}</span>
-                                    <span style={{ fontSize: '12px', color: '#646970' }}>{dateStr}</span>
-                                  </div>
-
-                                  <div style={{ fontSize: '13px', color: '#2c3338' }}>
-                                    <strong>Items:</strong>{' '}
-                                    {o.items.map((it, idx) => (
-                                      <span key={idx}>
-                                        {it.name} ({it.variantDetails}) x{it.quantity}
-                                        {idx < o.items.length - 1 ? ', ' : ''}
-                                      </span>
-                                    ))}
-                                  </div>
-
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0f1f1', paddingTop: '8px', marginTop: '4px' }}>
-                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                      <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`} style={{ fontSize: '11px' }}>{o.orderStatus}</span>
-                                      <span className={`wp-badge-status ${o.paymentStatus.toLowerCase() === 'paid' ? 'paid' : 'unpaid'}`} style={{ fontSize: '11px' }}>{o.paymentStatus}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                      <span style={{ fontSize: '13px', fontWeight: 600 }}>KSh {o.totalAmount.toLocaleString()}</span>
-                                      <button
-                                        type="button"
-                                        className="wp-button-secondary"
-                                        style={{ padding: '4px 8px', fontSize: '11px', minHeight: 'auto', height: '24px' }}
-                                        onClick={() => {
-                                          setActiveOrderDetails(o);
-                                          setSelectedCustomer(null);
-                                          navigate('/dashboard/orders');
-                                        }}
-                                      >
-                                        View Full Order
-                                      </button>
-                                    </div>
-                                  </div>
+                                  <option value="customer">Customer (Subscriber)</option>
+                                  <option value="contributor">Contributor</option>
+                                  <option value="shop_manager">Shop Manager</option>
+                                  <option value="admin">Administrator</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>First Name</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={userFormFirstName}
+                                  onChange={e => setUserFormFirstName(e.target.value)}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Last Name</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={userFormLastName}
+                                  onChange={e => setUserFormLastName(e.target.value)}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Phone</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={userFormPhone}
+                                  onChange={e => setUserFormPhone(e.target.value)}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Address</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <textarea 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                  rows={3}
+                                  value={userFormAddress}
+                                  onChange={e => setUserFormAddress(e.target.value)}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>New Password</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <input 
+                                    type="password" 
+                                    placeholder="Type a new password to change manually"
+                                    style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                    value={userFormPassword}
+                                    onChange={e => setUserFormPassword(e.target.value)}
+                                    minLength={6}
+                                  />
+                                  <p style={{ color: '#646970', margin: 0, fontSize: '11px', maxWidth: '350px' }}>
+                                    <em>Note: Client security policies restrict direct modification of other users' Firebase Auth passwords. Typing a password here updates the user record profile document. Use standard resets for secure Auth credential updating.</em>
+                                  </p>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                              </td>
+                            </tr>
+                            {!selectedUser.isGuest && (
+                              <tr>
+                                <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Security Tools</th>
+                                <td style={{ padding: '10px 0' }}>
+                                  <button
+                                    type="button"
+                                    className="wp-button-secondary"
+                                    onClick={() => handleSendPasswordReset(selectedUser.email)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                  >
+                                    <Mail size={14} />
+                                    <span>Send Password Reset Email</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button type="submit" className="wp-button-primary">Save Profile Changes</button>
+                          <button 
+                            type="button" 
+                            className="wp-button-secondary" 
+                            onClick={() => setSelectedUser(null)}
+                          >
+                            Back to List
+                          </button>
+                        </div>
+                      </form>
                     </div>
                   </div>
+
+                  {/* Right Column: Metaboxes & Actions */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    
+                    {/* User Action Metabox */}
+                    <div className="wp-postbox" style={{ margin: 0 }}>
+                      <h3 className="wp-postbox-title">Account Actions</h3>
+                      <div className="wp-postbox-inside">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div>
+                            <strong>UID:</strong> <code style={{ fontSize: '10px', wordBreak: 'break-all' }}>{selectedUser.uid}</code>
+                          </div>
+                          <div>
+                            <strong>Orders Count:</strong> {selectedUser.orderCount || 0}
+                          </div>
+                          <div>
+                            <strong>Total Spent:</strong> KSh {(selectedUser.spent || 0).toLocaleString()}
+                          </div>
+                          <hr style={{ border: 0, borderTop: '1px solid #dcdcde', margin: '5px 0' }} />
+                          <button
+                            type="button"
+                            className="wp-button-link-delete"
+                            onClick={() => handleDeleteUser(selectedUser.uid, selectedUser.fullName || selectedUser.username || '')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%', padding: '6px 0', border: '1px solid #b32d2e', background: 'none' }}
+                          >
+                            <Trash2 size={14} />
+                            <span>Delete User Account</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Order History Metabox (if Customer) */}
+                    {selectedUser.orders && selectedUser.orders.length > 0 && (
+                      <div className="wp-postbox" style={{ margin: 0 }}>
+                        <h3 className="wp-postbox-title">Customer Order History</h3>
+                        <div className="wp-postbox-inside" style={{ maxHeight: '400px', overflowY: 'auto', padding: '15px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {selectedUser.orders.map(o => (
+                              <div key={o.id} style={{ border: '1px solid #dcdcde', padding: '10px', fontSize: '12px', background: '#fafafa' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                                  <span>#{o.id.substring(6, 12)}</span>
+                                  <span>KSh {o.totalAmount.toLocaleString()}</span>
+                                </div>
+                                <div style={{ color: '#646970', marginTop: '2px' }}>{new Date(o.createdAt).toLocaleDateString()}</div>
+                                <div style={{ display: 'flex', gap: '5px', marginTop: '6px' }}>
+                                  <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`} style={{ fontSize: '9px', padding: '1px 4px' }}>{o.orderStatus}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+              ) : (
+                // Users list table view (WordPress style)
+                <div>
+                  <h1 className="wp-admin-page-title">
+                    Users 
+                    <button 
+                      className="wp-button-secondary" 
+                      style={{ marginLeft: '10px', padding: '4px 8px', fontSize: '11px', minHeight: 'auto' }} 
+                      onClick={() => {
+                        setUserFormUsername('');
+                        setUserFormEmail('');
+                        setUserFormFirstName('');
+                        setUserFormLastName('');
+                        setUserFormPhone('');
+                        setUserFormAddress('');
+                        setUserFormRole('customer');
+                        setUserFormPassword('');
+                        setIsAddingUser(true);
+                      }}
+                    >
+                      Add New
+                    </button>
+                  </h1>
+                  <p style={{ fontSize: '13px', color: '#646970', marginBottom: '16px' }}>
+                    Manage store users, administrators, shop managers, and customer profiles. Click on a user's name to edit their details.
+                  </p>
+
+                  {/* Dynamic Aggregation & Combining */}
+                  {(() => {
+                    const allUsers: (BuyerProfile & { isGuest?: boolean })[] = [...usersList];
+                    
+                    orders.forEach(o => {
+                      const email = o.buyerEmail?.trim().toLowerCase();
+                      const phone = o.customerPhone?.trim();
+                      if (!email && !phone) return;
+                      
+                      // Check if there is an existing user in usersList
+                      const exists = usersList.some(u => 
+                        (email && u.email.toLowerCase() === email) || 
+                        (phone && u.phone === phone)
+                      );
+                      
+                      if (!exists) {
+                        const guestKey = email || phone || o.customerName;
+                        // Prevent duplicates
+                        const guestExists = allUsers.some(u => 
+                          (email && u.email.toLowerCase() === email) || 
+                          (phone && u.phone === phone)
+                        );
+                        
+                        if (!guestExists) {
+                          allUsers.push({
+                            uid: `guest-${guestKey}`,
+                            fullName: o.customerName,
+                            email: o.buyerEmail || 'Guest Shopper',
+                            phone: o.customerPhone || '',
+                            address: o.customerAddress || '',
+                            role: 'customer',
+                            isGuest: true,
+                            notifyEmail: false,
+                            notifySms: false,
+                            notifyPromos: false
+                          });
+                        }
+                      }
+                    });
+
+                    // Filter users by selected role filter
+                    const filteredUsers = allUsers.filter(u => {
+                      if (userRoleFilter === 'all') return true;
+                      return u.role === userRoleFilter;
+                    });
+
+                    const getRoleCount = (r: string) => {
+                      if (r === 'all') return allUsers.length;
+                      return allUsers.filter(u => u.role === r).length;
+                    };
+
+                    const getRoleDisplay = (r?: string) => {
+                      if (!r) return 'Subscriber';
+                      if (r === 'admin') return 'Administrator';
+                      if (r === 'shop_manager') return 'Shop Manager';
+                      if (r === 'contributor') return 'Contributor';
+                      if (r === 'customer') return 'Customer';
+                      return r;
+                    };
+
+                    return (
+                      <>
+                        {/* WP-like Role filters tabs */}
+                        <div className="subsubsub" style={{ display: 'flex', gap: '8px', fontSize: '13px', margin: '0 0 16px 0', borderBottom: '1px solid #dcdcde', paddingBottom: '8px' }}>
+                          <span style={{ color: '#646970' }}>
+                            <a 
+                              onClick={() => setUserRoleFilter('all')} 
+                              style={{ color: userRoleFilter === 'all' ? '#000' : '#2271b1', fontWeight: userRoleFilter === 'all' ? '600' : 'normal', cursor: 'pointer' }}
+                            >
+                              All ({getRoleCount('all')})
+                            </a> |
+                          </span>
+                          <span style={{ color: '#646970' }}>
+                            <a 
+                              onClick={() => setUserRoleFilter('admin')} 
+                              style={{ color: userRoleFilter === 'admin' ? '#000' : '#2271b1', fontWeight: userRoleFilter === 'admin' ? '600' : 'normal', cursor: 'pointer' }}
+                            >
+                              Administrators ({getRoleCount('admin')})
+                            </a> |
+                          </span>
+                          <span style={{ color: '#646970' }}>
+                            <a 
+                              onClick={() => setUserRoleFilter('shop_manager')} 
+                              style={{ color: userRoleFilter === 'shop_manager' ? '#000' : '#2271b1', fontWeight: userRoleFilter === 'shop_manager' ? '600' : 'normal', cursor: 'pointer' }}
+                            >
+                              Shop Managers ({getRoleCount('shop_manager')})
+                            </a> |
+                          </span>
+                          <span style={{ color: '#646970' }}>
+                            <a 
+                              onClick={() => setUserRoleFilter('contributor')} 
+                              style={{ color: userRoleFilter === 'contributor' ? '#000' : '#2271b1', fontWeight: userRoleFilter === 'contributor' ? '600' : 'normal', cursor: 'pointer' }}
+                            >
+                              Contributors ({getRoleCount('contributor')})
+                            </a> |
+                          </span>
+                          <span style={{ color: '#646970' }}>
+                            <a 
+                              onClick={() => setUserRoleFilter('customer')} 
+                              style={{ color: userRoleFilter === 'customer' ? '#000' : '#2271b1', fontWeight: userRoleFilter === 'customer' ? '600' : 'normal', cursor: 'pointer' }}
+                            >
+                              Customers ({getRoleCount('customer')})
+                            </a>
+                          </span>
+                        </div>
+
+                        {/* List Users Grid Table */}
+                        <table className="wp-list-table">
+                          <thead>
+                            <tr>
+                              <th>Username</th>
+                              <th>Name</th>
+                              <th>Email</th>
+                              <th>Role</th>
+                              <th>Phone</th>
+                              <th style={{ textAlign: 'right', width: '100px' }}>Orders</th>
+                              <th style={{ textAlign: 'right', width: '150px' }}>Total Spent</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredUsers.length === 0 ? (
+                              <tr>
+                                <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>No users found for this filter.</td>
+                              </tr>
+                            ) : (
+                              filteredUsers.map((u) => {
+                                const stats = getUserOrderStats(u);
+                                return (
+                                  <tr 
+                                    key={u.uid} 
+                                    className="wp-row-hover" 
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => {
+                                      setSelectedUser({
+                                        ...u,
+                                        ...stats
+                                      });
+                                      setUserFormUsername(u.username || u.email.split('@')[0] || '');
+                                      setUserFormEmail(u.email || '');
+                                      setUserFormFirstName(u.firstName || '');
+                                      setUserFormLastName(u.lastName || '');
+                                      setUserFormPhone(u.phone || '');
+                                      setUserFormAddress(u.address || '');
+                                      setUserFormRole(u.role || 'customer');
+                                      setUserFormPassword('');
+                                    }}
+                                  >
+                                    <td style={{ fontWeight: 600, color: '#2271b1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <div style={{ width: '28px', height: '28px', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                        {u.avatarUrl ? (
+                                          <img src={u.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                          <Users size={14} style={{ color: '#888' }} />
+                                        )}
+                                      </div>
+                                      <span>{u.username || u.email.split('@')[0]}</span>
+                                      {u.isGuest && <span style={{ fontSize: '9px', background: '#f0f0f1', padding: '1px 4px', color: '#646970', fontWeight: 'normal', textTransform: 'uppercase' }}>Guest</span>}
+                                    </td>
+                                    <td>{u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || '—'}</td>
+                                    <td>{u.email}</td>
+                                    <td style={{ fontWeight: 600 }}>{getRoleDisplay(u.role)}</td>
+                                    <td>{u.phone || '—'}</td>
+                                    <td style={{ textAlign: 'right' }}>{stats.orderCount}</td>
+                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>KSh {stats.spent.toLocaleString()}</td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -3343,6 +4013,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </tbody>
               </table>
             </div>
+          )}
+          </>
           )}
 
         </main>

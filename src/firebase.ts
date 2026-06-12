@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 // Your web app's Firebase configuration
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyC8dCWMzILos6DvgJ1nvQcPGrfodGoj6wM",
   authDomain: "lvt-commerce.firebaseapp.com",
   projectId: "lvt-commerce",

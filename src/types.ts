@@ -111,6 +111,8 @@ export interface BuyerProfile {
   lastName?: string;
   avatarUrl?: string;
   enable2FA?: boolean;
+  role?: string;
+  tempPassword?: string;
 }
 
 export interface ShopSettings {
@@ -152,6 +154,7 @@ export interface ShopSettings {
   paystackSecretKey?: string;
   paystackMode?: 'live' | 'test';
   codActive?: boolean;
+  rolesConfig?: Record<string, Record<string, boolean>>;
 }
 
 export interface HomeSlide {

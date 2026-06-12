@@ -549,6 +549,20 @@ export async function saveBuyerProfile(profile: BuyerProfile): Promise<void> {
   await setDoc(profileRef, cleanObject(profile));
 }
 
+export async function getAllUsers(): Promise<BuyerProfile[]> {
+  const usersCol = collection(db, "users");
+  const snap = await getDocs(usersCol);
+  return snap.docs.map(doc => ({
+    uid: doc.id,
+    ...doc.data()
+  })) as BuyerProfile[];
+}
+
+export async function deleteBuyerProfile(uid: string): Promise<void> {
+  const profileRef = doc(db, "users", uid);
+  await deleteDoc(profileRef);
+}
+
 // Product Reviews GET/ADD
 export async function getProductReviews(productId: string): Promise<ProductReview[]> {
   const reviewsCol = collection(db, "reviews");
