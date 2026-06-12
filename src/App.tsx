@@ -44,7 +44,14 @@ function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [slides, setSlides] = useState<HomeSlide[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('goldencare_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   
@@ -83,6 +90,7 @@ function App() {
   // Categories & Coupons lists
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [dbCoupons, setDbCoupons] = useState<Coupon[]>([]);
+  const [isAppLoading, setIsAppLoading] = useState(true);
 
   const handleShowToast = (message: string, type: 'success' | 'warning' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -97,9 +105,15 @@ function App() {
     localStorage.setItem('goldencare_wishlist', JSON.stringify(wishlist));
   }, [wishlist]);
 
+  // Sync cart to local storage
+  useEffect(() => {
+    localStorage.setItem('goldencare_cart', JSON.stringify(cart));
+  }, [cart]);
+
   // Initialize DB and load states
   useEffect(() => {
     const loadInitialData = async () => {
+      setIsAppLoading(true);
       try {
         await initDb();
         const [loadedProducts, loadedSettings, loadedSlides, loadedCategories, loadedCoupons] = await Promise.all([
@@ -116,6 +130,8 @@ function App() {
         setDbCoupons(loadedCoupons);
       } catch (err) {
         console.error("Error loading initial data:", err);
+      } finally {
+        setIsAppLoading(false);
       }
     };
     loadInitialData();
@@ -473,7 +489,9 @@ function App() {
           <div>
             {/* Nike Campaign Hero Slider */}
             <section className="campaign-hero-slider">
-              {slides.length > 0 ? (
+              {isAppLoading ? (
+                <div className="campaign-slide active skeleton-pulse" style={{ height: '70vh', backgroundColor: '#e5e5e5' }} />
+              ) : slides.length > 0 ? (
                 slides.map((slide, idx) => (
                   <div
                     key={slide.id}
@@ -759,7 +777,18 @@ function App() {
                 </div>
               </div>
               
-              {filteredProducts.length === 0 ? (
+              {isAppLoading ? (
+                <div className="product-grid">
+                  {[1, 2, 3, 4].map(n => (
+                    <div key={n} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div className="skeleton-image skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                      <div className="skeleton-text title skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                      <div className="skeleton-text skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                      <div className="skeleton-text short skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                    </div>
+                  ))}
+                </div>
+              ) : filteredProducts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                   <h3>No products found matching your search.</h3>
                 </div>
@@ -794,9 +823,54 @@ function App() {
               onToggleWishlist={handleToggleWishlist}
               onReviewSubmitted={handleRefreshProducts}
             />
+          ) : isAppLoading ? (
+            <div className="container" style={{ padding: '30px 0' }}>
+              {/* Breadcrumbs Skeleton */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
+                <div className="skeleton-row-box skeleton-pulse" style={{ height: '16px', width: '250px' }} />
+              </div>
+
+              {/* Main PDP Grid Layout Skeleton */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '48px', marginBottom: '48px' }}>
+                
+                {/* Left Side: Main Image Placeholder + Thumbnails */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="skeleton-image skeleton-pulse" style={{ aspectRatio: '1 / 1', width: '100%', backgroundColor: '#f0f0f1' }} />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[1, 2, 3, 4].map(n => (
+                      <div key={n} className="skeleton-pulse" style={{ width: '80px', height: '60px', backgroundColor: '#f0f0f1' }} />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Side: Product Details */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div className="skeleton-row-box skeleton-pulse" style={{ height: '36px', width: '80%' }} />
+                  <div className="skeleton-row-box skeleton-pulse" style={{ height: '20px', width: '40%' }} />
+                  <div className="skeleton-row-box skeleton-pulse" style={{ height: '24px', width: '30%' }} />
+                  
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--color-hairline-soft)', margin: '12px 0' }} />
+                  
+                  <div className="skeleton-row-box skeleton-pulse" style={{ height: '60px', width: '100%' }} />
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+                    <div className="skeleton-row-box skeleton-pulse" style={{ height: '20px', width: '50%' }} />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {[1, 2, 3].map(n => (
+                        <div key={n} className="skeleton-pulse" style={{ width: '60px', height: '32px', backgroundColor: '#f0f0f1' }} />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="skeleton-row-box skeleton-pulse" style={{ height: '48px', width: '100%', marginTop: '24px' }} />
+                  <div className="skeleton-row-box skeleton-pulse" style={{ height: '48px', width: '100%' }} />
+                </div>
+
+              </div>
+            </div>
           ) : (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-              <h3>Product not found or loading...</h3>
+              <h3>Product not found.</h3>
             </div>
           )
         )}

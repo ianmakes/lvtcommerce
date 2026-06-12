@@ -102,6 +102,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [slideButtonLink, setSlideButtonLink] = useState('');
   const [slideOrder, setSlideOrder] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdminLoading, setIsAdminLoading] = useState(true);
 
   // Categories CRUD state
   const [catName, setCatName] = useState('');
@@ -154,6 +155,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Load Admin Data from Firestore
   const loadAdminData = async () => {
+    setIsAdminLoading(true);
     setIsLoading(true);
     try {
       const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia] = await Promise.all([
@@ -172,6 +174,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       console.error("Error loading data from Firestore:", e);
     } finally {
       setIsLoading(false);
+      setIsAdminLoading(false);
     }
   };
 
@@ -1099,40 +1102,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map(o => (
-                    <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setActiveOrderDetails(o)}>
-                      <td>
-                        <a style={{ fontWeight: 600, color: '#2271b1', textDecoration: 'none' }}>
-                          #{o.id.substring(6, 12)}
-                        </a>
-                      </td>
-                      <td>{new Date(o.createdAt).toLocaleDateString()}</td>
-                      <td>
-                        <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
-                      </td>
-                      <td>
-                        <span className={`wp-badge-status ${o.paymentStatus.toLowerCase() === 'paid' ? 'paid' : 'unpaid'}`}>{o.paymentStatus}</span>
-                      </td>
-                      <td>
-                        <strong>{o.customerName}</strong><br />
-                        <span style={{ fontSize: '11px', color: '#646970' }}>{o.customerAddress}</span>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>KSh {o.totalAmount.toLocaleString()}</td>
-                      <td onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button className="wp-button-secondary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Dispatched', o.paymentStatus)} title="Mark Dispatched">
-                            <Truck size={14} />
-                          </button>
-                          <button className="wp-button-primary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px', background: 'var(--color-success)', borderColor: 'var(--color-success)' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Delivered', 'Paid')} title="Mark Delivered">
-                            <CheckCircle size={14} />
-                          </button>
-                          <button className="wp-button-secondary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px', color: '#b32d2e', borderColor: '#dcdcde' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Cancelled', o.paymentStatus)} title="Cancel Order">
-                            <Ban size={14} />
-                          </button>
-                        </div>
+                  {isAdminLoading ? (
+                    [1, 2, 3].map(n => (
+                      <tr key={n}>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                      </tr>
+                    ))
+                  ) : orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                        No orders found.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    orders.map(o => (
+                      <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => setActiveOrderDetails(o)}>
+                        <td>
+                          <a style={{ fontWeight: 600, color: '#2271b1', textDecoration: 'none' }}>
+                            #{o.id.substring(6, 12)}
+                          </a>
+                        </td>
+                        <td>{new Date(o.createdAt).toLocaleDateString()}</td>
+                        <td>
+                          <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
+                        </td>
+                        <td>
+                          <span className={`wp-badge-status ${o.paymentStatus.toLowerCase() === 'paid' ? 'paid' : 'unpaid'}`}>{o.paymentStatus}</span>
+                        </td>
+                        <td>
+                          <strong>{o.customerName}</strong><br />
+                          <span style={{ fontSize: '11px', color: '#646970' }}>{o.customerAddress}</span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>KSh {o.totalAmount.toLocaleString()}</td>
+                        <td onClick={e => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button className="wp-button-secondary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Dispatched', o.paymentStatus)} title="Mark Dispatched">
+                              <Truck size={14} />
+                            </button>
+                            <button className="wp-button-primary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px', background: 'var(--color-success)', borderColor: 'var(--color-success)' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Delivered', 'Paid')} title="Mark Delivered">
+                              <CheckCircle size={14} />
+                            </button>
+                            <button className="wp-button-secondary" style={{ padding: '2px 6px', minHeight: '26px', fontSize: '11px', color: '#b32d2e', borderColor: '#dcdcde' }} onClick={() => handleUpdateOrderStatusClick(o.id, 'Cancelled', o.paymentStatus)} title="Cancel Order">
+                              <Ban size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1190,43 +1213,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map(p => (
-                    <tr key={p.id}>
-                      <td style={{ paddingLeft: '10px' }}><input type="checkbox" /></td>
-                      <td>
-                        <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'cover', border: '1px solid #dcdcde' }} />
-                      </td>
-                      <td>
-                        <a onClick={() => handleEditProductClick(p)} style={{ fontWeight: 600, color: '#2271b1', cursor: 'pointer', fontSize: '14px', textDecoration: 'none' }}>
-                          {p.name}
-                        </a>
-                        <div className="row-actions">
-                          <span className="edit"><a onClick={() => handleEditProductClick(p)}>Edit</a> | </span>
-                          <span className="trash"><a onClick={() => handleDeleteProductClick(p.id, p.name)}>Trash</a> | </span>
-                          <span className="view"><a href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer">View</a></span>
-                        </div>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>KSh {p.basePrice.toLocaleString()}</td>
-                      <td>{p.category}</td>
-                      <td>
-                        {p.attributes && p.attributes.length > 0 ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                            {p.attributes.map(a => (
-                              <span key={a.name} style={{ background: '#f0f2f5', padding: '2px 6px', borderRadius: '3px', fontSize: '11px', border: '1px solid #dcdcde' }}>
-                                {a.name}: {a.options.length}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span style={{ color: '#a7aaad' }}>—</span>
-                        )}
-                      </td>
-                      <td>
-                        <span style={{ display: 'block', fontSize: '12px' }}>Published</span>
-                        <span style={{ color: '#646970', fontSize: '11px' }}>{new Date().toLocaleDateString()}</span>
+                  {isAdminLoading ? (
+                    [1, 2, 3].map(n => (
+                      <tr key={n}>
+                        <td style={{ paddingLeft: '10px' }}><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px', width: '20px' }} /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" style={{ width: '40px', height: '40px' }} /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '24px' }} /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                      </tr>
+                    ))
+                  ) : products.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                        No products found.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    products.map(p => (
+                      <tr key={p.id}>
+                        <td style={{ paddingLeft: '10px' }}><input type="checkbox" /></td>
+                        <td>
+                          <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'cover', border: '1px solid #dcdcde' }} />
+                        </td>
+                        <td>
+                          <a onClick={() => handleEditProductClick(p)} style={{ fontWeight: 600, color: '#2271b1', cursor: 'pointer', fontSize: '14px', textDecoration: 'none' }}>
+                            {p.name}
+                          </a>
+                          <div className="row-actions">
+                            <span className="edit"><a onClick={() => handleEditProductClick(p)}>Edit</a> | </span>
+                            <span className="trash"><a onClick={() => handleDeleteProductClick(p.id, p.name)}>Trash</a> | </span>
+                            <span className="view"><a href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer">View</a></span>
+                          </div>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>KSh {p.basePrice.toLocaleString()}</td>
+                        <td>{p.category}</td>
+                        <td>
+                          {p.attributes && p.attributes.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {p.attributes.map(a => (
+                                <span key={a.name} style={{ background: '#f0f2f5', padding: '2px 6px', borderRadius: '3px', fontSize: '11px', border: '1px solid #dcdcde' }}>
+                                  {a.name}: {a.options.length}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#a7aaad' }}>—</span>
+                          )}
+                        </td>
+                        <td>
+                          <span style={{ display: 'block', fontSize: '12px' }}>Published</span>
+                          <span style={{ color: '#646970', fontSize: '11px' }}>{new Date().toLocaleDateString()}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1392,7 +1435,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {(() => {
+                  {isAdminLoading ? (
+                    [1, 2, 3].map(n => (
+                      <tr key={n}>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                      </tr>
+                    ))
+                  ) : (() => {
                     // Aggregate customer records from orders
                     const customerMap: Record<string, { name: string; phone: string; email: string; orderCount: number; spent: number }> = {};
                     orders.forEach(o => {
@@ -1615,19 +1668,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="wp-postbox">
                         <h2 className="wp-postbox-title">Gross Revenue</h2>
                         <div className="wp-postbox-inside" style={{ fontSize: '24px', fontWeight: 'bold', color: '#2271b1' }}>
-                          KSh {totalRevenue.toLocaleString()}
+                          {isAdminLoading ? (
+                            <div className="skeleton-row-box skeleton-pulse" style={{ height: '30px', width: '150px' }} />
+                          ) : (
+                            `KSh ${totalRevenue.toLocaleString()}`
+                          )}
                         </div>
                       </div>
                       <div className="wp-postbox">
                         <h2 className="wp-postbox-title">Total Orders</h2>
                         <div className="wp-postbox-inside" style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3338' }}>
-                          {orders.length}
+                          {isAdminLoading ? (
+                            <div className="skeleton-row-box skeleton-pulse" style={{ height: '30px', width: '50px' }} />
+                          ) : (
+                            orders.length
+                          )}
                         </div>
                       </div>
                       <div className="wp-postbox">
                         <h2 className="wp-postbox-title">Average Order Value</h2>
                         <div className="wp-postbox-inside" style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3338' }}>
-                          KSh {averageOrder.toLocaleString()}
+                          {isAdminLoading ? (
+                            <div className="skeleton-row-box skeleton-pulse" style={{ height: '30px', width: '150px' }} />
+                          ) : (
+                            `KSh ${averageOrder.toLocaleString()}`
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1645,7 +1710,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </tr>
                           </thead>
                           <tbody>
-                            {topSellers.length === 0 ? (
+                            {isAdminLoading ? (
+                              [1, 2, 3].map(n => (
+                                <tr key={n}>
+                                  <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                                  <td><div className="skeleton-row-box skeleton-pulse" style={{ textAlign: 'right' }} /></td>
+                                  <td><div className="skeleton-row-box skeleton-pulse" style={{ textAlign: 'right' }} /></td>
+                                </tr>
+                              ))
+                            ) : topSellers.length === 0 ? (
                               <tr>
                                 <td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
                                   No sales recorded yet.
@@ -1739,7 +1812,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {categories.length === 0 ? (
+                      {isAdminLoading ? (
+                        [1, 2, 3].map(n => (
+                          <tr key={n}>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                          </tr>
+                        ))
+                      ) : categories.length === 0 ? (
                         <tr>
                           <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
                             No categories found.
@@ -1937,7 +2019,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {coupons.length === 0 ? (
+                      {isAdminLoading ? (
+                        [1, 2, 3].map(n => (
+                          <tr key={n}>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                          </tr>
+                        ))
+                      ) : coupons.length === 0 ? (
                         <tr>
                           <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
                             No promo codes found.
@@ -2092,7 +2183,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="wp-postbox">
                     <h2 className="wp-postbox-title">All Media Assets ({mediaFiles.length})</h2>
                     <div className="wp-postbox-inside" style={{ minHeight: '300px' }}>
-                      {mediaFiles.length === 0 ? (
+                      {isAdminLoading ? (
+                        <div className="media-manager-grid">
+                          {[1, 2, 3, 4, 5, 6].map(n => (
+                            <div 
+                              key={n} 
+                              className="media-item-card skeleton-pulse" 
+                              style={{ aspectRatio: '1/1', border: '1px solid #dcdcde' }} 
+                            />
+                          ))}
+                        </div>
+                      ) : mediaFiles.length === 0 ? (
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '260px', color: '#a7aaad', fontStyle: 'italic' }}>
                           No assets in the media library yet.
                         </div>
@@ -2227,7 +2328,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {slides.length === 0 ? (
+                  {isAdminLoading ? (
+                    [1, 2].map(n => (
+                      <tr key={n}>
+                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '40px', width: '80px' }} /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                        <td><div className="skeleton-row-box skeleton-pulse" /></td>
+                      </tr>
+                    ))
+                  ) : slides.length === 0 ? (
                     <tr>
                       <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
                         No slides found. Click "Add New Slide" to create one.

@@ -619,7 +619,18 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
                   {/* Reviews List */}
                   {loadingReviews ? (
-                    <p className="font-caption-sm">Loading reviews...</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {[1, 2].map(n => (
+                        <div key={n} style={{ borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <div className="skeleton-row-box skeleton-pulse" style={{ height: '16px', width: '120px' }} />
+                            <div className="skeleton-row-box skeleton-pulse" style={{ height: '12px', width: '80px' }} />
+                          </div>
+                          <div className="skeleton-row-box skeleton-pulse" style={{ height: '12px', width: '100px', marginBottom: '8px' }} />
+                          <div className="skeleton-row-box skeleton-pulse" style={{ height: '14px', width: '100%' }} />
+                        </div>
+                      ))}
+                    </div>
                   ) : reviews.length === 0 ? (
                     <p className="font-caption-sm" style={{ fontStyle: 'italic' }}>No reviews yet. Be the first to write one!</p>
                   ) : (

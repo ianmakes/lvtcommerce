@@ -215,44 +215,75 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       {/* Top Banner section */}
       <div className="account-banner">
         <div className="account-banner-profile">
-          <div className="account-avatar">{getInitials()}</div>
-          <div>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', opacity: 0.7, display: 'block', marginBottom: '4px', fontWeight: 600 }}>
-              Registered Member
-            </span>
-            <h1 className="font-heading-lg" style={{ margin: 0, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {profile.fullName || currentUser.displayName || 'Valued Shopper'}
-            </h1>
-            <span style={{ fontSize: '13px', opacity: 0.8, display: 'block', marginTop: '4px' }}>
-              {profile.email} &bull; Member since {memberSince}
-            </span>
-          </div>
+          {isLoading ? (
+            <>
+              <div className="account-avatar skeleton-pulse" style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }} />
+              <div>
+                <div className="skeleton-row-box skeleton-pulse" style={{ height: '12px', width: '100px', backgroundColor: 'rgba(255, 255, 255, 0.15)', marginBottom: '8px' }} />
+                <div className="skeleton-row-box skeleton-pulse" style={{ height: '24px', width: '250px', backgroundColor: 'rgba(255, 255, 255, 0.15)', marginBottom: '8px' }} />
+                <div className="skeleton-row-box skeleton-pulse" style={{ height: '14px', width: '200px', backgroundColor: 'rgba(255, 255, 255, 0.15)' }} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="account-avatar">{getInitials()}</div>
+              <div>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', opacity: 0.7, display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+                  Registered Member
+                </span>
+                <h1 className="font-heading-lg" style={{ margin: 0, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {profile.fullName || currentUser.displayName || 'Valued Shopper'}
+                </h1>
+                <span style={{ fontSize: '13px', opacity: 0.8, display: 'block', marginTop: '4px' }}>
+                  {profile.email} &bull; Member since {memberSince}
+                </span>
+              </div>
+            </>
+          )}
         </div>
-        <button 
-          className="btn btn-secondary btn-small" 
-          onClick={() => navigate('/shop')} 
-          style={{ backgroundColor: '#ffffff', color: 'var(--color-ink)', border: 'none', fontWeight: 600 }}
-        >
-          Continue Shopping
-        </button>
+        {!isLoading && (
+          <button 
+            className="btn btn-secondary btn-small" 
+            onClick={() => navigate('/shop')} 
+            style={{ backgroundColor: '#ffffff', color: 'var(--color-ink)', border: 'none', fontWeight: 600 }}
+          >
+            Continue Shopping
+          </button>
+        )}
       </div>
 
       {/* 4 Stats Cards */}
       <div className="account-stats-row">
         <div className="account-stat-card">
-          <span className="account-stat-val">{orders.length}</span>
+          {isLoading ? (
+            <div className="skeleton-row-box skeleton-pulse" style={{ height: '32px', width: '60px', margin: '0 auto 8px' }} />
+          ) : (
+            <span className="account-stat-val">{orders.length}</span>
+          )}
           <span className="account-stat-label">Total Purchases</span>
         </div>
         <div className="account-stat-card">
-          <span className="account-stat-val">KSh {totalSpent.toLocaleString()}</span>
+          {isLoading ? (
+            <div className="skeleton-row-box skeleton-pulse" style={{ height: '32px', width: '120px', margin: '0 auto 8px' }} />
+          ) : (
+            <span className="account-stat-val">KSh {totalSpent.toLocaleString()}</span>
+          )}
           <span className="account-stat-label">Spent</span>
         </div>
         <div className="account-stat-card">
-          <span className="account-stat-val">{wishlist.length}</span>
+          {isLoading ? (
+            <div className="skeleton-row-box skeleton-pulse" style={{ height: '32px', width: '60px', margin: '0 auto 8px' }} />
+          ) : (
+            <span className="account-stat-val">{wishlist.length}</span>
+          )}
           <span className="account-stat-label">Saved Items</span>
         </div>
         <div className="account-stat-card">
-          <span className="account-stat-val">{activeDeliveriesCount}</span>
+          {isLoading ? (
+            <div className="skeleton-row-box skeleton-pulse" style={{ height: '32px', width: '60px', margin: '0 auto 8px' }} />
+          ) : (
+            <span className="account-stat-val">{activeDeliveriesCount}</span>
+          )}
           <span className="account-stat-label">Active Deliveries</span>
         </div>
       </div>
@@ -313,9 +344,27 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
 
         {/* Content Panel */}
         <main className="account-content-card">
-          
-          {/* TAB: Overview */}
-          {activeTab === 'overview' && (
+          {isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="skeleton-row-box skeleton-pulse" style={{ height: '28px', width: '200px' }} />
+              <div className="skeleton-row-box skeleton-pulse" style={{ height: '16px', width: '350px', marginBottom: '16px' }} />
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {[1, 2].map(n => (
+                  <div key={n} style={{ border: '1px solid var(--color-hairline-soft)', padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div className="skeleton-row-box skeleton-pulse" style={{ height: '24px', width: '120px' }} />
+                      <div className="skeleton-row-box skeleton-pulse" style={{ height: '24px', width: '80px' }} />
+                    </div>
+                    <div className="skeleton-row-box skeleton-pulse" style={{ height: '16px', width: '180px' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* TAB: Overview */}
+              {activeTab === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <div>
                 <h3 className="font-heading-md" style={{ textTransform: 'uppercase', margin: '0 0 8px 0' }}>Welcome, {profile.fullName || currentUser.displayName || 'Member'}!</h3>
@@ -811,7 +860,8 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
               </button>
             </form>
           )}
-
+            </>
+          )}
         </main>
       </div>
     </div>

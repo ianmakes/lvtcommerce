@@ -1805,3 +1805,58 @@ tr:hover .row-actions {
     padding-top: 24px;
   }
 }
+
+/* Skeleton Loader Styles */
+@keyframes wp-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.skeleton-pulse {
+  animation: wp-pulse 1.5s ease-in-out infinite;
+  background-color: #f0f0f1;
+  border-radius: 0px !important;
+  color: transparent !important;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  width: 100%;
+  display: inline-block;
+}
+
+.skeleton-text.short {
+  width: 60%;
+}
+
+.skeleton-text.title {
+  height: 20px;
+  margin-bottom: 12px;
+  width: 80%;
+}
+
+.skeleton-image {
+  width: 100%;
+  aspect-ratio: 1/1;
+  display: block;
+}
+
+.skeleton-button {
+  height: 40px;
+  width: 100%;
+  display: block;
+}
+
+.skeleton-row-box {
+  height: 48px;
+  width: 100%;
+  display: block;
+}
