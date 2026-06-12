@@ -486,16 +486,31 @@ function App() {
     }
   };
 
+  // Video embed helpers for hero slider
+  const getYouTubeEmbedUrl = (url: string): string | null => {
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/);
+    return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&loop=1&playlist=${match[1]}&controls=0` : null;
+  };
+
+  const getVimeoEmbedUrl = (url: string): string | null => {
+    const match = url.match(/vimeo\.com\/(\d+)/);
+    return match ? `https://player.vimeo.com/video/${match[1]}?autoplay=1&muted=1&loop=1&background=1` : null;
+  };
+
+  const getVideoEmbedUrl = (url: string): string | null => {
+    return getYouTubeEmbedUrl(url) || getVimeoEmbedUrl(url);
+  };
+
   // Filter and Sort products
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const categories = ['All', ...Array.from(new Set(products.flatMap(p => p.categories && p.categories.length > 0 ? p.categories : [p.category])))];
 
   const filteredProducts = products
     .filter(p => {
       const matchesSearch = searchQuery.trim() === '' || 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+        (p.categories || [p.category]).some(c => c.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesCategory = selectedCategory === 'All' || (p.categories || [p.category]).includes(selectedCategory);
       return matchesSearch && matchesCategory;
     })
     .sort((a, b) => {
@@ -559,9 +574,23 @@ function App() {
                     key={slide.id}
                     className={`campaign-slide ${idx === activeSlide ? 'active' : ''}`}
                     style={{
-                      backgroundImage: `linear-gradient(to bottom, rgba(17,17,17,0.1) 0%, rgba(17,17,17,0.4) 100%), url(${slide.image})`
+                      backgroundImage: slide.mediaType !== 'video' ? `linear-gradient(to bottom, rgba(17,17,17,0.1) 0%, rgba(17,17,17,0.4) 100%), url(${slide.image})` : 'linear-gradient(to bottom, rgba(17,17,17,0.3) 0%, rgba(17,17,17,0.6) 100%)'
                     }}
                   >
+                    {slide.mediaType === 'video' && slide.videoUrl ? (
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', overflow: 'hidden', zIndex: 0 }}>
+                        {getVideoEmbedUrl(slide.videoUrl) ? (
+                          <iframe
+                            src={getVideoEmbedUrl(slide.videoUrl) || ''}
+                            style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: '120%', transform: 'translate(-50%, -50%)', border: 'none', pointerEvents: 'none' }}
+                            allow="autoplay; fullscreen"
+                            title="slide video"
+                          />
+                        ) : (
+                          <video src={slide.videoUrl} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        )}
+                      </div>
+                    ) : null}
                     <div className="campaign-hero-inner" style={{ width: '100%' }}>
                       <div className="campaign-hero-content">
                         <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, display: 'block', marginBottom: '12px' }}>
@@ -708,7 +737,7 @@ function App() {
                         <img src={prod.image} alt={prod.name} className="prod-img" />
                       </div>
                       <div className="prod-card-metadata">
-                        <span className="prod-card-category">{prod.category}</span>
+                        <span className="prod-card-category">{(prod.categories && prod.categories.length > 0) ? prod.categories[0] : prod.category}</span>
                         <h4 className="prod-card-title">{prod.name}</h4>
                         <div className="prod-card-price-row">
                           {prod.id === 'prod-magnify' ? (

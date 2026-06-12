@@ -191,13 +191,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Product Form Fields
   const [prodName, setProdName] = useState('');
   const [prodDesc, setProdDesc] = useState('');
-  const [prodCat, setProdCat] = useState('');
+  const [prodCats, setProdCats] = useState<string[]>([]);
   const [prodPrice, setProdPrice] = useState(0);
   const [prodImg, setProdImg] = useState('');
   const [prodGallery, setProdGallery] = useState<string[]>([]);
   const [prodAttrs, setProdAttrs] = useState<Attribute[]>([]);
   const [prodVariants, setProdVariants] = useState<ProductVariant[]>([]);
+  const [prodTags, setProdTags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState('');
   const [editorTab, setEditorTab] = useState<'general' | 'attributes' | 'variations'>('general');
+
+  // Slide Video State
+  const [slideMediaType, setSlideMediaType] = useState<'image' | 'video'>('image');
+  const [slideVideoUrl, setSlideVideoUrl] = useState('');
 
   // Cloudinary Upload State
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -457,6 +463,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Helper to detect/embed video URLs
+  const getVideoEmbedUrl = (url: string): string | null => {
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=0`;
+    const vmMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vmMatch) return `https://player.vimeo.com/video/${vmMatch[1]}`;
+    return null;
+  };
+
+  const isVideoUrl = (url: string): boolean => {
+    return /youtube\.com|youtu\.be|vimeo\.com/i.test(url) || /\.(mp4|webm|ogg)$/i.test(url);
+  };
+
   const handleOpenAddSlide = () => {
     setEditingSlide(null);
     setSlideImage('');
@@ -465,6 +484,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setSlideButtonText('');
     setSlideButtonLink('');
     setSlideOrder(slides.length + 1);
+    setSlideMediaType('image');
+    setSlideVideoUrl('');
     setSlideModalOpen(true);
   };
 
@@ -476,6 +497,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setSlideButtonText(slide.buttonText);
     setSlideButtonLink(slide.buttonLink);
     setSlideOrder(slide.order);
+    setSlideMediaType(slide.mediaType || 'image');
+    setSlideVideoUrl(slide.videoUrl || '');
     setSlideModalOpen(true);
   };
 
@@ -494,7 +517,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         description: slideDescription.trim(),
         buttonText: slideButtonText.trim(),
         buttonLink: slideButtonLink.trim() || '/shop',
-        order: Number(slideOrder)
+        order: Number(slideOrder),
+        mediaType: slideMediaType,
+        videoUrl: slideMediaType === 'video' ? slideVideoUrl.trim() : undefined
       };
 
       await saveHomeSlide(slideData);
@@ -533,6 +558,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setProdGallery(prev => [...prev, url]);
     } else if (mediaModalTarget === 'slide-image') {
       setSlideImage(url);
+    } else if (mediaModalTarget === 'slide-video') {
+      setSlideVideoUrl(url);
     } else if (mediaModalTarget && mediaModalTarget.startsWith('variant-image-')) {
       const idx = parseInt(mediaModalTarget.replace('variant-image-', ''), 10);
       if (!isNaN(idx)) {
@@ -611,8 +638,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Save/Create Product in Firestore
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prodName.trim() || !prodCat.trim() || prodPrice <= 0) {
-      alert("Please fill in Name, Category, and Base Price.");
+    if (!prodName.trim() || prodCats.length === 0 || prodPrice <= 0) {
+      alert("Please fill in Name, at least one Category, and Base Price.");
       return;
     }
 
@@ -622,13 +649,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       id: editingProduct ? editingProduct.id : `prod-${Date.now()}`,
       name: prodName.trim(),
       description: prodDesc.trim(),
-      category: prodCat.trim(),
+      category: prodCats[0], // Primary category for backward compat
+      categories: prodCats,
       image: prodImg.trim() || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
       basePrice: Number(prodPrice),
       attributes: prodAttrs,
       variants: prodVariants,
       images: prodGallery,
       taxClassId: prodTaxClassId || undefined,
+      tags: prodTags.length > 0 ? prodTags : undefined,
       ...(editingProduct ? {
         rating: editingProduct.rating,
         reviewCount: editingProduct.reviewCount,
@@ -656,13 +685,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setEditingProduct(prod);
     setProdName(prod.name);
     setProdDesc(prod.description);
-    setProdCat(prod.category);
+    setProdCats(prod.categories || [prod.category]);
     setProdPrice(prod.basePrice);
     setProdImg(prod.image);
     setProdGallery(prod.images || []);
     setProdAttrs(prod.attributes || []);
     setProdVariants(prod.variants || []);
     setProdTaxClassId(prod.taxClassId || '');
+    setProdTags(prod.tags || []);
+    setNewTagInput('');
+    setEditorTab('general');
     setProductModalOpen(true);
   };
 
@@ -822,13 +854,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setEditingProduct(null);
     setProdName('');
     setProdDesc('');
-    setProdCat('');
+    setProdCats([]);
     setProdPrice(10000);
     setProdImg('');
     setProdGallery([]);
     setProdAttrs([]);
     setProdVariants([]);
     setProdTaxClassId('');
+    setProdTags([]);
+    setNewTagInput('');
+    setEditorTab('general');
     setProductModalOpen(true);
   };
 
@@ -1387,7 +1422,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </div>
                         </td>
                         <td style={{ fontWeight: 600 }}>KSh {p.basePrice.toLocaleString()}</td>
-                        <td>{p.category}</td>
+                        <td>
+                          {(p.categories || [p.category]).join(', ')}
+                          {p.tags && p.tags.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginTop: '4px' }}>
+                              {p.tags.map(t => (
+                                <span key={t} style={{ fontSize: '10px', color: '#646970', background: '#f0f2f5', padding: '1px 5px', border: '1px solid #e0e0e0' }}>{t}</span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
                         <td>
                           {p.attributes && p.attributes.length > 0 ? (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -2638,7 +2682,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </tr>
                       ) : (
                         categories.map(cat => {
-                          const count = products.filter(p => p.category === cat.name).length;
+                          const count = products.filter(p => (p.categories || [p.category]).includes(cat.name)).length;
                           return (
                             <tr key={cat.id} className="wp-row-hover">
                               <td>
@@ -3157,8 +3201,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     slides.map(slide => (
                       <tr key={slide.id}>
                         <td>
-                          <div style={{ width: '80px', aspectRatio: '16/9', border: '1px solid #c3c4c7', background: '#f0f0f1', overflow: 'hidden' }}>
+                          <div style={{ width: '80px', aspectRatio: '16/9', border: '1px solid #c3c4c7', background: '#f0f0f1', overflow: 'hidden', position: 'relative' }}>
                             <img src={slide.image} alt={slide.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {slide.mediaType === 'video' && (
+                              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}>
+                                <Film size={18} color="#fff" />
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td>
@@ -3344,13 +3393,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     >
                       Attributes
                     </button>
-                    <button 
-                      type="button" 
-                      className={`wp-metabox-tab ${editorTab === 'variations' ? 'active' : ''}`}
-                      onClick={() => setEditorTab('variations')}
-                    >
-                      Variations ({prodVariants.length})
-                    </button>
+                    {prodAttrs.length > 0 && (
+                      <button 
+                        type="button" 
+                        className={`wp-metabox-tab ${editorTab === 'variations' ? 'active' : ''}`}
+                        onClick={() => setEditorTab('variations')}
+                      >
+                        Variations ({prodVariants.length})
+                      </button>
+                    )}
                   </div>
 
                   <div className="wp-metabox-tabs-content">
@@ -3559,24 +3610,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
 
-                  {/* Categories Metabox */}
+                  {/* Categories Metabox (Multi-select Checkboxes) */}
                   <div className="wp-postbox">
                     <h2 className="wp-postbox-title">Product Categories</h2>
                     <div className="wp-postbox-inside">
-                      <select 
-                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', height: '32px' }} 
-                        value={prodCat}
-                        onChange={e => setProdCat(e.target.value)}
-                        required
-                      >
-                        <option value="">-- Select Category --</option>
-                        {categories.map(c => (
-                          <option key={c.id} value={c.name}>{c.name}</option>
-                        ))}
-                      </select>
-                      <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#646970' }}>
+                      <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #c3c4c7', padding: '8px', marginBottom: '6px' }}>
+                        {categories.length === 0 ? (
+                          <p style={{ margin: 0, fontSize: '12px', color: '#a7aaad', fontStyle: 'italic' }}>No categories available.</p>
+                        ) : (
+                          categories.map(c => (
+                            <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0', fontSize: '13px', cursor: 'pointer' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={prodCats.includes(c.name)}
+                                onChange={() => {
+                                  if (prodCats.includes(c.name)) {
+                                    setProdCats(prodCats.filter(cat => cat !== c.name));
+                                  } else {
+                                    setProdCats([...prodCats, c.name]);
+                                  }
+                                }}
+                              />
+                              {c.name}
+                            </label>
+                          ))
+                        )}
+                      </div>
+                      {prodCats.length === 0 && (
+                        <p style={{ margin: '0 0 6px', fontSize: '11px', color: '#d63638' }}>Select at least one category.</p>
+                      )}
+                      <p style={{ margin: '0', fontSize: '11px', color: '#646970' }}>
                         Manage categories on the <a href="#" onClick={(e) => { e.preventDefault(); setProductModalOpen(false); navigate('/dashboard/categories'); }} style={{ color: '#2271b1', textDecoration: 'none' }}>Categories page</a>.
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Product Tags Metabox */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Product Tags</h2>
+                    <div className="wp-postbox-inside">
+                      {prodTags.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                          {prodTags.map(tag => (
+                            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '12px', background: '#f0f2f5', border: '1px solid #c3c4c7', fontWeight: 500 }}>
+                              {tag}
+                              <button 
+                                type="button" 
+                                onClick={() => setProdTags(prodTags.filter(t => t !== tag))}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b32d2e', fontWeight: 'bold', fontSize: '13px', padding: 0, lineHeight: 1 }}
+                                title="Remove tag"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <input 
+                          type="text" 
+                          placeholder="Add tags (comma-separated)"
+                          style={{ flexGrow: 1, padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '12px' }}
+                          value={newTagInput}
+                          onChange={e => setNewTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const newTags = newTagInput.split(',').map(t => t.trim()).filter(t => t && !prodTags.includes(t));
+                              if (newTags.length > 0) {
+                                setProdTags([...prodTags, ...newTags]);
+                                setNewTagInput('');
+                              }
+                            }
+                          }}
+                        />
+                        <button 
+                          type="button" 
+                          className="wp-button-secondary"
+                          style={{ minHeight: '26px', padding: '0 8px', fontSize: '12px' }}
+                          onClick={() => {
+                            const newTags = newTagInput.split(',').map(t => t.trim()).filter(t => t && !prodTags.includes(t));
+                            if (newTags.length > 0) {
+                              setProdTags([...prodTags, ...newTags]);
+                              setNewTagInput('');
+                            }
+                          }}
+                        >
+                          Add
+                        </button>
+                      </div>
+                      <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#646970' }}>Separate tags with commas.</p>
                     </div>
                   </div>
 
@@ -3586,7 +3709,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="wp-postbox-inside">
                       {prodImg ? (
                         <div style={{ position: 'relative', width: '100%', aspectRatio: '1/1', border: '1px solid #c3c4c7', marginBottom: '10px', background: '#fafafa', overflow: 'hidden' }}>
-                          <img src={prodImg} alt="product main" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {isVideoUrl(prodImg) ? (
+                            getVideoEmbedUrl(prodImg) ? (
+                              <iframe src={getVideoEmbedUrl(prodImg) || ''} style={{ width: '100%', height: '100%', border: 'none' }} title="product video" allow="autoplay" />
+                            ) : (
+                              <video src={prodImg} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls />
+                            )
+                          ) : (
+                            <img src={prodImg} alt="product main" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          )}
                           <button 
                             type="button" 
                             style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer' }}
@@ -3624,10 +3755,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </button>
                       </div>
                       
-                      {/* Paste main image URL */}
+                      {/* Paste main image/video URL */}
                       <input 
                         type="text" 
-                        placeholder="Or paste image URL"
+                        placeholder="Or paste image/video URL"
                         style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '12px', marginBottom: '12px' }}
                         value={prodImg}
                         onChange={e => setProdImg(e.target.value)}
@@ -3658,12 +3789,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: '8px', marginBottom: '12px' }}>
                           {prodGallery.map((imgUrl, index) => (
                             <div key={index} style={{ position: 'relative', width: '56px', height: '56px', border: '1px solid #c3c4c7', overflow: 'hidden' }}>
-                              <img src={imgUrl} alt={`gallery-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              {isVideoUrl(imgUrl) ? (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1d2327', color: '#fff' }}>
+                                  <Film size={20} />
+                                </div>
+                              ) : (
+                                <img src={imgUrl} alt={`gallery-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              )}
                               <button 
                                 type="button" 
                                 onClick={() => setProdGallery(prev => prev.filter((_, i) => i !== index))}
                                 style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'rgba(179, 45, 46, 0.9)', color: '#fff', border: 'none', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, fontSize: '9px', fontWeight: 'bold' }}
-                                title="Remove image"
+                                title="Remove"
                               >
                                 ✕
                               </button>
@@ -3763,9 +3900,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <form onSubmit={handleSaveSlideSubmit}>
               <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 
+                {/* Media Type Toggle */}
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Media Type</label>
+                  <div style={{ display: 'flex', gap: '0', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      style={{ flex: 1, padding: '7px 12px', fontSize: '13px', fontWeight: 600, border: '1px solid #c3c4c7', cursor: 'pointer', background: slideMediaType === 'image' ? '#2271b1' : '#f6f7f7', color: slideMediaType === 'image' ? '#fff' : '#1d2327' }}
+                      onClick={() => setSlideMediaType('image')}
+                    >
+                      Image
+                    </button>
+                    <button
+                      type="button"
+                      style={{ flex: 1, padding: '7px 12px', fontSize: '13px', fontWeight: 600, border: '1px solid #c3c4c7', borderLeft: 'none', cursor: 'pointer', background: slideMediaType === 'video' ? '#2271b1' : '#f6f7f7', color: slideMediaType === 'video' ? '#fff' : '#1d2327' }}
+                      onClick={() => setSlideMediaType('video')}
+                    >
+                      Video
+                    </button>
+                  </div>
+                </div>
+
                 {/* Image URL with Media Library picker */}
                 <div>
-                  <label className="form-label" style={{ fontWeight: 600 }}>Background Image URL</label>
+                  <label className="form-label" style={{ fontWeight: 600 }}>Background Image URL {slideMediaType === 'video' ? '(Poster/Fallback)' : ''}</label>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                     <input 
                       type="text" 
@@ -3788,12 +3946,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       Choose Media
                     </button>
                   </div>
-                  {slideImage && (
+                  {slideImage && slideMediaType === 'image' && (
                     <div style={{ marginTop: '8px', width: '100%', aspectRatio: '16/9', border: '1px solid #c3c4c7', overflow: 'hidden' }}>
                       <img src={slideImage} alt="slide preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                   )}
                 </div>
+
+                {/* Video URL (only when video type) */}
+                {slideMediaType === 'video' && (
+                  <div>
+                    <label className="form-label" style={{ fontWeight: 600 }}>Video URL (YouTube / Vimeo / Direct)</label>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..." 
+                        value={slideVideoUrl}
+                        onChange={e => setSlideVideoUrl(e.target.value)}
+                        required
+                        style={{ flexGrow: 1, borderRadius: 0 }}
+                      />
+                      <button
+                        type="button"
+                        className="wp-button-secondary"
+                        onClick={() => {
+                          setMediaModalTarget('slide-video');
+                          setMediaModalOpen(true);
+                        }}
+                        style={{ minHeight: '30px', flexShrink: 0 }}
+                      >
+                        Choose Media
+                      </button>
+                    </div>
+                    {slideVideoUrl && (
+                      <div style={{ marginTop: '8px', width: '100%', aspectRatio: '16/9', border: '1px solid #c3c4c7', overflow: 'hidden', background: '#000' }}>
+                        {getVideoEmbedUrl(slideVideoUrl) ? (
+                          <iframe src={getVideoEmbedUrl(slideVideoUrl) || ''} style={{ width: '100%', height: '100%', border: 'none' }} title="slide video preview" allow="autoplay" />
+                        ) : (
+                          <video src={slideVideoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="form-label" style={{ fontWeight: 600 }}>Slide Title (Typography)</label>
@@ -3894,7 +4090,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <label style={{ fontSize: '11px', fontWeight: 600, color: '#646970', marginRight: '8px' }}>Upload new file:</label>
                     <input 
                       type="file" 
-                      accept="image/*" 
+                      accept="image/*,video/*" 
                       onChange={handleMediaLibraryUpload}
                       disabled={uploadingMedia}
                       style={{ fontSize: '12px' }}
@@ -3914,7 +4110,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 ) : (
                   <div className="media-manager-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))' }}>
-                    {mediaFiles.filter(f => f.type === 'image').map(file => {
+                    {mediaFiles.map(file => {
                       const isSelected = selectedMedia?.id === file.id;
                       return (
                         <div 
@@ -3923,7 +4119,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           onClick={() => setSelectedMedia(file)}
                           style={{ aspectRatio: '1/1' }}
                         >
-                          <img src={file.url} alt={file.name} className="media-item-thumbnail" />
+                          {file.type === 'image' ? (
+                            <img src={file.url} alt={file.name} className="media-item-thumbnail" />
+                          ) : file.type === 'video' ? (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#1d2327', color: '#fff', gap: '4px' }}>
+                              <Film size={24} />
+                              <span style={{ fontSize: '9px', textAlign: 'center', padding: '0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '90%' }}>{file.name}</span>
+                            </div>
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5', color: '#646970', gap: '4px' }}>
+                              <FileText size={24} />
+                              <span style={{ fontSize: '9px', textAlign: 'center', padding: '0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '90%' }}>{file.name}</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -3938,7 +4146,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {selectedMedia ? (
                     <>
                       <div style={{ width: '100%', aspectRatio: '4/3', border: '1px solid #c3c4c7', overflow: 'hidden', background: '#f0f0f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src={selectedMedia.url} alt="detail preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        {selectedMedia.type === 'video' ? (
+                          isVideoUrl(selectedMedia.url) && getVideoEmbedUrl(selectedMedia.url) ? (
+                            <iframe src={getVideoEmbedUrl(selectedMedia.url) || ''} style={{ width: '100%', height: '100%', border: 'none' }} title="preview" allow="autoplay" />
+                          ) : (
+                            <video src={selectedMedia.url} style={{ width: '100%', height: '100%', objectFit: 'contain' }} controls />
+                          )
+                        ) : selectedMedia.type === 'image' ? (
+                          <img src={selectedMedia.url} alt="detail preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#646970' }}>
+                            <FileText size={32} />
+                            <span style={{ fontSize: '11px' }}>{selectedMedia.name}</span>
+                          </div>
+                        )}
                       </div>
                       <div style={{ fontWeight: 600, wordBreak: 'break-all' }}>{selectedMedia.name}</div>
                       <div>Type: {selectedMedia.type}</div>
@@ -3946,7 +4167,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </>
                   ) : (
                     <div style={{ color: '#a7aaad', fontStyle: 'italic', textAlign: 'center', paddingTop: '20px' }}>
-                      Click on an image card to view details and select.
+                      Click on a media card to view details and select.
                     </div>
                   )}
                 </div>

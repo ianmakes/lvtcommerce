@@ -28,6 +28,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   onToggleWishlist,
   onReviewSubmitted,
 }) => {
+  // Video URL helpers
+  const isVideoUrl = (url: string): boolean => {
+    return /youtube\.com|youtu\.be|vimeo\.com/i.test(url) || /\.(mp4|webm|ogg)$/i.test(url);
+  };
+
+  const getVideoEmbedUrl = (url: string): string | null => {
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    const vmMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vmMatch) return `https://player.vimeo.com/video/${vmMatch[1]}`;
+    return null;
+  };
+
+  const getVideoThumbnail = (url: string): string | null => {
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/);
+    if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg`;
+    return null;
+  };
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [currentVariant, setCurrentVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -247,7 +265,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
   // Related products in same category
   const relatedProducts = products
-    .filter(p => p.category === product.category && p.id !== product.id)
+    .filter(p => (p.categories || [p.category]).some(c => (product.categories || [product.category]).includes(c)) && p.id !== product.id)
     .slice(0, 4);
 
   // Gallery images list (featured image + product images list + variant images)
@@ -281,7 +299,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         <span style={{ color: 'var(--color-hairline)' }}>/</span>
         <Link to="/shop" style={{ color: 'var(--text-mute)', textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-ink)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-mute)'}>Shop</Link>
         <span style={{ color: 'var(--color-hairline)' }}>/</span>
-        <span style={{ textTransform: 'capitalize', color: 'var(--text-mute)' }}>{product.category.toLowerCase()}</span>
+        <span style={{ textTransform: 'capitalize', color: 'var(--text-mute)' }}>{((product.categories && product.categories.length > 0) ? product.categories[0] : product.category).toLowerCase()}</span>
         <span style={{ color: 'var(--color-hairline)' }}>/</span>
         <span style={{ color: 'var(--color-ink)', fontWeight: 600 }}>{product.name}</span>
       </div>
@@ -300,11 +318,24 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             {product.badge && (
               <span className="badge-promo">{product.badge}</span>
             )}
-            <img 
-              src={activeImage || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
-              alt={product.name} 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
+            {isVideoUrl(activeImage) ? (
+              getVideoEmbedUrl(activeImage) ? (
+                <iframe
+                  src={getVideoEmbedUrl(activeImage) || ''}
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  allow="autoplay; fullscreen"
+                  title="product video"
+                />
+              ) : (
+                <video src={activeImage} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              )
+            ) : (
+              <img 
+                src={activeImage || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
+                alt={product.name} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            )}
           </div>
 
           {/* Horizontal thumbnails under the main image */}
@@ -312,6 +343,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '4px 0' }}>
               {galleryImages.map((imgUrl, index) => {
                 const isCurrent = imgUrl === activeImage;
+                const isVideo = isVideoUrl(imgUrl);
+                const thumbSrc = isVideo ? (getVideoThumbnail(imgUrl) || imgUrl) : imgUrl;
                 return (
                   <button
                     key={index}
@@ -328,7 +361,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                       padding: 0,
                       flexShrink: 0,
                       boxSizing: 'border-box',
-                      transition: 'border-color 0.2s ease'
+                      transition: 'border-color 0.2s ease',
+                      position: 'relative'
                     }}
                     onMouseEnter={(e) => {
                       if (!isCurrent) e.currentTarget.style.borderColor = 'var(--text-stone)';
@@ -337,7 +371,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                       if (!isCurrent) e.currentTarget.style.borderColor = 'var(--color-hairline-soft)';
                     }}
                   >
-                    <img src={imgUrl} alt={`thumbnail-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={thumbSrc} alt={`thumbnail-${index}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {isVideo && (
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="8,5 19,12 8,19" /></svg>
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -348,7 +387,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
         {/* Right Side: Product Details & Purchase Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div>
-            <span className="font-caption-md" style={{ textTransform: 'uppercase', fontWeight: 600 }}>{product.category}</span>
+            <span className="font-caption-md" style={{ textTransform: 'uppercase', fontWeight: 600 }}>{(product.categories && product.categories.length > 0) ? product.categories.join(', ') : product.category}</span>
+            {product.tags && product.tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                {product.tags.map(tag => (
+                  <span key={tag} style={{ display: 'inline-block', padding: '3px 10px', fontSize: '11px', fontWeight: 500, border: '1px solid var(--color-hairline)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{tag}</span>
+                ))}
+              </div>
+            )}
             <h1 className="font-heading-xl" style={{ marginTop: '8px', marginBottom: '12px' }}>{product.name}</h1>
             <span className="font-heading-lg" style={{ display: 'block', marginBottom: '24px' }}>
               KSh {activePrice.toLocaleString()}
@@ -689,7 +735,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   <img src={prod.image} alt={prod.name} className="prod-img" />
                 </div>
                 <div className="prod-card-metadata">
-                  <span className="prod-card-category">{prod.category}</span>
+                  <span className="prod-card-category">{(prod.categories && prod.categories.length > 0) ? prod.categories[0] : prod.category}</span>
                   <h4 className="prod-card-title">{prod.name}</h4>
                   <div className="prod-card-price-row">
                     <span className="price-regular">KSh {prod.basePrice.toLocaleString()}</span>
@@ -747,16 +793,29 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               overflow: 'hidden'
             }}
           >
-            <img 
-              src={activeImage} 
-              alt={product.name} 
-              style={{ 
-                maxWidth: '100%', 
-                maxHeight: '85vh', 
-                objectFit: 'contain', 
-                border: '1px solid rgba(255,255,255,0.1)' 
-              }} 
-            />
+            {isVideoUrl(activeImage) ? (
+              getVideoEmbedUrl(activeImage) ? (
+                <iframe
+                  src={getVideoEmbedUrl(activeImage) || ''}
+                  style={{ width: '80vw', height: '80vh', border: 'none' }}
+                  allow="autoplay; fullscreen"
+                  title="product video lightbox"
+                />
+              ) : (
+                <video src={activeImage} controls autoPlay playsInline style={{ maxWidth: '100%', maxHeight: '85vh', objectFit: 'contain' }} />
+              )
+            ) : (
+              <img 
+                src={activeImage} 
+                alt={product.name} 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '85vh', 
+                  objectFit: 'contain', 
+                  border: '1px solid rgba(255,255,255,0.1)' 
+                }} 
+              />
+            )}
           </div>
         </div>
       )}

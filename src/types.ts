@@ -17,7 +17,8 @@ export interface Product {
   id: string;
   name: string;
   description: string;
-  category: string;
+  category: string; // Primary display category
+  categories?: string[]; // Multi-category assignment
   image: string; // URL or placeholder base64/name
   basePrice: number;
   attributes: Attribute[];
@@ -25,9 +26,10 @@ export interface Product {
   rating?: number;
   reviewCount?: number;
   specifications?: Record<string, string>;
-  images?: string[]; // Alternate gallery images
+  images?: string[]; // Alternate gallery images/videos
   badge?: string; // e.g. "Best Seller", "Free Shipping"
   taxClassId?: string;
+  tags?: string[]; // Product tags
 }
 
 export interface ProductReview {
@@ -160,6 +162,8 @@ export interface HomeSlide {
   buttonText: string;
   buttonLink: string;
   order: number;
+  mediaType?: 'image' | 'video'; // Support video slides
+  videoUrl?: string; // YouTube/Vimeo URL for video slides
 }
 
 export interface MediaFile {

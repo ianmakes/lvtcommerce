@@ -674,7 +674,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                         
                         <div className="prod-card-metadata" style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'space-between', padding: '16px' }}>
                           <div>
-                            <span className="prod-card-category">{prod.category}</span>
+                            <span className="prod-card-category">{(prod.categories && prod.categories.length > 0) ? prod.categories[0] : prod.category}</span>
                             <h4 className="prod-card-title" style={{ fontSize: '14px', margin: '4px 0' }}>{prod.name}</h4>
                             <span style={{ fontWeight: 600, fontSize: '14px', marginTop: '2px', display: 'block' }}>{prodPrice}</span>
                           </div>

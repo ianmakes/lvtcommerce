@@ -103,7 +103,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        <span className="prod-card-category">{product.category}</span>
+        <span className="prod-card-category">{(product.categories && product.categories.length > 0) ? product.categories[0] : product.category}</span>
         <h3 className="prod-card-title">{product.name}</h3>
         
         <div className="prod-card-price-row">
