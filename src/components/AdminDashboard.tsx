@@ -565,6 +565,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (!isNaN(idx)) {
         handleVariantFieldChange(idx, 'image', url);
       }
+    } else if (mediaModalTarget === 'settings-logo') {
+      setLocalSettings(prev => ({ ...prev, logoUrl: url }));
+    } else if (mediaModalTarget === 'settings-favicon') {
+      setLocalSettings(prev => ({ ...prev, faviconUrl: url }));
+    } else if (mediaModalTarget === 'settings-avatar') {
+      setLocalSettings(prev => ({ ...prev, adminAvatarUrl: url }));
     }
     setMediaModalOpen(false);
     setMediaModalTarget(null);
@@ -1546,25 +1552,89 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </td>
                             </tr>
                             <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Logo URL</th>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Logo</th>
                               <td style={{ padding: '10px 0' }}>
-                                <input 
-                                  type="text" 
-                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                                  value={localSettings.logoUrl || ''}
-                                  onChange={e => setLocalSettings({ ...localSettings, logoUrl: e.target.value })}
-                                />
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <input 
+                                    type="text" 
+                                    placeholder="Logo image URL"
+                                    style={{ width: '250px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                    value={localSettings.logoUrl || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, logoUrl: e.target.value })}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="wp-button-secondary"
+                                    onClick={() => {
+                                      setMediaModalTarget('settings-logo');
+                                      setSelectedMedia(null);
+                                      setMediaModalOpen(true);
+                                    }}
+                                    style={{ padding: '6px 12px', fontSize: '12px', minHeight: '30px' }}
+                                  >
+                                    Choose from Library
+                                  </button>
+                                  {localSettings.logoUrl && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #c3c4c7', padding: '4px', background: '#fafafa' }}>
+                                      <img 
+                                        src={localSettings.logoUrl} 
+                                        alt="Logo Preview" 
+                                        style={{ maxHeight: '36px', maxWidth: '120px', objectFit: 'contain' }}
+                                      />
+                                      <button
+                                        type="button"
+                                        style={{ border: 'none', background: 'none', color: '#d30005', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                                        onClick={() => setLocalSettings({ ...localSettings, logoUrl: '' })}
+                                        title="Remove Logo"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                             <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Favicon URL</th>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Favicon</th>
                               <td style={{ padding: '10px 0' }}>
-                                <input 
-                                  type="text" 
-                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                                  value={localSettings.faviconUrl || ''}
-                                  onChange={e => setLocalSettings({ ...localSettings, faviconUrl: e.target.value })}
-                                />
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <input 
+                                    type="text" 
+                                    placeholder="Favicon icon URL"
+                                    style={{ width: '250px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                    value={localSettings.faviconUrl || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, faviconUrl: e.target.value })}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="wp-button-secondary"
+                                    onClick={() => {
+                                      setMediaModalTarget('settings-favicon');
+                                      setSelectedMedia(null);
+                                      setMediaModalOpen(true);
+                                    }}
+                                    style={{ padding: '6px 12px', fontSize: '12px', minHeight: '30px' }}
+                                  >
+                                    Choose from Library
+                                  </button>
+                                  {localSettings.faviconUrl && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #c3c4c7', padding: '4px', background: '#fafafa' }}>
+                                      <img 
+                                        src={localSettings.faviconUrl} 
+                                        alt="Favicon Preview" 
+                                        style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+                                      />
+                                      <button
+                                        type="button"
+                                        style={{ border: 'none', background: 'none', color: '#d30005', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                                        onClick={() => setLocalSettings({ ...localSettings, faviconUrl: '' })}
+                                        title="Remove Favicon"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                             <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
@@ -1728,22 +1798,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </td>
                             </tr>
                             <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Avatar URL (1:1 Ratio)</th>
-                              <td style={{ padding: '10px 0', display: 'flex', gap: '16px', alignItems: 'center' }}>
-                                <input 
-                                  type="text" 
-                                  placeholder="https://example.com/admin.jpg"
-                                  style={{ width: '250px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                                  value={localSettings.adminAvatarUrl || ''}
-                                  onChange={e => setLocalSettings({ ...localSettings, adminAvatarUrl: e.target.value })}
-                                />
-                                {localSettings.adminAvatarUrl && (
-                                  <img 
-                                    src={localSettings.adminAvatarUrl} 
-                                    alt="Admin Avatar Preview" 
-                                    style={{ width: '48px', height: '48px', objectFit: 'cover', border: '1px solid #c3c4c7', borderRadius: 0 }}
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Avatar (1:1 Ratio)</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <input 
+                                    type="text" 
+                                    placeholder="https://example.com/admin.jpg"
+                                    style={{ width: '250px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                    value={localSettings.adminAvatarUrl || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, adminAvatarUrl: e.target.value })}
                                   />
-                                )}
+                                  <button
+                                    type="button"
+                                    className="wp-button-secondary"
+                                    onClick={() => {
+                                      setMediaModalTarget('settings-avatar');
+                                      setSelectedMedia(null);
+                                      setMediaModalOpen(true);
+                                    }}
+                                    style={{ padding: '6px 12px', fontSize: '12px', minHeight: '30px' }}
+                                  >
+                                    Choose from Library
+                                  </button>
+                                  {localSettings.adminAvatarUrl && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #c3c4c7', padding: '4px', background: '#fafafa' }}>
+                                      <img 
+                                        src={localSettings.adminAvatarUrl} 
+                                        alt="Admin Avatar Preview" 
+                                        style={{ width: '36px', height: '36px', objectFit: 'cover' }}
+                                      />
+                                      <button
+                                        type="button"
+                                        style={{ border: 'none', background: 'none', color: '#d30005', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                                        onClick={() => setLocalSettings({ ...localSettings, adminAvatarUrl: '' })}
+                                        title="Remove Avatar"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                             <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
