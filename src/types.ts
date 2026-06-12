@@ -37,10 +37,17 @@ export interface ProductReview {
   createdAt: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface Coupon {
   code: string;
   discountPercent: number; // e.g. 10 for 10%
   flatDiscount?: number; // e.g. 500 for KSh 500
+  description?: string;
 }
 
 export interface CartItem {

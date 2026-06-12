@@ -18,8 +18,8 @@ import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
 
-import { Product, CartItem, Order, ShopSettings, HomeSlide } from './types';
-import { initDb, getProducts, getSettings, addOrder, getHomeSlides } from './db';
+import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon } from './types';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons } from './db';
 
 import './App.css';
 
@@ -80,6 +80,10 @@ function App() {
   // Toast Alerts
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'warning' }[]>([]);
 
+  // Categories & Coupons lists
+  const [dbCategories, setDbCategories] = useState<Category[]>([]);
+  const [dbCoupons, setDbCoupons] = useState<Coupon[]>([]);
+
   const handleShowToast = (message: string, type: 'success' | 'warning' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
@@ -98,14 +102,18 @@ function App() {
     const loadInitialData = async () => {
       try {
         await initDb();
-        const [loadedProducts, loadedSettings, loadedSlides] = await Promise.all([
+        const [loadedProducts, loadedSettings, loadedSlides, loadedCategories, loadedCoupons] = await Promise.all([
           getProducts(),
           getSettings(),
-          getHomeSlides()
+          getHomeSlides(),
+          getCategories(),
+          getCoupons()
         ]);
         setProducts(loadedProducts);
         setSettings(loadedSettings);
         setSlides(loadedSlides);
+        setDbCategories(loadedCategories);
+        setDbCoupons(loadedCoupons);
       } catch (err) {
         console.error("Error loading initial data:", err);
       }
@@ -200,6 +208,24 @@ function App() {
     }
   };
 
+  const handleRefreshCategories = async () => {
+    try {
+      const loadedCategories = await getCategories();
+      setDbCategories(loadedCategories);
+    } catch (err) {
+      console.error("Error refreshing categories:", err);
+    }
+  };
+
+  const handleRefreshCoupons = async () => {
+    try {
+      const loadedCoupons = await getCoupons();
+      setDbCoupons(loadedCoupons);
+    } catch (err) {
+      console.error("Error refreshing coupons:", err);
+    }
+  };
+
   // Cart operations
   const handleAddToCart = (item: CartItem) => {
     setCart(prevCart => {
@@ -269,20 +295,23 @@ function App() {
 
   // Promo Coupon Code applying
   const handleApplyPromo = (code: string) => {
-    if (code === 'GOLDENCARE') {
-      setPromoCode(code);
-      setDiscountPercent(10);
-      setFlatDiscount(0);
-      handleShowToast("Promo code GOLDENCARE applied (10% off)!", "success");
-    } else if (code === 'KES500') {
-      setPromoCode(code);
-      setDiscountPercent(0);
-      setFlatDiscount(500);
-      handleShowToast("Promo code KES500 applied (KSh 500 off)!", "success");
-    } else if (code === '') {
+    if (code === '') {
       setPromoCode('');
       setDiscountPercent(0);
       setFlatDiscount(0);
+      return;
+    }
+    
+    const matchedCoupon = dbCoupons.find(cp => cp.code.toUpperCase() === code.toUpperCase());
+    if (matchedCoupon) {
+      setPromoCode(matchedCoupon.code);
+      setDiscountPercent(matchedCoupon.discountPercent);
+      setFlatDiscount(matchedCoupon.flatDiscount || 0);
+      
+      const discountText = matchedCoupon.discountPercent > 0 
+        ? `${matchedCoupon.discountPercent}% off` 
+        : `KSh ${(matchedCoupon.flatDiscount || 0).toLocaleString()} off`;
+      handleShowToast(`Promo code ${matchedCoupon.code} applied (${discountText})!`, "success");
     } else {
       handleShowToast("Invalid promo code.", "warning");
     }
@@ -750,6 +779,10 @@ function App() {
               onChangeSettings={handleSettingsChange}
               onRefreshProducts={handleRefreshProducts}
               onRefreshSlides={handleRefreshSlides}
+              categories={dbCategories}
+              onRefreshCategories={handleRefreshCategories}
+              coupons={dbCoupons}
+              onRefreshCoupons={handleRefreshCoupons}
             />
           ) : null
         )}

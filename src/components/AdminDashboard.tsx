@@ -3,10 +3,11 @@ import {
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
   Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
-  getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile
+  getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
+  saveCategory, deleteCategory, saveCoupon, deleteCoupon
 } from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth } from '../firebase';
@@ -17,6 +18,10 @@ interface AdminDashboardProps {
   onChangeSettings: (newSettings: ShopSettings) => void;
   onRefreshProducts: () => void;
   onRefreshSlides: () => void;
+  categories: Category[];
+  onRefreshCategories: () => void;
+  coupons: Coupon[];
+  onRefreshCoupons: () => void;
 }
 
 // Cloudinary Preset Samples
@@ -47,18 +52,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeSettings,
   onRefreshProducts,
   onRefreshSlides,
+  categories,
+  onRefreshCategories,
+  coupons,
+  onRefreshCoupons,
 }) => {
   const path = useLocation();
 
   // activeTab derived from URL path
-  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'tags' | 'media' | 'slides' = 'overview';
+  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' = 'overview';
   if (path === '/dashboard/orders') activeTab = 'orders';
   else if (path === '/dashboard/products') activeTab = 'products';
   else if (path === '/dashboard/settings') activeTab = 'settings';
   else if (path === '/dashboard/customers') activeTab = 'customers';
   else if (path === '/dashboard/reports') activeTab = 'reports';
   else if (path === '/dashboard/categories') activeTab = 'categories';
-  else if (path === '/dashboard/tags') activeTab = 'tags';
+  else if (path === '/dashboard/promos') activeTab = 'promos';
   else if (path === '/dashboard/media') activeTab = 'media';
   else if (path === '/dashboard/slides') activeTab = 'slides';
   
@@ -93,6 +102,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [slideButtonLink, setSlideButtonLink] = useState('');
   const [slideOrder, setSlideOrder] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Categories CRUD state
+  const [catName, setCatName] = useState('');
+  const [catDesc, setCatDesc] = useState('');
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
+  // Coupons CRUD state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponType, setCouponType] = useState<'percent' | 'flat'>('percent');
+  const [couponVal, setCouponVal] = useState(0);
+  const [couponDesc, setCouponDesc] = useState('');
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
 
   // Form Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -589,6 +610,126 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Categories Save/Delete Actions
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!catName.trim()) {
+      alert("Category name is required.");
+      return;
+    }
+    const catId = editingCategory ? editingCategory.id : `cat-${Date.now()}`;
+    const newCategory: Category = {
+      id: catId,
+      name: catName.trim(),
+      description: catDesc.trim() || undefined
+    };
+    setIsLoading(true);
+    try {
+      await saveCategory(newCategory);
+      setCatName('');
+      setCatDesc('');
+      setEditingCategory(null);
+      onRefreshCategories();
+      alert("Category saved successfully!");
+    } catch (err) {
+      console.error("Error saving category:", err);
+      alert("Failed to save category.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditCategory = (cat: Category) => {
+    setEditingCategory(cat);
+    setCatName(cat.name);
+    setCatDesc(cat.description || '');
+  };
+
+  const handleDeleteCategory = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete the category "${name}"?`)) return;
+    setIsLoading(true);
+    try {
+      await deleteCategory(id);
+      if (editingCategory?.id === id) {
+        setEditingCategory(null);
+        setCatName('');
+        setCatDesc('');
+      }
+      onRefreshCategories();
+      alert("Category deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting category:", err);
+      alert("Failed to delete category.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Coupons Save/Delete Actions
+  const handleSaveCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formattedCode = couponCode.trim().toUpperCase();
+    if (!formattedCode) {
+      alert("Promo code is required.");
+      return;
+    }
+    if (couponVal <= 0) {
+      alert("Discount value must be greater than 0.");
+      return;
+    }
+
+    const newCoupon: Coupon = {
+      code: formattedCode,
+      discountPercent: couponType === 'percent' ? Number(couponVal) : 0,
+      flatDiscount: couponType === 'flat' ? Number(couponVal) : undefined,
+      description: couponDesc.trim() || undefined
+    };
+    setIsLoading(true);
+    try {
+      await saveCoupon(newCoupon);
+      setCouponCode('');
+      setCouponVal(0);
+      setCouponDesc('');
+      setEditingCoupon(null);
+      onRefreshCoupons();
+      alert("Promo code saved successfully!");
+    } catch (err) {
+      console.error("Error saving coupon:", err);
+      alert("Failed to save promo code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditCoupon = (cp: Coupon) => {
+    setEditingCoupon(cp);
+    setCouponCode(cp.code);
+    setCouponType(cp.discountPercent > 0 ? 'percent' : 'flat');
+    setCouponVal(cp.discountPercent > 0 ? cp.discountPercent : (cp.flatDiscount || 0));
+    setCouponDesc(cp.description || '');
+  };
+
+  const handleDeleteCoupon = async (code: string) => {
+    if (!window.confirm(`Are you sure you want to delete the promo code "${code}"?`)) return;
+    setIsLoading(true);
+    try {
+      await deleteCoupon(code);
+      if (editingCoupon?.code === code) {
+        setEditingCoupon(null);
+        setCouponCode('');
+        setCouponVal(0);
+        setCouponDesc('');
+      }
+      onRefreshCoupons();
+      alert("Promo code deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting coupon:", err);
+      alert("Failed to delete promo code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleOpenAddProduct = () => {
     setEditingProduct(null);
     setProdName('');
@@ -750,11 +891,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <button 
             type="button"
-            className={`wp-admin-menu-item ${activeTab === 'tags' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/tags')}
+            className={`wp-admin-menu-item ${activeTab === 'promos' ? 'active' : ''}`}
+            onClick={() => navigate('/dashboard/promos')}
           >
             <Tag size={18} />
-            <span>Promo Tags</span>
+            <span>Promos</span>
           </button>
           
           <button 
@@ -1353,85 +1494,260 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {activeTab === 'categories' && (
             <div>
               <h1 className="wp-admin-page-title">Categories</h1>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', alignItems: 'start' }}>
+                {/* Left Panel: Form */}
+                <div className="wp-postbox" style={{ margin: 0 }}>
+                  <h2 className="wp-postbox-title">
+                    {editingCategory ? 'Edit Category' : 'Add New Category'}
+                  </h2>
+                  <form onSubmit={handleSaveCategory} className="wp-postbox-inside" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Name</label>
+                      <input 
+                        type="text" 
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
+                        value={catName}
+                        onChange={e => setCatName(e.target.value)}
+                        placeholder="e.g. Mobility Support"
+                        required
+                      />
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#646970' }}>The name is how it appears on your site.</p>
+                    </div>
 
-              <table className="wp-list-table">
-                <thead>
-                  <tr>
-                    <th>Category Name</th>
-                    <th style={{ textAlign: 'right' }}>Product Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const catMap: Record<string, number> = {};
-                    products.forEach(p => {
-                      catMap[p.category] = (catMap[p.category] || 0) + 1;
-                    });
-                    const categoriesList = Object.entries(catMap);
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Description (Optional)</label>
+                      <textarea 
+                        rows={5}
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', resize: 'vertical' }} 
+                        value={catDesc}
+                        onChange={e => setCatDesc(e.target.value)}
+                        placeholder="Category description..."
+                      />
+                    </div>
 
-                    if (categoriesList.length === 0) {
-                      return (
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <button type="submit" className="wp-button-primary" style={{ padding: '6px 12px' }}>
+                        {editingCategory ? 'Update Category' : 'Add New Category'}
+                      </button>
+                      {editingCategory && (
+                        <button 
+                          type="button" 
+                          className="wp-button-secondary" 
+                          onClick={() => {
+                            setEditingCategory(null);
+                            setCatName('');
+                            setCatDesc('');
+                          }}
+                          style={{ padding: '6px 12px' }}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+
+                {/* Right Panel: Table */}
+                <div>
+                  <table className="wp-list-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Slug/ID</th>
+                        <th style={{ textAlign: 'right', width: '80px' }}>Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categories.length === 0 ? (
                         <tr>
-                          <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                          <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
                             No categories found.
                           </td>
                         </tr>
-                      );
-                    }
-
-                    return categoriesList.map(([cat, count], i) => (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 600 }}>{cat}</td>
-                        <td style={{ textAlign: 'right' }}>{count}</td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
+                      ) : (
+                        categories.map(cat => {
+                          const count = products.filter(p => p.category === cat.name).length;
+                          return (
+                            <tr key={cat.id} className="wp-row-hover">
+                              <td>
+                                <div style={{ fontWeight: 600, color: '#2271b1', fontSize: '14px' }}>{cat.name}</div>
+                                <div className="wp-row-actions" style={{ display: 'flex', gap: '8px', fontSize: '11px', marginTop: '4px' }}>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleEditCategory(cat)}
+                                    style={{ background: 'none', border: 'none', color: '#2271b1', cursor: 'pointer', padding: 0 }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <span style={{ color: '#ddd' }}>|</span>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                    style={{ background: 'none', border: 'none', color: '#b32d2e', cursor: 'pointer', padding: 0 }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                              <td style={{ color: '#646970', fontSize: '13px' }}>{cat.description || '—'}</td>
+                              <td style={{ fontStyle: 'italic', color: '#a7aaad', fontSize: '12px' }}>{cat.id}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 600 }}>{count}</td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* TAB 8: Tags */}
-          {activeTab === 'tags' && (
+          {/* TAB 8: Promos */}
+          {activeTab === 'promos' && (
             <div>
-              <h1 className="wp-admin-page-title">Promo Tags</h1>
+              <h1 className="wp-admin-page-title">Promos</h1>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', alignItems: 'start' }}>
+                {/* Left Panel: Form */}
+                <div className="wp-postbox" style={{ margin: 0 }}>
+                  <h2 className="wp-postbox-title">
+                    {editingCoupon ? 'Edit Promo Code' : 'Add New Promo Code'}
+                  </h2>
+                  <form onSubmit={handleSaveCoupon} className="wp-postbox-inside" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Promo Code</label>
+                      <input 
+                        type="text" 
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', textTransform: 'uppercase' }} 
+                        value={couponCode}
+                        onChange={e => setCouponCode(e.target.value)}
+                        placeholder="e.g. GOLDENCARE"
+                        required
+                        disabled={!!editingCoupon}
+                      />
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#646970' }}>The code customer enters at checkout (alphanumeric, uppercase).</p>
+                    </div>
 
-              <table className="wp-list-table">
-                <thead>
-                  <tr>
-                    <th>Promo Badge / Tag</th>
-                    <th style={{ textAlign: 'right' }}>Applied Products Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const tagMap: Record<string, number> = {};
-                    products.forEach(p => {
-                      if (p.badge) {
-                        tagMap[p.badge] = (tagMap[p.badge] || 0) + 1;
-                      }
-                    });
-                    const tagsList = Object.entries(tagMap);
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Discount Type</label>
+                      <select 
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', height: '32px' }}
+                        value={couponType}
+                        onChange={e => setCouponType(e.target.value as 'percent' | 'flat')}
+                      >
+                        <option value="percent">Percentage discount (%)</option>
+                        <option value="flat">Fixed cart discount (KSh)</option>
+                      </select>
+                    </div>
 
-                    if (tagsList.length === 0) {
-                      return (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Discount Value</label>
+                      <input 
+                        type="number" 
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
+                        value={couponVal || ''}
+                        onChange={e => setCouponVal(Number(e.target.value))}
+                        placeholder={couponType === 'percent' ? "e.g. 10" : "e.g. 500"}
+                        required
+                        min={1}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Description (Optional)</label>
+                      <textarea 
+                        rows={4}
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', resize: 'vertical' }} 
+                        value={couponDesc}
+                        onChange={e => setCouponDesc(e.target.value)}
+                        placeholder="e.g. KSh 500 discount for new recovery equipment..."
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <button type="submit" className="wp-button-primary" style={{ padding: '6px 12px' }}>
+                        {editingCoupon ? 'Update Promo' : 'Save Promo'}
+                      </button>
+                      {editingCoupon && (
+                        <button 
+                          type="button" 
+                          className="wp-button-secondary" 
+                          onClick={() => {
+                            setEditingCoupon(null);
+                            setCouponCode('');
+                            setCouponVal(0);
+                            setCouponDesc('');
+                          }}
+                          style={{ padding: '6px 12px' }}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+
+                {/* Right Panel: Table */}
+                <div>
+                  <table className="wp-list-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                        <th style={{ textAlign: 'right', width: '120px' }}>Discount Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {coupons.length === 0 ? (
                         <tr>
-                          <td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
-                            No product badges applied yet.
+                          <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                            No promo codes found.
                           </td>
                         </tr>
-                      );
-                    }
-
-                    return tagsList.map(([tag, count], i) => (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 600 }}>{tag}</td>
-                        <td style={{ textAlign: 'right' }}>{count}</td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
+                      ) : (
+                        coupons.map(cp => {
+                          const isPercent = cp.discountPercent > 0;
+                          return (
+                            <tr key={cp.code} className="wp-row-hover">
+                              <td>
+                                <div style={{ fontWeight: 600, color: '#2271b1', fontSize: '14px', letterSpacing: '0.5px' }}>{cp.code}</div>
+                                <div className="wp-row-actions" style={{ display: 'flex', gap: '8px', fontSize: '11px', marginTop: '4px' }}>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleEditCoupon(cp)}
+                                    style={{ background: 'none', border: 'none', color: '#2271b1', cursor: 'pointer', padding: 0 }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <span style={{ color: '#ddd' }}>|</span>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleDeleteCoupon(cp.code)}
+                                    style={{ background: 'none', border: 'none', color: '#b32d2e', cursor: 'pointer', padding: 0 }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                              <td style={{ color: '#646970', fontSize: '13px' }}>{cp.description || '—'}</td>
+                              <td style={{ fontSize: '13px' }}>
+                                <span className={`wp-badge-status ${isPercent ? 'paid' : 'dispatched'}`} style={{ textTransform: 'capitalize' }}>
+                                  {isPercent ? 'Percentage' : 'Fixed KSh'}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 600, fontSize: '14px' }}>
+                                {isPercent ? `${cp.discountPercent}%` : `KSh ${(cp.flatDiscount || 0).toLocaleString()}`}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
@@ -2052,14 +2368,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="wp-postbox">
                     <h2 className="wp-postbox-title">Product Categories</h2>
                     <div className="wp-postbox-inside">
-                      <input 
-                        type="text" 
-                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
+                      <select 
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', height: '32px' }} 
                         value={prodCat}
                         onChange={e => setProdCat(e.target.value)}
-                        placeholder="e.g. Mobility Aids"
                         required
-                      />
+                      >
+                        <option value="">-- Select Category --</option>
+                        {categories.map(c => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                      <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#646970' }}>
+                        Manage categories on the <a href="#" onClick={(e) => { e.preventDefault(); setProductModalOpen(false); navigate('/dashboard/categories'); }} style={{ color: '#2271b1', textDecoration: 'none' }}>Categories page</a>.
+                      </p>
                     </div>
                   </div>
 

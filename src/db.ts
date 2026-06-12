@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile } from './types';
+import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon } from './types';
 
 // Helper to clean undefined properties recursively before saving to Firestore
 function cleanObject<T extends object>(obj: T): T {
@@ -384,6 +384,36 @@ export async function initDb(): Promise<void> {
       console.log("Firebase Database: Seeded default media files.");
     }
 
+    // Seed categories if empty
+    const categoriesRef = collection(db, "categories");
+    const categoriesSnap = await getDocs(categoriesRef);
+    if (categoriesSnap.empty) {
+      const defaultCategories: Category[] = [
+        { id: "cat-mobility", name: "Mobility & Support", description: "Walking aids, supports, and ergonomic staffs for daily assistance." },
+        { id: "cat-smart", name: "Smart Wellness", description: "Tech-enabled devices, smart organizers, and health sensors." },
+        { id: "cat-thermal", name: "Thermal Therapy", description: "Advanced heating and cooling wraps for joint and muscle recovery." },
+        { id: "cat-daily", name: "Daily Tools", description: "Convenient tools and products to assist with everyday tasks." }
+      ];
+      for (const c of defaultCategories) {
+        await setDoc(doc(db, "categories", c.id), c);
+      }
+      console.log("Firebase Database: Seeded default categories.");
+    }
+
+    // Seed coupons if empty
+    const couponsRef = collection(db, "coupons");
+    const couponsSnap = await getDocs(couponsRef);
+    if (couponsSnap.empty) {
+      const defaultCoupons: Coupon[] = [
+        { code: "GOLDENCARE", discountPercent: 10, description: "Get 10% off your recovery tools purchase" },
+        { code: "KES500", discountPercent: 0, flatDiscount: 500, description: "KSh 500 off order total" }
+      ];
+      for (const cp of defaultCoupons) {
+        await setDoc(doc(db, "coupons", cp.code), cp);
+      }
+      console.log("Firebase Database: Seeded default coupons.");
+    }
+
     isDbInitialized = true;
   } catch (error) {
     console.error("Error initializing Firebase Database:", error);
@@ -554,4 +584,40 @@ export async function saveMediaFile(file: MediaFile): Promise<void> {
 export async function deleteMediaFile(id: string): Promise<void> {
   const fileRef = doc(db, "media_files", id);
   await deleteDoc(fileRef);
+}
+
+// Categories CRUD
+export async function getCategories(): Promise<Category[]> {
+  await initDb();
+  const catCol = collection(db, "categories");
+  const catSnapshot = await getDocs(catCol);
+  return catSnapshot.docs.map(doc => doc.data() as Category);
+}
+
+export async function saveCategory(category: Category): Promise<void> {
+  const catRef = doc(db, "categories", category.id);
+  await setDoc(catRef, cleanObject(category));
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const catRef = doc(db, "categories", id);
+  await deleteDoc(catRef);
+}
+
+// Coupons CRUD
+export async function getCoupons(): Promise<Coupon[]> {
+  await initDb();
+  const couponCol = collection(db, "coupons");
+  const couponSnapshot = await getDocs(couponCol);
+  return couponSnapshot.docs.map(doc => doc.data() as Coupon);
+}
+
+export async function saveCoupon(coupon: Coupon): Promise<void> {
+  const couponRef = doc(db, "coupons", coupon.code);
+  await setDoc(couponRef, cleanObject(coupon));
+}
+
+export async function deleteCoupon(code: string): Promise<void> {
+  const couponRef = doc(db, "coupons", code);
+  await deleteDoc(couponRef);
 }
