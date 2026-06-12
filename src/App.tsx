@@ -18,8 +18,8 @@ import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
 
-import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon } from './types';
-import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders } from './db';
+import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses } from './db';
 
 import './App.css';
 
@@ -90,6 +90,8 @@ function App() {
   // Categories & Coupons lists
   const [dbCategories, setDbCategories] = useState<Category[]>([]);
   const [dbCoupons, setDbCoupons] = useState<Coupon[]>([]);
+  const [dbShippingZones, setDbShippingZones] = useState<ShippingZone[]>([]);
+  const [dbTaxClasses, setDbTaxClasses] = useState<TaxClass[]>([]);
   const [isAppLoading, setIsAppLoading] = useState(true);
 
   const handleShowToast = (message: string, type: 'success' | 'warning' = 'success') => {
@@ -110,24 +112,84 @@ function App() {
     localStorage.setItem('goldencare_cart', JSON.stringify(cart));
   }, [cart]);
 
+  // Setup manual scroll restoration on mount
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    // Fallback animation frame and timeouts to ensure page is at top after rendering new elements
+    const rafId = requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
+
+    const timeoutId = setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 100);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId);
+    };
+  }, [path]);
+
+  // Bind global toast trigger
+  useEffect(() => {
+    window.showToast = handleShowToast;
+    return () => {
+      delete window.showToast;
+    };
+  }, []);
+
+  // Inject Shop Settings branding, title and favicon
+  useEffect(() => {
+    if (settings.brandingPrimaryColor) {
+      document.documentElement.style.setProperty('--color-ink', settings.brandingPrimaryColor);
+    }
+    if (settings.brandingSecondaryColor) {
+      document.documentElement.style.setProperty('--color-sale', settings.brandingSecondaryColor);
+    }
+    if (settings.shopName) {
+      document.title = settings.shopName;
+    }
+    if (settings.faviconUrl) {
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = settings.faviconUrl;
+    }
+  }, [settings]);
+
   // Initialize DB and load states
   useEffect(() => {
     const loadInitialData = async () => {
       setIsAppLoading(true);
       try {
         await initDb();
-        const [loadedProducts, loadedSettings, loadedSlides, loadedCategories, loadedCoupons] = await Promise.all([
+        const [loadedProducts, loadedSettings, loadedSlides, loadedCategories, loadedCoupons, loadedZones, loadedTaxClasses] = await Promise.all([
           getProducts(),
           getSettings(),
           getHomeSlides(),
           getCategories(),
-          getCoupons()
+          getCoupons(),
+          getShippingZones(),
+          getTaxClasses()
         ]);
         setProducts(loadedProducts);
         setSettings(loadedSettings);
         setSlides(loadedSlides);
         setDbCategories(loadedCategories);
         setDbCoupons(loadedCoupons);
+        setDbShippingZones(loadedZones);
+        setDbTaxClasses(loadedTaxClasses);
       } catch (err) {
         console.error("Error loading initial data:", err);
       } finally {
@@ -885,6 +947,9 @@ function App() {
             discountPercent={discountPercent}
             flatDiscount={flatDiscount}
             orderNote={orderNote}
+            onChangeOrderNote={setOrderNote}
+            shippingZones={dbShippingZones}
+            taxClasses={dbTaxClasses}
           />
         )}
 
@@ -920,6 +985,16 @@ function App() {
               onRefreshCategories={handleRefreshCategories}
               coupons={dbCoupons}
               onRefreshCoupons={handleRefreshCoupons}
+              shippingZones={dbShippingZones}
+              onRefreshShippingZones={async () => {
+                const z = await getShippingZones();
+                setDbShippingZones(z);
+              }}
+              taxClasses={dbTaxClasses}
+              onRefreshTaxClasses={async () => {
+                const tc = await getTaxClasses();
+                setDbTaxClasses(tc);
+              }}
             />
           ) : null
         )}

@@ -21,6 +21,7 @@ export function useLocation() {
 export function navigate(to: string) {
   window.history.pushState(null, '', to);
   window.dispatchEvent(new PopStateEvent('popstate'));
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 interface LinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {

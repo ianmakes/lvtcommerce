@@ -3,11 +3,12 @@ import {
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
   Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
   getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
-  saveCategory, deleteCategory, saveCoupon, deleteCoupon
+  saveCategory, deleteCategory, saveCoupon, deleteCoupon,
+  saveShippingZone, deleteShippingZone, saveTaxClass, deleteTaxClass, getAuditLogs
 } from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth } from '../firebase';
@@ -22,6 +23,10 @@ interface AdminDashboardProps {
   onRefreshCategories: () => void;
   coupons: Coupon[];
   onRefreshCoupons: () => void;
+  shippingZones: ShippingZone[];
+  onRefreshShippingZones: () => Promise<void>;
+  taxClasses: TaxClass[];
+  onRefreshTaxClasses: () => Promise<void>;
 }
 
 // Cloudinary Preset Samples
@@ -56,6 +61,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshCategories,
   coupons,
   onRefreshCoupons,
+  shippingZones,
+  onRefreshShippingZones,
+  taxClasses,
+  onRefreshTaxClasses,
 }) => {
   const path = useLocation();
 
@@ -75,6 +84,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
+  
+  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'audit' | 'shipping' | 'tax'>('general');
+
+  // Shipping Zones CRUD state
+  const [editingZone, setEditingZone] = useState<ShippingZone | null>(null);
+  const [zoneName, setZoneName] = useState('');
+  const [zoneRegions, setZoneRegions] = useState('');
+  const [zoneCost, setZoneCost] = useState(0);
+
+  // Tax Classes CRUD state
+  const [editingTaxClass, setEditingTaxClass] = useState<TaxClass | null>(null);
+  const [taxClassName, setTaxClassName] = useState('');
+  const [taxClassRate, setTaxClassRate] = useState(0);
+
+  // Audit Logs state
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
+  // Product tax class selection
+  const [prodTaxClassId, setProdTaxClassId] = useState('');
+
+  // Intercept alert popups with showToast
+  const alert = (message: string) => {
+    const isWarning = message.toLowerCase().includes('failed') || 
+                      message.toLowerCase().includes('error') || 
+                      message.toLowerCase().includes('please') || 
+                      message.toLowerCase().includes('invalid');
+    showToast(message, isWarning ? 'warning' : 'success');
+  };
+
+  // Load audit logs dynamically
+  useEffect(() => {
+    if (activeTab === 'settings' && settingsSubTab === 'audit') {
+      const fetchLogs = async () => {
+        try {
+          const logs = await getAuditLogs();
+          setAuditLogs(logs);
+        } catch (err) {
+          console.error("Failed to load audit logs:", err);
+        }
+      };
+      fetchLogs();
+    }
+  }, [activeTab, settingsSubTab]);
   
   // Slides & Media manager states
   const [slides, setSlides] = useState<HomeSlide[]>([]);
@@ -101,6 +153,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [slideButtonText, setSlideButtonText] = useState('');
   const [slideButtonLink, setSlideButtonLink] = useState('');
   const [slideOrder, setSlideOrder] = useState(1);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminLoading, setIsAdminLoading] = useState(true);
 
@@ -575,6 +628,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       attributes: prodAttrs,
       variants: prodVariants,
       images: prodGallery,
+      taxClassId: prodTaxClassId || undefined,
       ...(editingProduct ? {
         rating: editingProduct.rating,
         reviewCount: editingProduct.reviewCount,
@@ -608,6 +662,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdGallery(prod.images || []);
     setProdAttrs(prod.attributes || []);
     setProdVariants(prod.variants || []);
+    setProdTaxClassId(prod.taxClassId || '');
     setProductModalOpen(true);
   };
 
@@ -773,6 +828,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdGallery([]);
     setProdAttrs([]);
     setProdVariants([]);
+    setProdTaxClassId('');
     setProductModalOpen(true);
   };
 
@@ -815,6 +871,94 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Shipping Zones CRUD Handlers
+  const handleSaveShippingZoneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!zoneName.trim() || !zoneRegions.trim()) {
+      alert("Please fill in Zone Name and Regions.");
+      return;
+    }
+    setIsLoading(true);
+    const newZone: ShippingZone = {
+      id: editingZone ? editingZone.id : `zone-${Date.now()}`,
+      name: zoneName.trim(),
+      regions: zoneRegions.trim(),
+      cost: Number(zoneCost)
+    };
+    try {
+      await saveShippingZone(newZone);
+      setZoneName('');
+      setZoneRegions('');
+      setZoneCost(0);
+      setEditingZone(null);
+      await onRefreshShippingZones();
+      alert("Shipping zone saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save shipping zone.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteShippingZoneClick = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete shipping zone "${name}"?`)) return;
+    setIsLoading(true);
+    try {
+      await deleteShippingZone(id);
+      await onRefreshShippingZones();
+      alert("Shipping zone deleted successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete shipping zone.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Tax Classes CRUD Handlers
+  const handleSaveTaxClassSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taxClassName.trim()) {
+      alert("Please enter Tax Class Name.");
+      return;
+    }
+    setIsLoading(true);
+    const newTax: TaxClass = {
+      id: editingTaxClass ? editingTaxClass.id : `tax-${Date.now()}`,
+      name: taxClassName.trim(),
+      rate: Number(taxClassRate)
+    };
+    try {
+      await saveTaxClass(newTax);
+      setTaxClassName('');
+      setTaxClassRate(0);
+      setEditingTaxClass(null);
+      await onRefreshTaxClasses();
+      alert("Tax class saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save tax class.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteTaxClassClick = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete tax class "${name}"?`)) return;
+    setIsLoading(true);
+    try {
+      await deleteTaxClass(id);
+      await onRefreshTaxClasses();
+      alert("Tax class deleted successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete tax class.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Metrics Calculations
   const totalRevenue = orders
     .filter(o => o.paymentStatus === 'Paid' && o.orderStatus !== 'Cancelled')
@@ -824,12 +968,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="wp-admin-body" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {isLoading && (
-        <div style={{ position: 'fixed', top: '40px', right: '20px', zIndex: 99999, backgroundColor: '#2271b1', color: 'white', padding: '8px 16px', borderRadius: '0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-          <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
-          <span>Syncing Database...</span>
-        </div>
-      )}
 
       {/* WordPress Admin Bar */}
       <header className="wp-admin-bar">
@@ -1277,145 +1415,816 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* TAB 4: Shop Settings */}
           {activeTab === 'settings' && (
-            <form onSubmit={handleSaveSettingsSubmit}>
-              <h1 className="wp-admin-page-title">Settings</h1>
-              
-              <div className="wp-postbox">
-                <h2 className="wp-postbox-title">General Settings</h2>
-                <div className="wp-postbox-inside">
-                  <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <tbody>
-                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                          <label>Shop Title</label>
-                        </th>
-                        <td style={{ padding: '10px 0' }}>
-                          <input 
-                            type="text" 
-                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                            value={localSettings.shopName}
-                            onChange={e => setLocalSettings({ ...localSettings, shopName: e.target.value })}
-                            required
-                          />
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                          <label>Contact Phone</label>
-                        </th>
-                        <td style={{ padding: '10px 0' }}>
-                          <input 
-                            type="text" 
-                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                            value={localSettings.phone}
-                            onChange={e => setLocalSettings({ ...localSettings, phone: e.target.value })}
-                            required
-                          />
-                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Used for notifications and customer order lines.</p>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                          <label>Shop Address</label>
-                        </th>
-                        <td style={{ padding: '10px 0' }}>
-                          <textarea 
-                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
-                            rows={3}
-                            value={localSettings.address}
-                            onChange={e => setLocalSettings({ ...localSettings, address: e.target.value })}
-                            required
-                          />
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                          <label>Payment Mode</label>
-                        </th>
-                        <td style={{ padding: '10px 0' }}>
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={localSettings.demoMode}
-                              onChange={e => setLocalSettings({ ...localSettings, demoMode: e.target.checked })}
-                            />
-                            <span>Enable Payment Demo Mode (Simulates Paystack Checkout)</span>
-                          </label>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                          <label>Default Shipping Fee (KSh)</label>
-                        </th>
-                        <td style={{ padding: '10px 0' }}>
-                          <input 
-                            type="number" 
-                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                            value={localSettings.shippingFee ?? 1500}
-                            onChange={e => setLocalSettings({ ...localSettings, shippingFee: Number(e.target.value) })}
-                            required
-                            min={0}
-                          />
-                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Flat shipping fee applied to orders below the free threshold.</p>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                          <label>Free Shipping Threshold (KSh)</label>
-                        </th>
-                        <td style={{ padding: '10px 0' }}>
-                          <input 
-                            type="number" 
-                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                            value={localSettings.shippingFreeThreshold ?? 30000}
-                            onChange={e => setLocalSettings({ ...localSettings, shippingFreeThreshold: Number(e.target.value) })}
-                            required
-                            min={0}
-                          />
-                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Free shipping is unlocked when cart total is equal or above this value.</p>
-                        </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                        <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                          <label>Tax Rate (%)</label>
-                        </th>
-                        <td style={{ padding: '10px 0' }}>
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                            value={localSettings.taxRate ?? 16}
-                            onChange={e => setLocalSettings({ ...localSettings, taxRate: Number(e.target.value) })}
-                            required
-                            min={0}
-                            max={100}
-                          />
-                          <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Percentage of tax calculated on cart subtotal after discounts (e.g. 16% VAT).</p>
-                        </td>
-                      </tr>
-                      {!localSettings.demoMode && (
-                        <tr>
-                          <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', verticalAlign: 'top', fontWeight: 600 }}>
-                            <label>Paystack Public Key</label>
-                          </th>
-                          <td style={{ padding: '10px 0' }}>
+            <div>
+              <h1 className="wp-admin-page-title">Shop Settings</h1>
+              <div style={{ display: 'grid', gridTemplateColumns: '240px minmax(0, 1fr)', gap: '30px', alignItems: 'start', marginTop: '20px' }}>
+                
+                {/* Vertical Tabs Sidebar */}
+                <aside style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#fff', border: '1px solid #c3c4c7', padding: '10px', borderRadius: '0px' }}>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'general' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('general')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'general' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'general' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    General Settings
+                  </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'profile' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('profile')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'profile' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'profile' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Profile Settings
+                  </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'smtp' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('smtp')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'smtp' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'smtp' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    SMTP Settings
+                  </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'payment' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('payment')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'payment' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'payment' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Payment Options
+                  </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'audit' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('audit')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'audit' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'audit' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Audit Logs
+                  </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'shipping' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('shipping')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'shipping' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'shipping' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Shipping Zones
+                  </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'tax' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('tax')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'tax' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'tax' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Tax Details
+                  </button>
+                </aside>
+
+                {/* Sub-panel Content Box */}
+                <div className="wp-postbox" style={{ margin: 0 }}>
+                  <div className="wp-postbox-inside" style={{ padding: '24px' }}>
+                    
+                    {/* SUB-TAB: General Settings */}
+                    {settingsSubTab === 'general' && (
+                      <form onSubmit={handleSaveSettingsSubmit}>
+                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>General System Settings</h2>
+                        <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <tbody>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Name</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.shopName || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, shopName: e.target.value })}
+                                  required
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Logo URL</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.logoUrl || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, logoUrl: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Favicon URL</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.faviconUrl || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, faviconUrl: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Allow User Signups</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={localSettings.allowSignup !== false}
+                                    onChange={e => setLocalSettings({ ...localSettings, allowSignup: e.target.checked })}
+                                  />
+                                  <span>Enable buyer profile registration and customer accounts</span>
+                                </label>
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>App Description</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <textarea 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                  rows={3}
+                                  value={localSettings.description || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, description: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SEO Title</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.seoTitle || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, seoTitle: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SEO Keywords</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  placeholder="comma, separated, tags"
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.seoKeywords || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, seoKeywords: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SEO Meta Description</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <textarea 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                  rows={2}
+                                  value={localSettings.seoDescription || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, seoDescription: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Branding Primary Color</th>
+                              <td style={{ padding: '10px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <input 
+                                  type="color" 
+                                  value={localSettings.brandingPrimaryColor || '#111111'}
+                                  onChange={e => setLocalSettings({ ...localSettings, brandingPrimaryColor: e.target.value })}
+                                  style={{ border: 'none', width: '40px', height: '32px', cursor: 'pointer', background: 'none' }}
+                                />
+                                <input 
+                                  type="text" 
+                                  style={{ width: '100px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.brandingPrimaryColor || '#111111'}
+                                  onChange={e => setLocalSettings({ ...localSettings, brandingPrimaryColor: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Branding Secondary Color</th>
+                              <td style={{ padding: '10px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <input 
+                                  type="color" 
+                                  value={localSettings.brandingSecondaryColor || '#d30005'}
+                                  onChange={e => setLocalSettings({ ...localSettings, brandingSecondaryColor: e.target.value })}
+                                  style={{ border: 'none', width: '40px', height: '32px', cursor: 'pointer', background: 'none' }}
+                                />
+                                <input 
+                                  type="text" 
+                                  style={{ width: '100px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.brandingSecondaryColor || '#d30005'}
+                                  onChange={e => setLocalSettings({ ...localSettings, brandingSecondaryColor: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Admin Dashboard URL</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.adminUrl || '/dashboard/home'}
+                                  onChange={e => setLocalSettings({ ...localSettings, adminUrl: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                        <button type="submit" className="wp-button-primary">Save General Settings</button>
+                      </form>
+                    )}
+
+                    {/* SUB-TAB: Profile Settings */}
+                    {settingsSubTab === 'profile' && (
+                      <form onSubmit={handleSaveSettingsSubmit}>
+                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>Admin Profile Settings</h2>
+                        <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <tbody>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Username</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.adminUsername || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, adminUsername: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>First Name</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.adminFirstName || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, adminFirstName: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Last Name</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.adminLastName || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, adminLastName: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Admin Email</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="email" 
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.adminEmail || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, adminEmail: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Avatar URL (1:1 Ratio)</th>
+                              <td style={{ padding: '10px 0', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                                <input 
+                                  type="text" 
+                                  placeholder="https://example.com/admin.jpg"
+                                  style={{ width: '250px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.adminAvatarUrl || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, adminAvatarUrl: e.target.value })}
+                                />
+                                {localSettings.adminAvatarUrl && (
+                                  <img 
+                                    src={localSettings.adminAvatarUrl} 
+                                    alt="Admin Avatar Preview" 
+                                    style={{ width: '48px', height: '48px', objectFit: 'cover', border: '1px solid #c3c4c7', borderRadius: 0 }}
+                                  />
+                                )}
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Change Password</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="password" 
+                                  placeholder="••••••••"
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.adminPassword || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, adminPassword: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>2FA Authentication</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={localSettings.enable2FA || false}
+                                    onChange={e => setLocalSettings({ ...localSettings, enable2FA: e.target.checked })}
+                                  />
+                                  <span>Enable Two-Factor Authentication (2FA) <span style={{ fontSize: '10px', backgroundColor: '#111', color: '#fff', padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Coming Soon</span></span>
+                                </label>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                        <button type="submit" className="wp-button-primary">Save Profile Settings</button>
+                      </form>
+                    )}
+
+                    {/* SUB-TAB: SMTP Settings */}
+                    {settingsSubTab === 'smtp' && (
+                      <form onSubmit={handleSaveSettingsSubmit}>
+                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>SMTP & Email Settings</h2>
+                        <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <tbody>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Email Provider</th>
+                              <td style={{ padding: '10px 0', display: 'flex', gap: '20px' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="radio" 
+                                    name="emailProvider" 
+                                    value="resend" 
+                                    checked={localSettings.emailProvider === 'resend'}
+                                    onChange={() => setLocalSettings({ ...localSettings, emailProvider: 'resend' })}
+                                  />
+                                  <span>Resend Service API</span>
+                                </label>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="radio" 
+                                    name="emailProvider" 
+                                    value="smtp" 
+                                    checked={localSettings.emailProvider === 'smtp'}
+                                    onChange={() => setLocalSettings({ ...localSettings, emailProvider: 'smtp' })}
+                                  />
+                                  <span>Custom SMTP Credentials</span>
+                                </label>
+                              </td>
+                            </tr>
+
+                            {localSettings.emailProvider === 'resend' ? (
+                              <tr>
+                                <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Resend API Key</th>
+                                <td style={{ padding: '10px 0' }}>
+                                  <input 
+                                    type="password" 
+                                    placeholder="re_..."
+                                    style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                    value={localSettings.resendApiKey || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, resendApiKey: e.target.value })}
+                                  />
+                                </td>
+                              </tr>
+                            ) : (
+                              <>
+                                <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                  <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP Host</th>
+                                  <td style={{ padding: '10px 0' }}>
+                                    <input 
+                                      type="text" 
+                                      placeholder="smtp.mailgun.org"
+                                      style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                      value={localSettings.smtpHost || ''}
+                                      onChange={e => setLocalSettings({ ...localSettings, smtpHost: e.target.value })}
+                                    />
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                  <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP Port</th>
+                                  <td style={{ padding: '10px 0' }}>
+                                    <input 
+                                      type="number" 
+                                      placeholder="587"
+                                      style={{ width: '100px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                      value={localSettings.smtpPort || ''}
+                                      onChange={e => setLocalSettings({ ...localSettings, smtpPort: Number(e.target.value) })}
+                                    />
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                  <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP User / Email</th>
+                                  <td style={{ padding: '10px 0' }}>
+                                    <input 
+                                      type="text" 
+                                      placeholder="postmaster@domain.com"
+                                      style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                      value={localSettings.smtpUser || ''}
+                                      onChange={e => setLocalSettings({ ...localSettings, smtpUser: e.target.value })}
+                                    />
+                                  </td>
+                                </tr>
+                                <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                  <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP Password</th>
+                                  <td style={{ padding: '10px 0' }}>
+                                    <input 
+                                      type="password" 
+                                      placeholder="SMTP password"
+                                      style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                      value={localSettings.smtpPassword || ''}
+                                      onChange={e => setLocalSettings({ ...localSettings, smtpPassword: e.target.value })}
+                                    />
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Encryption Type</th>
+                                  <td style={{ padding: '10px 0' }}>
+                                    <select 
+                                      style={{ width: '150px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                      value={localSettings.smtpEncryption || 'tls'}
+                                      onChange={e => setLocalSettings({ ...localSettings, smtpEncryption: e.target.value as 'ssl' | 'tls' | 'none' })}
+                                    >
+                                      <option value="ssl">SSL (Port 465)</option>
+                                      <option value="tls">TLS (Port 587)</option>
+                                      <option value="none">None (Plaintext)</option>
+                                    </select>
+                                  </td>
+                                </tr>
+                              </>
+                            )}
+                          </tbody>
+                        </table>
+                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                        <button type="submit" className="wp-button-primary">Save SMTP Settings</button>
+                      </form>
+                    )}
+
+                    {/* SUB-TAB: Payment Options */}
+                    {settingsSubTab === 'payment' && (
+                      <form onSubmit={handleSaveSettingsSubmit}>
+                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>Store Payment Gateways</h2>
+                        <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <tbody>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Cash on Delivery (COD)</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={localSettings.codActive !== false}
+                                    onChange={e => setLocalSettings({ ...localSettings, codActive: e.target.checked })}
+                                  />
+                                  <span>Enable Cash on Delivery option for storefront checkouts</span>
+                                </label>
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Gateway</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={localSettings.paystackActive !== false}
+                                    onChange={e => setLocalSettings({ ...localSettings, paystackActive: e.target.checked })}
+                                  />
+                                  <span>Enable secure online payments using Paystack (M-Pesa / Cards)</span>
+                                </label>
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Demo / Sandbox Mode</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={localSettings.demoMode}
+                                    onChange={e => setLocalSettings({ ...localSettings, demoMode: e.target.checked })}
+                                  />
+                                  <span>Enable sandbox mock payments (Doesn't charge real money)</span>
+                                </label>
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Mode</th>
+                              <td style={{ padding: '10px 0', display: 'flex', gap: '20px' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="radio" 
+                                    name="paystackMode" 
+                                    value="test" 
+                                    checked={localSettings.paystackMode === 'test' || !localSettings.paystackMode}
+                                    onChange={() => setLocalSettings({ ...localSettings, paystackMode: 'test' })}
+                                  />
+                                  <span>Test Environment</span>
+                                </label>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="radio" 
+                                    name="paystackMode" 
+                                    value="live" 
+                                    checked={localSettings.paystackMode === 'live'}
+                                    onChange={() => setLocalSettings({ ...localSettings, paystackMode: 'live' })}
+                                  />
+                                  <span>Live Environment</span>
+                                </label>
+                              </td>
+                            </tr>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Public Key</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="text" 
+                                  placeholder="pk_test_..."
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.paystackPublicKey || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, paystackPublicKey: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                            <tr>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Secret Key</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="password" 
+                                  placeholder="sk_test_..."
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.paystackSecretKey || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, paystackSecretKey: e.target.value })}
+                                />
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                        <button type="submit" className="wp-button-primary">Save Payment Settings</button>
+                      </form>
+                    )}
+
+                    {/* SUB-TAB: Audit Logs */}
+                    {settingsSubTab === 'audit' && (
+                      <div>
+                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 8px', textTransform: 'uppercase' }}>Security Audit History</h2>
+                        <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 20px' }}>Below is a chronological log of all administrative and storefront write operations.</p>
+                        
+                        <table className="wp-list-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '180px' }}>Timestamp</th>
+                              <th style={{ width: '120px' }}>Actor</th>
+                              <th>Action Log</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {auditLogs.length === 0 ? (
+                              <tr>
+                                <td colSpan={3} style={{ textAlign: 'center', padding: '24px', color: '#a7aaad' }}>No logs recorded yet.</td>
+                              </tr>
+                            ) : (
+                              auditLogs.map(log => (
+                                <tr key={log.id}>
+                                  <td style={{ fontSize: '12px', color: '#646970' }}>{new Date(log.timestamp).toLocaleString()}</td>
+                                  <td style={{ fontWeight: 600 }}>{log.actor}</td>
+                                  <td>
+                                    <strong>{log.action}</strong>
+                                    {log.details && <span style={{ display: 'block', fontSize: '12px', color: '#646970', marginTop: '3px' }}>{log.details}</span>}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* SUB-TAB: Shipping Zones CRUD */}
+                    {settingsSubTab === 'shipping' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1.8fr)', gap: '30px', alignItems: 'start' }}>
+                        
+                        {/* CRUD Add/Edit Form */}
+                        <form onSubmit={handleSaveShippingZoneSubmit} style={{ border: '1px solid #c3c4c7', padding: '20px', background: '#fafafa' }}>
+                          <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 15px', textTransform: 'uppercase' }}>
+                            {editingZone ? "Edit Shipping Zone" : "Add New Shipping Zone"}
+                          </h3>
+                          
+                          <div style={{ marginBottom: '15px' }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '5px', fontSize: '12px' }}>Zone Name</label>
                             <input 
                               type="text" 
-                              placeholder="pk_test_..."
-                              style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                              value={localSettings.paystackPublicKey}
-                              onChange={e => setLocalSettings({ ...localSettings, paystackPublicKey: e.target.value })}
+                              placeholder="e.g. Nairobi Metro"
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', boxSizing: 'border-box' }}
+                              value={zoneName}
+                              onChange={e => setZoneName(e.target.value)}
+                              required
                             />
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                  <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
-                  <button type="submit" className="wp-button-primary">Save Changes</button>
+                          </div>
+
+                          <div style={{ marginBottom: '15px' }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '5px', fontSize: '12px' }}>Covered Regions (Comma-separated)</label>
+                            <textarea 
+                              placeholder="e.g. Nairobi, Kiambu, Kajiado, Machakos"
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                              rows={3}
+                              value={zoneRegions}
+                              onChange={e => setZoneRegions(e.target.value)}
+                              required
+                            />
+                            <p style={{ color: '#646970', margin: '4px 0 0', fontSize: '11px' }}>Any matching substring in the customer address will select this zone.</p>
+                          </div>
+
+                          <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '5px', fontSize: '12px' }}>Shipping Cost (KSh)</label>
+                            <input 
+                              type="number" 
+                              placeholder="e.g. 1500"
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', boxSizing: 'border-box' }}
+                              value={zoneCost}
+                              onChange={e => setZoneCost(Number(e.target.value))}
+                              required
+                              min={0}
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button type="submit" className="wp-button-primary" style={{ padding: '8px 16px' }}>Save Zone</button>
+                            {editingZone && (
+                              <button 
+                                type="button" 
+                                className="wp-button-secondary" 
+                                onClick={() => {
+                                  setEditingZone(null);
+                                  setZoneName('');
+                                  setZoneRegions('');
+                                  setZoneCost(0);
+                                }}
+                                style={{ padding: '8px 16px' }}
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </form>
+
+                        {/* List Zones Table */}
+                        <div>
+                          <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 15px', textTransform: 'uppercase' }}>Configured Shipping Zones</h3>
+                          <table className="wp-list-table">
+                            <thead>
+                              <tr>
+                                <th>Zone Name</th>
+                                <th>Regions</th>
+                                <th style={{ width: '100px', textAlign: 'right' }}>Cost</th>
+                                <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {shippingZones.length === 0 ? (
+                                <tr>
+                                  <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#a7aaad' }}>No shipping zones defined. Flat fee applies.</td>
+                                </tr>
+                              ) : (
+                                shippingZones.map(zone => (
+                                  <tr key={zone.id}>
+                                    <td style={{ fontWeight: 600 }}>{zone.name}</td>
+                                    <td style={{ fontSize: '12px' }}>{zone.regions}</td>
+                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>KSh {zone.cost.toLocaleString()}</td>
+                                    <td style={{ textAlign: 'center' }}>
+                                      <button 
+                                        type="button" 
+                                        className="wp-button-secondary"
+                                        onClick={() => {
+                                          setEditingZone(zone);
+                                          setZoneName(zone.name);
+                                          setZoneRegions(zone.regions);
+                                          setZoneCost(zone.cost);
+                                        }}
+                                        style={{ padding: '2px 8px', fontSize: '11px', minHeight: 'auto', marginRight: '6px' }}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button 
+                                        type="button" 
+                                        className="wp-button-link-delete"
+                                        onClick={() => handleDeleteShippingZoneClick(zone.id, zone.name)}
+                                        style={{ fontSize: '11px' }}
+                                      >
+                                        Delete
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SUB-TAB: Tax Details CRUD */}
+                    {settingsSubTab === 'tax' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1.8fr)', gap: '30px', alignItems: 'start' }}>
+                        
+                        {/* CRUD Add/Edit Form */}
+                        <form onSubmit={handleSaveTaxClassSubmit} style={{ border: '1px solid #c3c4c7', padding: '20px', background: '#fafafa' }}>
+                          <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 15px', textTransform: 'uppercase' }}>
+                            {editingTaxClass ? "Edit Tax Class" : "Add New Tax Class"}
+                          </h3>
+                          
+                          <div style={{ marginBottom: '15px' }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '5px', fontSize: '12px' }}>Tax Class Name</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. Standard VAT (16%)"
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', boxSizing: 'border-box' }}
+                              value={taxClassName}
+                              onChange={e => setTaxClassName(e.target.value)}
+                              required
+                            />
+                          </div>
+
+                          <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '5px', fontSize: '12px' }}>Tax Rate (%)</label>
+                            <input 
+                              type="number" 
+                              step="0.01"
+                              placeholder="e.g. 16"
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px', boxSizing: 'border-box' }}
+                              value={taxClassRate}
+                              onChange={e => setTaxClassRate(Number(e.target.value))}
+                              required
+                              min={0}
+                              max={100}
+                            />
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button type="submit" className="wp-button-primary" style={{ padding: '8px 16px' }}>Save Tax Class</button>
+                            {editingTaxClass && (
+                              <button 
+                                type="button" 
+                                className="wp-button-secondary" 
+                                onClick={() => {
+                                  setEditingTaxClass(null);
+                                  setTaxClassName('');
+                                  setTaxClassRate(0);
+                                }}
+                                style={{ padding: '8px 16px' }}
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </form>
+
+                        {/* List Tax Classes Table */}
+                        <div>
+                          <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 15px', textTransform: 'uppercase' }}>Configured Tax Classes</h3>
+                          <table className="wp-list-table">
+                            <thead>
+                              <tr>
+                                <th>Tax Class Name</th>
+                                <th style={{ width: '120px', textAlign: 'right' }}>Rate %</th>
+                                <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {taxClasses.length === 0 ? (
+                                <tr>
+                                  <td colSpan={3} style={{ textAlign: 'center', padding: '20px', color: '#a7aaad' }}>No custom tax classes defined. Default flat rate applies.</td>
+                                </tr>
+                              ) : (
+                                taxClasses.map(tc => (
+                                  <tr key={tc.id}>
+                                    <td style={{ fontWeight: 600 }}>{tc.name}</td>
+                                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{tc.rate}%</td>
+                                    <td style={{ textAlign: 'center' }}>
+                                      <button 
+                                        type="button" 
+                                        className="wp-button-secondary"
+                                        onClick={() => {
+                                          setEditingTaxClass(tc);
+                                          setTaxClassName(tc.name);
+                                          setTaxClassRate(tc.rate);
+                                        }}
+                                        style={{ padding: '2px 8px', fontSize: '11px', minHeight: 'auto', marginRight: '6px' }}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button 
+                                        type="button" 
+                                        className="wp-button-link-delete"
+                                        onClick={() => handleDeleteTaxClassClick(tc.id, tc.name)}
+                                        style={{ fontSize: '11px' }}
+                                      >
+                                        Delete
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
                 </div>
+
               </div>
-            </form>
+            </div>
           )}
 
           {/* TAB 5: Customers */}
@@ -2558,6 +3367,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             required
                           />
                         </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '15px' }}>
+                          <label style={{ width: '160px', fontWeight: 600 }}>Tax Class:</label>
+                          <select 
+                            style={{ width: '200px', padding: '5px 8px', border: '1px solid #c3c4c7' }}
+                            value={prodTaxClassId}
+                            onChange={e => setProdTaxClassId(e.target.value)}
+                          >
+                            <option value="">Default Store Rate</option>
+                            {taxClasses && taxClasses.map(tc => (
+                              <option key={tc.id} value={tc.id}>{tc.name}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     )}
 
@@ -2624,18 +3446,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <p style={{ margin: 0, color: '#a7aaad', textAlign: 'center', padding: '30px' }}>No variations generated. Add attributes first to configure options.</p>
                         ) : (
                           <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.8fr 1fr 1.5fr', gap: '10px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '8px', marginBottom: '8px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr 1fr 1.2fr 1.5fr', gap: '10px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '8px', marginBottom: '8px' }}>
                               <span>Option Combination</span>
                               <span>Price (KSh)</span>
                               <span>Stock</span>
                               <span>SKU</span>
+                              <span>Tax Class</span>
                               <span>Image (Optional)</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
                               {prodVariants.map((v, idx) => {
                                 const label = Object.values(v.options).join(' / ');
                                 return (
-                                  <div key={v.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 0.8fr 1fr 1.5fr', gap: '10px', alignItems: 'center' }}>
+                                  <div key={v.id} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr 1fr 1.2fr 1.5fr', gap: '10px', alignItems: 'center' }}>
                                     <span style={{ fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={label}>{label}</span>
                                     <input 
                                       type="number" 
@@ -2658,6 +3481,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       onChange={e => handleVariantFieldChange(idx, 'sku', e.target.value)}
                                       required
                                     />
+                                    <select
+                                      style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                                      value={v.taxClassId || ''}
+                                      onChange={e => handleVariantFieldChange(idx, 'taxClassId', e.target.value)}
+                                    >
+                                      <option value="">Default Store Rate</option>
+                                      {taxClasses && taxClasses.map(tc => (
+                                        <option key={tc.id} value={tc.id}>{tc.name}</option>
+                                      ))}
+                                    </select>
                                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                       <input 
                                         type="text" 

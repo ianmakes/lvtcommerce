@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Smartphone, CheckCircle, ShieldAlert, Loader2 } from 'lucide-react';
-import { ShopSettings } from '../types';
+import { ShopSettings, showToast } from '../types';
 
 interface PaystackTransactionOptions {
   key: string;
@@ -179,7 +179,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   const handleDemoCardPaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (cardNumber.length < 16 || cardExpiry.length < 5 || cardCvv.length < 3) {
-      alert("Please fill in valid card details. You can copy the test card on screen.");
+      showToast("Please fill in valid card details. You can copy the test card on screen.", "warning");
       return;
     }
     
@@ -194,7 +194,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
   const handleDemoMpesaSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mpesaNumber.replace(/\D/g, '').length < 8) {
-      alert("Please enter a valid phone number to send the M-Pesa STK Push.");
+      showToast("Please enter a valid phone number to send the M-Pesa STK Push.", "warning");
       return;
     }
 

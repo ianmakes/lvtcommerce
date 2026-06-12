@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon } from './types';
+import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog } from './types';
 
 // Helper to clean undefined properties recursively before saving to Firestore
 function cleanObject<T extends object>(obj: T): T {
@@ -414,6 +414,34 @@ export async function initDb(): Promise<void> {
       console.log("Firebase Database: Seeded default coupons.");
     }
 
+    // Seed shipping_zones if empty
+    const shippingZonesRef = collection(db, "shipping_zones");
+    const shippingZonesSnap = await getDocs(shippingZonesRef);
+    if (shippingZonesSnap.empty) {
+      const defaultZones: ShippingZone[] = [
+        { id: "zone-nairobi", name: "Nairobi Metro", regions: "Nairobi, Kilimani, Westlands, Karen, Langata", cost: 500 },
+        { id: "zone-default", name: "Rest of Kenya", regions: "Mombasa, Kisumu, Nakuru, Eldoret, Thika", cost: 1500 }
+      ];
+      for (const z of defaultZones) {
+        await setDoc(doc(db, "shipping_zones", z.id), z);
+      }
+      console.log("Firebase Database: Seeded default shipping zones.");
+    }
+
+    // Seed tax_classes if empty
+    const taxClassesRef = collection(db, "tax_classes");
+    const taxClassesSnap = await getDocs(taxClassesRef);
+    if (taxClassesSnap.empty) {
+      const defaultTaxes: TaxClass[] = [
+        { id: "tax-standard", name: "Standard VAT (16%)", rate: 16 },
+        { id: "tax-zero", name: "Zero Rated (0%)", rate: 0 }
+      ];
+      for (const t of defaultTaxes) {
+        await setDoc(doc(db, "tax_classes", t.id), t);
+      }
+      console.log("Firebase Database: Seeded default tax classes.");
+    }
+
     isDbInitialized = true;
   } catch (error) {
     console.error("Error initializing Firebase Database:", error);
@@ -434,6 +462,7 @@ export async function getSettings(): Promise<ShopSettings> {
 export async function saveSettings(settings: ShopSettings): Promise<void> {
   const settingsRef = doc(db, "settings", "general");
   await setDoc(settingsRef, cleanObject(settings));
+  await addAuditLog(`Updated Shop Settings`, 'Admin');
 }
 
 // Products GET/ADD/UPDATE/DELETE
@@ -448,11 +477,13 @@ export async function getProducts(): Promise<Product[]> {
 export async function saveProduct(product: Product): Promise<void> {
   const prodRef = doc(db, "products", product.id);
   await setDoc(prodRef, cleanObject(product));
+  await addAuditLog(`Saved Product: ${product.name}`, 'Admin');
 }
 
 export async function deleteProduct(id: string): Promise<void> {
   const prodRef = doc(db, "products", id);
   await deleteDoc(prodRef);
+  await addAuditLog(`Deleted Product: ${id}`, 'Admin');
 }
 
 // Orders GET/ADD
@@ -469,6 +500,7 @@ export async function getOrders(): Promise<Order[]> {
 export async function addOrder(order: Order): Promise<void> {
   // Save order to Firestore (with undefined clean-up)
   await setDoc(doc(db, "orders", order.id), cleanObject(order));
+  await addAuditLog(`Placed Order: #${order.id}`, order.buyerEmail || 'Guest');
 
   // Deduct stock for products/variants sold
   const products = await getProducts();
@@ -597,11 +629,13 @@ export async function getCategories(): Promise<Category[]> {
 export async function saveCategory(category: Category): Promise<void> {
   const catRef = doc(db, "categories", category.id);
   await setDoc(catRef, cleanObject(category));
+  await addAuditLog(`Saved Category: ${category.name}`, 'Admin');
 }
 
 export async function deleteCategory(id: string): Promise<void> {
   const catRef = doc(db, "categories", id);
   await deleteDoc(catRef);
+  await addAuditLog(`Deleted Category: ${id}`, 'Admin');
 }
 
 // Coupons CRUD
@@ -615,9 +649,73 @@ export async function getCoupons(): Promise<Coupon[]> {
 export async function saveCoupon(coupon: Coupon): Promise<void> {
   const couponRef = doc(db, "coupons", coupon.code);
   await setDoc(couponRef, cleanObject(coupon));
+  await addAuditLog(`Saved Promo Code: ${coupon.code}`, 'Admin');
 }
 
 export async function deleteCoupon(code: string): Promise<void> {
   const couponRef = doc(db, "coupons", code);
   await deleteDoc(couponRef);
+  await addAuditLog(`Deleted Promo Code: ${code}`, 'Admin');
+}
+
+// Shipping Zones CRUD
+export async function getShippingZones(): Promise<ShippingZone[]> {
+  await initDb();
+  const zoneCol = collection(db, "shipping_zones");
+  const zoneSnapshot = await getDocs(zoneCol);
+  return zoneSnapshot.docs.map(doc => doc.data() as ShippingZone);
+}
+
+export async function saveShippingZone(zone: ShippingZone): Promise<void> {
+  const zoneRef = doc(db, "shipping_zones", zone.id);
+  await setDoc(zoneRef, cleanObject(zone));
+  await addAuditLog(`Saved Shipping Zone: ${zone.name}`, 'Admin');
+}
+
+export async function deleteShippingZone(id: string): Promise<void> {
+  const zoneRef = doc(db, "shipping_zones", id);
+  await deleteDoc(zoneRef);
+  await addAuditLog(`Deleted Shipping Zone: ${id}`, 'Admin');
+}
+
+// Tax Classes CRUD
+export async function getTaxClasses(): Promise<TaxClass[]> {
+  await initDb();
+  const taxCol = collection(db, "tax_classes");
+  const taxSnapshot = await getDocs(taxCol);
+  return taxSnapshot.docs.map(doc => doc.data() as TaxClass);
+}
+
+export async function saveTaxClass(taxClass: TaxClass): Promise<void> {
+  const taxRef = doc(db, "tax_classes", taxClass.id);
+  await setDoc(taxRef, cleanObject(taxClass));
+  await addAuditLog(`Saved Tax Class: ${taxClass.name}`, 'Admin');
+}
+
+export async function deleteTaxClass(id: string): Promise<void> {
+  const taxRef = doc(db, "tax_classes", id);
+  await deleteDoc(taxRef);
+  await addAuditLog(`Deleted Tax Class: ${id}`, 'Admin');
+}
+
+// Audit Logs Helpers
+export async function getAuditLogs(): Promise<AuditLog[]> {
+  await initDb();
+  const logCol = collection(db, "audit_logs");
+  const logSnapshot = await getDocs(logCol);
+  const list = logSnapshot.docs.map(doc => doc.data() as AuditLog);
+  return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+export async function addAuditLog(action: string, actor: string, details?: string): Promise<void> {
+  const id = `log-${Math.floor(100000 + Math.random() * 900000)}`;
+  const log: AuditLog = {
+    id,
+    action,
+    actor,
+    timestamp: new Date().toISOString(),
+    details
+  };
+  const logRef = doc(db, "audit_logs", id);
+  await setDoc(logRef, cleanObject(log));
 }

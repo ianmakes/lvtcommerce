@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ArrowLeft, User, Phone, MapPin } from 'lucide-react';
-import { CartItem, ShopSettings, Order, OrderItem } from '../types';
-import { PaystackPayment } from './PaystackPayment';
-import { BuyerAuth } from './BuyerAuth';
+import { ArrowLeft, User, MapPin, CreditCard, Smartphone, CheckCircle, ShieldAlert, Loader2, Lock } from 'lucide-react';
+import { CartItem, ShopSettings, Order, OrderItem, ShippingZone, TaxClass, showToast } from '../types';
 import { getBuyerProfile } from '../db';
 import { navigate } from '../Router';
-
+import { BuyerAuth } from './BuyerAuth';
 
 interface CheckoutProps {
   settings: ShopSettings;
@@ -16,6 +14,17 @@ interface CheckoutProps {
   discountPercent: number;
   flatDiscount: number;
   orderNote: string;
+  onChangeOrderNote: (note: string) => void;
+  shippingZones: ShippingZone[];
+  taxClasses: TaxClass[];
+}
+
+function generateOrderId(): string {
+  return `ord-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function generateDemoRef(): string {
+  return `GC-REF-${Math.floor(100000000 + Math.random() * 900000000)}`;
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({
@@ -26,12 +35,38 @@ export const Checkout: React.FC<CheckoutProps> = ({
   discountPercent,
   flatDiscount,
   orderNote,
+  onChangeOrderNote,
+  shippingZones,
+  taxClasses,
 }) => {
-  const [step, setStep] = useState(1);
+  // Input states
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+
+  // Billing address state
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
+  const [billingName, setBillingName] = useState('');
+  const [billingPhone, setBillingPhone] = useState('');
+  const [billingAddress, setBillingAddress] = useState('');
+
+  // Payment method selection
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'paystack'>('cod');
+
+  // Error/Loading states
   const [errorMsg, setErrorMsg] = useState('');
+  const [paystackLoading, setPaystackLoading] = useState(false);
+
+  // Demo payment modal states
+  const [demoState, setDemoState] = useState<'none' | 'input' | 'processing' | 'otp' | 'verifying' | 'success'>('none');
+  const [demoPayChannel, setDemoPayChannel] = useState<'mobile_money' | 'card'>('mobile_money');
+  const [demoCardNumber, setDemoCardNumber] = useState('');
+  const [demoCardExpiry, setDemoCardExpiry] = useState('');
+  const [demoCardCvv, setDemoCardCvv] = useState('');
+  const [demoMpesaNumber, setDemoMpesaNumber] = useState('');
+  const [demoOtpValue, setDemoOtpValue] = useState('');
+  const [demoOtpError, setDemoOtpError] = useState('');
+  const [demoRefCode, setDemoRefCode] = useState('');
 
   // Prefill buyer details from profile when logged in
   useEffect(() => {
@@ -45,6 +80,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
           if (userProfile) {
             if (userProfile.phone && !phone) {
               setPhone(userProfile.phone);
+              setDemoMpesaNumber(userProfile.phone);
             }
             if (userProfile.address && !address) {
               setAddress(userProfile.address);
@@ -58,6 +94,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
     fetchBuyerDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
+
+
 
   if (!currentUser) {
     return (
@@ -93,43 +131,70 @@ export const Checkout: React.FC<CheckoutProps> = ({
     discountAmount = Math.min(flatDiscount, itemsSubtotal);
   }
 
-  // Retrieve configurations from settings
-  const shippingFeeSetting = typeof settings.shippingFee === 'number' ? settings.shippingFee : 1500;
-  const shippingFreeThresholdSetting = typeof settings.shippingFreeThreshold === 'number' ? settings.shippingFreeThreshold : 30000;
-  const taxRateSetting = typeof settings.taxRate === 'number' ? settings.taxRate : 16;
-
   const subtotalAfterDiscount = Math.max(0, itemsSubtotal - discountAmount);
-  
+
+  // Dynamic Shipping Zone Cost Match (Matches Shipping Address)
+  const findShippingCost = (addr: string): number => {
+    if (!addr || !shippingZones || shippingZones.length === 0) {
+      return typeof settings.shippingFee === 'number' ? settings.shippingFee : 1500;
+    }
+    const addrLower = addr.toLowerCase();
+    for (const zone of shippingZones) {
+      const regionsList = zone.regions.split(',').map(r => r.trim().toLowerCase());
+      for (const reg of regionsList) {
+        if (reg && addrLower.includes(reg)) {
+          return zone.cost;
+        }
+      }
+    }
+    return typeof settings.shippingFee === 'number' ? settings.shippingFee : 1500;
+  };
+
+  const shippingFeeSetting = findShippingCost(address);
+  const shippingFreeThresholdSetting = typeof settings.shippingFreeThreshold === 'number' ? settings.shippingFreeThreshold : 30000;
+
   // Calculate delivery fee
   const deliveryFee = subtotalAfterDiscount >= shippingFreeThresholdSetting ? 0 : shippingFeeSetting;
-  
-  // Calculate tax (VAT) on subtotal after discount, exclusive of shipping
-  const taxAmount = Math.round(subtotalAfterDiscount * (taxRateSetting / 100));
-  
+
+  // Calculate tax dynamically based on each item's tax class rate
+  const taxAmount = cart.reduce((acc, item) => {
+    const price = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
+    const itemSubtotal = price * item.quantity;
+
+    // Determine tax rate
+    let rate = typeof settings.taxRate === 'number' ? settings.taxRate : 16;
+    const taxClassId = item.selectedVariant?.taxClassId || item.product.taxClassId;
+    if (taxClassId && taxClasses) {
+      const matchClass = taxClasses.find(tc => tc.id === taxClassId);
+      if (matchClass) {
+        rate = matchClass.rate;
+      }
+    }
+
+    // Apply coupon proportion
+    const proportion = itemsSubtotal > 0 ? itemSubtotal / itemsSubtotal : 0;
+    const itemDiscount = discountAmount * proportion;
+    const itemSubtotalAfterDiscount = Math.max(0, itemSubtotal - itemDiscount);
+
+    const itemTax = itemSubtotalAfterDiscount * (rate / 100);
+    return acc + Math.round(itemTax);
+  }, 0);
+
   // Calculate final grand total
   const grandTotal = subtotalAfterDiscount + taxAmount + deliveryFee;
 
-  const handleStep1Submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      setErrorMsg("Please type in your name.");
-      return;
-    }
-    if (phone.replace(/\D/g, '').length < 8) {
-      setErrorMsg("Please enter a valid phone number so we can reach you.");
-      return;
-    }
-    if (address.trim().length < 10) {
-      setErrorMsg("Please write down your complete delivery address.");
-      return;
-    }
-    setErrorMsg('');
-    setStep(2);
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^\d+ ]/g, '');
+    setPhone(value);
+    setDemoMpesaNumber(value);
+  };
+
+  const handleBillingPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^\d+ ]/g, '');
+    setBillingPhone(value);
   };
 
   const handlePaymentSuccess = (reference: string) => {
-    console.log("Successful payment received! Paystack Reference ID:", reference);
-    // Construct Order items list
     const orderItems: OrderItem[] = cart.map(item => ({
       productId: item.product.id,
       name: item.product.name,
@@ -141,9 +206,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
       variantId: item.selectedVariant?.id
     }));
 
-    // Create unique order ID
-    // eslint-disable-next-line react-hooks/purity
-    const orderId = `ord-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderId = generateOrderId();
 
     const newOrder: Order = {
       id: orderId,
@@ -159,259 +222,757 @@ export const Checkout: React.FC<CheckoutProps> = ({
       subtotal: itemsSubtotal,
       taxAmount: taxAmount,
       shippingFee: deliveryFee,
+      billingName: billingSameAsShipping ? name : billingName,
+      billingPhone: billingSameAsShipping ? phone : billingPhone,
+      billingAddress: billingSameAsShipping ? address : billingAddress,
+      billingSameAsShipping,
+      paymentMethod: 'Paystack Card/M-Pesa',
+      notes: orderNote || undefined
     };
 
     if (currentUser?.email) {
       newOrder.buyerEmail = currentUser.email;
     }
-    if (orderNote) {
-      newOrder.notes = orderNote;
-    }
 
     onSubmitOrder(newOrder);
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Keep numbers and spaces/pluses only
-    const value = e.target.value.replace(/[^\d+ ]/g, '');
-    setPhone(value);
+  const handlePlaceOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setErrorMsg("Please type in your name.");
+      return;
+    }
+    if (phone.replace(/\D/g, '').length < 8) {
+      setErrorMsg("Please enter a valid phone number so we can reach you.");
+      return;
+    }
+    if (address.trim().length < 10) {
+      setErrorMsg("Please write down your complete delivery address.");
+      return;
+    }
+    if (!billingSameAsShipping) {
+      if (!billingName.trim()) {
+        setErrorMsg("Please type in your billing name.");
+        return;
+      }
+      if (billingPhone.replace(/\D/g, '').length < 8) {
+        setErrorMsg("Please enter a valid billing phone number.");
+        return;
+      }
+      if (billingAddress.trim().length < 10) {
+        setErrorMsg("Please write down your complete billing address.");
+        return;
+      }
+    }
+    setErrorMsg('');
+
+    if (paymentMethod === 'cod') {
+      // Direct Cash on Delivery
+      const orderItems: OrderItem[] = cart.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        variantDetails: item.selectedVariant 
+          ? Object.entries(item.selectedVariant.options).map(([k, v]) => `${k}: ${v}`).join(', ') 
+          : 'Standard Option',
+        price: item.selectedVariant ? item.selectedVariant.price : item.product.basePrice,
+        quantity: item.quantity,
+        variantId: item.selectedVariant?.id
+      }));
+
+      const orderId = generateOrderId();
+
+      const newOrder: Order = {
+        id: orderId,
+        customerName: name,
+        customerPhone: phone,
+        customerAddress: address,
+        items: orderItems,
+        totalAmount: grandTotal,
+        paymentStatus: 'Pending',
+        orderStatus: 'Pending',
+        createdAt: new Date().toISOString(),
+        subtotal: itemsSubtotal,
+        taxAmount: taxAmount,
+        shippingFee: deliveryFee,
+        billingName: billingSameAsShipping ? name : billingName,
+        billingPhone: billingSameAsShipping ? phone : billingPhone,
+        billingAddress: billingSameAsShipping ? address : billingAddress,
+        billingSameAsShipping,
+        paymentMethod: 'Cash on Delivery',
+        notes: orderNote || undefined
+      };
+
+      if (currentUser?.email) {
+        newOrder.buyerEmail = currentUser.email;
+      }
+
+      onSubmitOrder(newOrder);
+    } else {
+      // Paystack Payment integration
+      const isDemo = settings.demoMode || !settings.paystackPublicKey;
+      if (isDemo) {
+        // Init Demo Modal
+        setDemoRefCode(generateDemoRef());
+        setDemoState('input');
+      } else {
+        // Init Live Paystack Payment
+        setPaystackLoading(true);
+        const scriptId = 'paystack-inline-js';
+        let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+        const initializePaystack = () => {
+          if (window.PaystackPop) {
+            const paystack = new window.PaystackPop();
+            const refCode = generateDemoRef();
+            paystack.newTransaction({
+              key: settings.paystackPublicKey || '',
+              email: `${phone.replace(/[^\d]/g, '') || 'customer'}@goldencare.com`,
+              amount: grandTotal * 100, // In cents
+              currency: 'KES',
+              ref: refCode,
+              brandColor: settings.brandingPrimaryColor || '#111111',
+              logo: settings.logoUrl || 'https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png',
+              metadata: {
+                custom_fields: [
+                  { display_name: "Customer Name", variable_name: "customer_name", value: name },
+                  { display_name: "Customer Phone", variable_name: "customer_phone", value: phone },
+                  { display_name: "Customer Note", variable_name: "customer_note", value: orderNote || 'N/A' }
+                ]
+              },
+              onSuccess: function (transaction: { reference: string }) {
+                setPaystackLoading(false);
+                handlePaymentSuccess(transaction.reference);
+              },
+              onCancel: function () {
+                setPaystackLoading(false);
+              }
+            });
+          } else {
+            setPaystackLoading(false);
+            showToast("Failed to initialize Paystack inline script.", "warning");
+          }
+        };
+
+        if (!script) {
+          script = document.createElement('script');
+          script.id = scriptId;
+          script.src = 'https://js.paystack.co/v2/inline.js';
+          script.async = true;
+          script.onload = initializePaystack;
+          document.body.appendChild(script);
+        } else {
+          initializePaystack();
+        }
+      }
+    }
   };
 
+  // Demo Handlers
+  const handleDemoCancel = () => {
+    setDemoState('none');
+  };
+
+  const handleDemoCardPaySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (demoCardNumber.length < 16 || demoCardExpiry.length < 5 || demoCardCvv.length < 3) {
+      showToast("Please fill in valid card details. You can copy the test card on screen.", "warning");
+      return;
+    }
+    setDemoState('processing');
+    setTimeout(() => {
+      setDemoState('otp');
+    }, 2000);
+  };
+
+  const handleDemoMpesaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (demoMpesaNumber.replace(/\D/g, '').length < 8) {
+      showToast("Please enter a valid phone number to send the M-Pesa STK Push.", "warning");
+      return;
+    }
+    setDemoState('processing');
+    setTimeout(() => {
+      setDemoState('otp');
+    }, 2000);
+  };
+
+  const handleDemoOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (demoOtpValue === '1234') {
+      setDemoState('verifying');
+      setTimeout(() => {
+        setDemoState('success');
+        setTimeout(() => {
+          setDemoState('none');
+          handlePaymentSuccess(demoRefCode);
+        }, 1500);
+      }, 2000);
+    } else {
+      setDemoOtpError(
+        demoPayChannel === 'mobile_money'
+          ? "Incorrect PIN. Enter '1234' to authorize simulated payment."
+          : "Incorrect OTP. Enter '1234' to authorize simulated payment."
+      );
+    }
+  };
+
+  const handleDemoCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '');
+    const formatted = val.match(/.{1,4}/g)?.join(' ') || val;
+    setDemoCardNumber(formatted.substring(0, 19));
+  };
+
+  const handleDemoExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '');
+    let formatted = val;
+    if (val.length > 2) {
+      formatted = `${val.substring(0, 2)}/${val.substring(2, 4)}`;
+    }
+    setDemoCardExpiry(formatted.substring(0, 5));
+  };
+
+  const codEnabled = settings.codActive !== false;
+  const paystackEnabled = settings.paystackActive !== false && !!settings.paystackPublicKey;
+
   return (
-    <div className="container" style={{ maxWidth: '600px', padding: '30px 0' }}>
-      {/* Back button */}
+    <div className="container" style={{ maxWidth: '1200px', padding: '40px 16px' }}>
       <button 
         className="btn btn-secondary btn-small"
-        onClick={step === 1 ? () => navigate('/cart') : () => setStep(1)}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}
+        onClick={() => navigate('/cart')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '24px', height: '36px', minHeight: '36px' }}
       >
         <ArrowLeft size={16} />
-        <span>{step === 1 ? "Back to Shop" : "Back to Information"}</span>
+        <span>Back to Cart</span>
       </button>
 
-      <h1 className="font-heading-xl text-center" style={{ marginBottom: '12px' }}>Checkout Order</h1>
-      <p className="font-body-md text-center" style={{ color: 'var(--text-mute)', marginBottom: '32px' }}>
-        Please review your details and confirm payment to complete your purchase.
+      <h1 className="font-heading-xl" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Checkout Order</h1>
+      <p className="font-body-md" style={{ color: 'var(--text-mute)', marginBottom: '40px' }}>
+        Complete your shipping address and payment details below.
       </p>
 
-      {/* Steps indicator */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '32px' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: 'var(--radius-full)',
-          backgroundColor: step >= 1 ? 'var(--color-ink)' : 'var(--color-canvas)',
-          color: step >= 1 ? 'var(--color-canvas)' : 'var(--color-ink)',
-          border: '2px solid var(--color-ink)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 600,
-          fontSize: '14px'
-        }}>
-          1
+      {errorMsg && (
+        <div style={{ color: 'var(--color-sale)', backgroundColor: '#fff5f5', padding: '16px', border: '1px solid var(--color-sale)', marginBottom: '32px', fontWeight: 500, fontSize: '14px', borderRadius: '0px' }}>
+          {errorMsg}
         </div>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: 'var(--radius-full)',
-          backgroundColor: step >= 2 ? 'var(--color-ink)' : 'var(--color-canvas)',
-          color: step >= 2 ? 'var(--color-canvas)' : 'var(--color-ink)',
-          border: '2px solid var(--color-ink)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontWeight: 600,
-          fontSize: '14px'
-        }}>
-          2
-        </div>
-      </div>
+      )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: '48px', alignItems: 'start' }}>
         
-        {/* Step 1: Info Form */}
-        {step === 1 && (
-          <form onSubmit={handleStep1Submit} className="card" style={{ border: '1px solid var(--color-hairline)', padding: '24px' }}>
+        {/* LEFT COLUMN: Shipping details + Billing details + Payment method */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          
+          {/* Shipping/Delivery Form */}
+          <div className="card" style={{ border: '1px solid var(--color-hairline)', padding: '32px', borderRadius: '0px' }}>
             <h2 className="font-heading-lg" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', textTransform: 'uppercase' }}>
               <User size={24} />
-              <span>1. Delivery Details</span>
+              <span>1. Delivery Information</span>
             </h2>
 
-            {errorMsg && (
-              <div style={{ color: 'var(--color-sale)', backgroundColor: '#fff5f5', padding: '12px 16px', border: '1px solid var(--color-sale)', marginBottom: '20px', fontWeight: 500, fontSize: '14px' }}>
-                {errorMsg}
-              </div>
-            )}
-
-            {/* Customer Name */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="cust-name">
-                Your Full Name
-              </label>
+            {/* Name */}
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label" htmlFor="ship-name">Your Full Name</label>
               <input
-                id="cust-name"
+                id="ship-name"
                 type="text"
                 className="form-input"
                 placeholder="e.g. Samuel Adebayo"
                 value={name}
                 onChange={e => setName(e.target.value)}
+                style={{ borderRadius: '0px' }}
                 required
               />
             </div>
 
-            {/* Customer Phone */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="cust-phone">
-                Phone Number
-              </label>
+            {/* Phone */}
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label" htmlFor="ship-phone">Phone Number</label>
               <input
-                id="cust-phone"
+                id="ship-phone"
                 type="tel"
                 className="form-input"
-                placeholder="e.g. 080 1234 5678"
+                placeholder="e.g. 0712 345678"
                 value={phone}
                 onChange={handlePhoneChange}
+                style={{ borderRadius: '0px' }}
                 required
               />
             </div>
 
-            {/* Customer Address */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="cust-address">
-                Full Delivery Address
-              </label>
+            {/* Address */}
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label" htmlFor="ship-address">Full Delivery Address</label>
               <textarea
-                id="cust-address"
+                id="ship-address"
                 className="form-input"
-                placeholder="e.g. House 5, Graceful Lane, off Herbert Macaulay Way, Yaba, Lagos"
+                placeholder="e.g. House 5, Graceful Lane, off Ngong Road, Nairobi"
                 value={address}
                 onChange={e => setAddress(e.target.value)}
-                style={{ minHeight: '100px', resize: 'vertical', fontFamily: 'inherit' }}
+                style={{ minHeight: '100px', resize: 'vertical', fontFamily: 'inherit', borderRadius: '0px' }}
                 required
-              />
-            </div>
-
-            <button type="submit" className="btn btn-primary btn-full" style={{ marginTop: '12px' }}>
-              Next: Review Order
-            </button>
-          </form>
-        )}
-
-        {/* Step 2: Order Summary & Paystack */}
-        {step === 2 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Delivery address review */}
-            <div className="card" style={{ border: '1px solid var(--color-hairline)', padding: '24px' }}>
-              <h3 className="font-heading-md" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', textTransform: 'uppercase' }}>
-                <MapPin size={20} />
-                <span>Deliver To:</span>
-              </h3>
-              <p style={{ fontWeight: 600, fontSize: '15px' }}>{name}</p>
-              <p style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 8px', color: 'var(--text-mute)', fontSize: '14px' }}>
-                <Phone size={14} />
-                <span>{phone}</span>
-              </p>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.5 }}>{address}</p>
-              <button 
-                className="btn btn-secondary btn-small" 
-                onClick={() => setStep(1)} 
-                style={{ marginTop: '16px', minHeight: '36px', height: '36px' }}
-              >
-                Change Address
-              </button>
-            </div>
-
-            {/* Cart Items Summary */}
-            <div className="card" style={{ border: '1px solid var(--color-hairline)', padding: '24px' }}>
-              <h3 className="font-heading-md" style={{ marginBottom: '16px', textTransform: 'uppercase' }}>Order Summary ({totalItems} items)</h3>
-              
-              <div style={{ borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {cart.map(item => {
-                  const price = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
-                  const variantDesc = item.selectedVariant 
-                    ? Object.entries(item.selectedVariant.options).map(([k, v]) => `${k}: ${v}`).join(', ')
-                    : 'Standard';
-
-                  return (
-                    <div 
-                      key={item.id} 
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '12px', borderBottom: '1px solid var(--color-hairline-soft)' }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '14px' }}>{item.product.name}</div>
-                        <div style={{ fontSize: '13px', color: 'var(--text-mute)', marginTop: '2px' }}>{variantDesc} x {item.quantity}</div>
-                      </div>
-                      <span style={{ fontWeight: 600, fontSize: '14px' }}>KSh {(price * item.quantity).toLocaleString()}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Order pricing summary */}
-              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-mute)' }}>Items Subtotal (excl. tax & shipping):</span>
-                  <span>KSh {itemsSubtotal.toLocaleString()}</span>
-                </div>
-                
-                {discountAmount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-success)', fontWeight: 600 }}>
-                    <span>Coupon Discount:</span>
-                    <span>-KSh {discountAmount.toLocaleString()}</span>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-mute)' }}>Tax ({taxRateSetting}% VAT):</span>
-                  <span>KSh {taxAmount.toLocaleString()}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-mute)' }}>Delivery Fee:</span>
-                  <span>{deliveryFee === 0 ? "FREE" : `KSh ${deliveryFee.toLocaleString()}`}</span>
-                </div>
-
-                {orderNote && (
-                  <div style={{ borderTop: '1px dashed var(--color-hairline-soft)', paddingTop: '8px', marginTop: '4px', fontSize: '13px' }}>
-                    <span style={{ fontWeight: 600, display: 'block', color: 'var(--text-mute)' }}>Order Delivery Notes:</span>
-                    <span style={{ fontStyle: 'italic', color: 'var(--text-ink)' }}>"{orderNote}"</span>
-                  </div>
-                )}
-
-                <div 
-                  style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    fontWeight: 600, 
-                    fontSize: '18px', 
-                    borderTop: '1px solid var(--color-hairline-soft)', 
-                    paddingTop: '12px', 
-                    marginTop: '8px',
-                    color: 'var(--color-ink)'
-                  }}
-                >
-                  <span>Grand Total:</span>
-                  <span>KSh {grandTotal.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Portal integration */}
-            <div style={{ marginTop: '8px' }}>
-              <PaystackPayment
-                settings={settings}
-                amount={grandTotal}
-                customerName={name}
-                customerPhone={phone}
-                onSuccess={handlePaymentSuccess}
-                onCancel={() => setStep(1)}
-                orderNote={orderNote}
               />
             </div>
           </div>
-        )}
+
+          {/* Billing same/different Toggle */}
+          <div className="card" style={{ border: '1px solid var(--color-hairline)', padding: '32px', borderRadius: '0px' }}>
+            <h2 className="font-heading-lg" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px', textTransform: 'uppercase' }}>
+              <MapPin size={24} />
+              <span>2. Billing Address</span>
+            </h2>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px', fontWeight: 500, userSelect: 'none', marginBottom: '20px' }}>
+              <input 
+                type="checkbox" 
+                checked={billingSameAsShipping} 
+                onChange={e => setBillingSameAsShipping(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-ink)' }}
+              />
+              <span>Billing Address is same as Delivery Address</span>
+            </label>
+
+            {!billingSameAsShipping && (
+              <div style={{ marginTop: '24px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Billing Name */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="bill-name">Billing Name</label>
+                  <input
+                    id="bill-name"
+                    type="text"
+                    className="form-input"
+                    placeholder="Full billing name"
+                    value={billingName}
+                    onChange={e => setBillingName(e.target.value)}
+                    style={{ borderRadius: '0px' }}
+                    required={!billingSameAsShipping}
+                  />
+                </div>
+
+                {/* Billing Phone */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="bill-phone">Billing Phone</label>
+                  <input
+                    id="bill-phone"
+                    type="tel"
+                    className="form-input"
+                    placeholder="Billing phone number"
+                    value={billingPhone}
+                    onChange={handleBillingPhoneChange}
+                    style={{ borderRadius: '0px' }}
+                    required={!billingSameAsShipping}
+                  />
+                </div>
+
+                {/* Billing Address */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="bill-address">Billing Address</label>
+                  <textarea
+                    id="bill-address"
+                    className="form-input"
+                    placeholder="Billing street address, town, city"
+                    value={billingAddress}
+                    onChange={e => setBillingAddress(e.target.value)}
+                    style={{ minHeight: '100px', resize: 'vertical', fontFamily: 'inherit', borderRadius: '0px' }}
+                    required={!billingSameAsShipping}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Order notes */}
+          <div className="card" style={{ border: '1px solid var(--color-hairline)', padding: '32px', borderRadius: '0px' }}>
+            <h2 className="font-heading-lg" style={{ marginBottom: '16px', textTransform: 'uppercase' }}>3. Order Notes (Optional)</h2>
+            <textarea
+              className="form-input"
+              placeholder="Add details such as gate code, delivery directions, packaging requests, etc."
+              value={orderNote}
+              onChange={e => onChangeOrderNote(e.target.value)}
+              style={{ minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', borderRadius: '0px' }}
+            />
+          </div>
+
+          {/* Payment Options Selection */}
+          <div className="card" style={{ border: '1px solid var(--color-hairline)', padding: '32px', borderRadius: '0px' }}>
+            <h2 className="font-heading-lg" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', textTransform: 'uppercase' }}>
+              <Lock size={24} />
+              <span>4. Payment Method</span>
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {codEnabled && (
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  padding: '16px 20px', 
+                  border: `1px solid ${paymentMethod === 'cod' ? 'var(--color-ink)' : 'var(--color-hairline)'}`, 
+                  cursor: 'pointer',
+                  borderRadius: '0px',
+                  backgroundColor: paymentMethod === 'cod' ? 'rgba(17,17,17,0.02)' : 'transparent'
+                }}>
+                  <input 
+                    type="radio" 
+                    name="pay-method"
+                    checked={paymentMethod === 'cod'} 
+                    onChange={() => setPaymentMethod('cod')}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-ink)' }}
+                  />
+                  <div>
+                    <span style={{ fontWeight: 600, display: 'block', fontSize: '15px' }}>Cash on Delivery (COD)</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Pay in cash or mobile transfer when your package is delivered.</span>
+                  </div>
+                </label>
+              )}
+
+              {paystackEnabled && (
+                <label style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  padding: '16px 20px', 
+                  border: `1px solid ${paymentMethod === 'paystack' ? 'var(--color-ink)' : 'var(--color-hairline)'}`, 
+                  cursor: 'pointer',
+                  borderRadius: '0px',
+                  backgroundColor: paymentMethod === 'paystack' ? 'rgba(17,17,17,0.02)' : 'transparent'
+                }}>
+                  <input 
+                    type="radio" 
+                    name="pay-method"
+                    checked={paymentMethod === 'paystack'} 
+                    onChange={() => setPaymentMethod('paystack')}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-ink)' }}
+                  />
+                  <div>
+                    <span style={{ fontWeight: 600, display: 'block', fontSize: '15px' }}>Paystack Gateway (Cards & M-Pesa)</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Securely pay online with Card, M-Pesa STK push, or Bank transfer.</span>
+                  </div>
+                </label>
+              )}
+
+              {!codEnabled && !paystackEnabled && (
+                <div style={{ color: 'var(--color-sale)', fontWeight: 600, fontSize: '14px' }}>
+                  No active payment gateways are configured. Please contact the administrator.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Summary and Calculations */}
+        <div className="card" style={{ border: '1px solid var(--color-hairline)', padding: '32px', borderRadius: '0px', position: 'sticky', top: '100px' }}>
+          <h3 className="font-heading-md" style={{ marginBottom: '24px', textTransform: 'uppercase', borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '12px' }}>Order Summary ({totalItems} items)</h3>
+          
+          <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '6px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {cart.map(item => {
+              const price = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
+              const variantDesc = item.selectedVariant 
+                ? Object.entries(item.selectedVariant.options).map(([k, v]) => `${k}: ${v}`).join(', ')
+                : 'Standard';
+
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
+                >
+                  <div style={{ maxWidth: '75%' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-ink)' }}>{item.product.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-mute)', marginTop: '2px' }}>{variantDesc} x {item.quantity}</div>
+                  </div>
+                  <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-ink)' }}>KSh {(price * item.quantity).toLocaleString()}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-mute)' }}>Subtotal (excl. tax & shipping):</span>
+              <span style={{ fontWeight: 500 }}>KSh {itemsSubtotal.toLocaleString()}</span>
+            </div>
+            
+            {discountAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-success)', fontWeight: 600 }}>
+                <span>Promo Discount:</span>
+                <span>-KSh {discountAmount.toLocaleString()}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-mute)' }}>Tax (VAT calculated per-item):</span>
+              <span style={{ fontWeight: 500 }}>KSh {taxAmount.toLocaleString()}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-mute)' }}>Delivery Fee:</span>
+              <span style={{ fontWeight: 500 }}>{deliveryFee === 0 ? "FREE" : `KSh ${deliveryFee.toLocaleString()}`}</span>
+            </div>
+
+            <div 
+              style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                fontWeight: 700, 
+                fontSize: '20px', 
+                borderTop: '1px solid var(--color-hairline)', 
+                paddingTop: '16px', 
+                marginTop: '12px',
+                color: 'var(--color-ink)'
+              }}
+            >
+              <span>Grand Total:</span>
+              <span>KSh {grandTotal.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <button 
+            type="button" 
+            onClick={handlePlaceOrder}
+            disabled={paystackLoading || (!codEnabled && !paystackEnabled)}
+            className="btn btn-primary btn-full" 
+            style={{ marginTop: '32px', height: '48px', minHeight: '48px', fontSize: '15px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            {paystackLoading ? (
+              <>
+                <Loader2 className="spinner" size={18} />
+                <span>Processing...</span>
+              </>
+            ) : (
+              <span>Place Order</span>
+            )}
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-mute)', fontSize: '12px', marginTop: '16px' }}>
+            <ShieldAlert size={14} />
+            <span>Secure checkout by industry standards.</span>
+          </div>
+        </div>
       </div>
+
+      {/* Demo payment modal overlay */}
+      {demoState !== 'none' && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="paystack-iframe-mock" style={{ width: '100%', maxWidth: '460px', border: '1px solid var(--color-ink)', borderRadius: '0px', boxSizing: 'border-box' }}>
+            
+            {/* Header */}
+            <div className="paystack-header" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+              <div className="paystack-merchant" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img 
+                  src={settings.logoUrl || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png"} 
+                  alt={settings.shopName} 
+                  style={{ width: '36px', height: '36px', objectFit: 'contain', borderRadius: '0px' }} 
+                />
+                <div>
+                  <span className="paystack-merchant-name" style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>{settings.shopName}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>{name} ({phone})</span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span className="paystack-amount" style={{ fontSize: '16px', fontWeight: 700 }}>KSh {grandTotal.toLocaleString()}</span>
+                <div style={{ fontSize: '10px', color: 'var(--color-sale)', fontWeight: 700, textTransform: 'uppercase', marginTop: '2px', letterSpacing: '0.5px' }}>
+                  DEMO GATEWAY
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="paystack-body" style={{ padding: '24px' }}>
+              {demoState === 'input' && (
+                <div>
+                  {/* Channels tabs */}
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                    <button 
+                      type="button" 
+                      className={`paystack-channel ${demoPayChannel === 'mobile_money' ? 'active' : ''}`}
+                      onClick={() => setDemoPayChannel('mobile_money')}
+                      style={{ padding: '12px', border: '1px solid var(--color-hairline)', borderRadius: '0px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
+                    >
+                      <Smartphone size={16} />
+                      <span style={{ fontSize: '13px', fontWeight: 500 }}>M-Pesa</span>
+                    </button>
+
+                    <button 
+                      type="button" 
+                      className={`paystack-channel ${demoPayChannel === 'card' ? 'active' : ''}`}
+                      onClick={() => setDemoPayChannel('card')}
+                      style={{ padding: '12px', border: '1px solid var(--color-hairline)', borderRadius: '0px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
+                    >
+                      <CreditCard size={16} />
+                      <span style={{ fontSize: '13px', fontWeight: 500 }}>Card</span>
+                    </button>
+                  </div>
+
+                  {demoPayChannel === 'mobile_money' ? (
+                    <form onSubmit={handleDemoMpesaSubmit}>
+                      <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px', borderRadius: '0px' }}>
+                        <span style={{ fontWeight: 600 }}>Simulated M-Pesa STK Push:</span><br />
+                        Enter your M-Pesa number. Use mock PIN <strong>1234</strong> on next screen to authorize.
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '20px' }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>M-PESA MOBILE NUMBER</label>
+                        <input 
+                          type="tel" 
+                          className="form-input" 
+                          placeholder="e.g. 0712345678"
+                          value={demoMpesaNumber}
+                          onChange={e => setDemoMpesaNumber(e.target.value)}
+                          style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '0px' }}
+                          required
+                        />
+                      </div>
+
+                      <button type="submit" className="btn btn-primary btn-full" style={{ height: '44px', minHeight: '44px' }}>
+                        Send STK Push
+                      </button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleDemoCardPaySubmit}>
+                      <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px', borderRadius: '0px' }}>
+                        <span style={{ fontWeight: 600 }}>Simulated Card Pay:</span><br />
+                        Fill in mock details. Use mock OTP <strong>1234</strong> on the next screen.
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '12px' }}>
+                        <label className="form-label" style={{ fontSize: '12px' }}>CARD NUMBER</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          placeholder="4000 1234 5678 9010"
+                          value={demoCardNumber}
+                          onChange={handleDemoCardNumberChange}
+                          style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '0px' }}
+                          required
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '12px' }}>EXPIRY</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="MM/YY"
+                            value={demoCardExpiry}
+                            onChange={handleDemoExpiryChange}
+                            style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '0px' }}
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '12px' }}>CVV</label>
+                          <input 
+                            type="password" 
+                            className="form-input" 
+                            placeholder="123"
+                            maxLength={4}
+                            value={demoCardCvv}
+                            onChange={e => setDemoCardCvv(e.target.value.replace(/\D/g, '').substring(0, 3))}
+                            style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '0px' }}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <button type="submit" className="btn btn-primary btn-full" style={{ height: '44px', minHeight: '44px' }}>
+                        Pay Card
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {demoState === 'processing' && (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <Loader2 style={{ animation: 'spin 1.5s linear infinite', color: 'var(--color-ink)', margin: '0 auto 20px' }} size={40} />
+                  <p style={{ fontWeight: 600, fontSize: '15px', margin: 0 }}>
+                    {demoPayChannel === 'mobile_money' 
+                      ? "Sending STK push prompt request..." 
+                      : "Verifying secure card data..."}
+                  </p>
+                </div>
+              )}
+
+              {demoState === 'otp' && (
+                <form onSubmit={handleDemoOtpSubmit}>
+                  <div style={{ backgroundColor: '#fffbe6', border: '1px solid #ffe58f', padding: '12px', fontSize: '13px', color: '#d48806', marginBottom: '16px', borderRadius: '0px' }}>
+                    <strong>Demo Security Verification</strong><br />
+                    Please enter the authorization PIN or OTP: <strong>1234</strong>
+                  </div>
+
+                  {demoOtpError && (
+                    <div style={{ color: 'var(--color-sale)', fontSize: '13px', marginBottom: '12px', fontWeight: 500 }}>
+                      {demoOtpError}
+                    </div>
+                  )}
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>
+                      {demoPayChannel === 'mobile_money' ? "ENTER M-PESA 4-DIGIT PIN" : "ENTER SECURE CARD OTP CODE"}
+                    </label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      placeholder="••••"
+                      maxLength={6}
+                      value={demoOtpValue}
+                      onChange={e => setDemoOtpValue(e.target.value)}
+                      style={{ minHeight: '44px', padding: '10px', fontSize: '18px', textAlign: 'center', letterSpacing: '8px', borderRadius: '0px' }}
+                      required
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-primary btn-full" style={{ height: '44px', minHeight: '44px' }}>
+                    Verify & Pay
+                  </button>
+                </form>
+              )}
+
+              {demoState === 'verifying' && (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <Loader2 style={{ animation: 'spin 1.5s linear infinite', color: 'var(--color-ink)', margin: '0 auto 20px' }} size={40} />
+                  <p style={{ fontWeight: 600, fontSize: '15px', margin: 0 }}>Confirming transaction settlement with bank...</p>
+                </div>
+              )}
+
+              {demoState === 'success' && (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-success)' }}>
+                  <CheckCircle size={48} style={{ margin: '0 auto 16px' }} />
+                  <h3 className="font-heading-md" style={{ margin: '0 0 8px', textTransform: 'uppercase' }}>Payment Authorized</h3>
+                  <p style={{ color: 'var(--text-mute)', fontSize: '14px', margin: 0 }}>Reference: {demoRefCode}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="paystack-footer" style={{ padding: '16px 20px', borderTop: '1px solid var(--color-hairline-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button 
+                type="button" 
+                onClick={handleDemoCancel}
+                style={{ background: 'none', border: 'none', color: 'var(--text-mute)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
+                Cancel Payment
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-mute)', fontWeight: 600 }}>
+                <Lock size={12} />
+                <span>Secured by Paystack Demo</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Spinner animation keyframes */}
+      <style>{`
+        @keyframes spin {
+          100% { transform: rotate(360deg); }
+        }
+        .spinner {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
+
     </div>
   );
 };

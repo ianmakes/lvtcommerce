@@ -10,6 +10,7 @@ export interface ProductVariant {
   stock: number; // Stock level
   sku: string;
   image?: string; // Specific image for this variant option
+  taxClassId?: string;
 }
 
 export interface Product {
@@ -26,6 +27,7 @@ export interface Product {
   specifications?: Record<string, string>;
   images?: string[]; // Alternate gallery images
   badge?: string; // e.g. "Best Seller", "Free Shipping"
+  taxClassId?: string;
 }
 
 export interface ProductReview {
@@ -78,7 +80,7 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   paymentStatus: 'Pending' | 'Paid' | 'Failed';
-  paymentReference: string;
+  paymentReference?: string;
   orderStatus: 'Pending' | 'Paid' | 'Dispatched' | 'Delivered' | 'Cancelled';
   createdAt: string;
   buyerEmail?: string;
@@ -86,6 +88,11 @@ export interface Order {
   subtotal?: number;
   taxAmount?: number;
   shippingFee?: number;
+  billingName?: string;
+  billingPhone?: string;
+  billingAddress?: string;
+  billingSameAsShipping?: boolean;
+  paymentMethod?: string;
 }
 
 export interface BuyerProfile {
@@ -97,6 +104,11 @@ export interface BuyerProfile {
   notifyEmail: boolean;
   notifySms: boolean;
   notifyPromos: boolean;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+  enable2FA?: boolean;
 }
 
 export interface ShopSettings {
@@ -110,6 +122,34 @@ export interface ShopSettings {
   shippingFee: number;
   shippingFreeThreshold: number;
   taxRate: number;
+  logoUrl?: string;
+  faviconUrl?: string;
+  allowSignup?: boolean;
+  description?: string;
+  seoTitle?: string;
+  seoKeywords?: string;
+  seoDescription?: string;
+  brandingPrimaryColor?: string;
+  brandingSecondaryColor?: string;
+  adminUrl?: string;
+  adminUsername?: string;
+  adminFirstName?: string;
+  adminLastName?: string;
+  adminEmail?: string;
+  adminAvatarUrl?: string;
+  adminPassword?: string;
+  enable2FA?: boolean;
+  emailProvider?: 'smtp' | 'resend';
+  resendApiKey?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPassword?: string;
+  smtpEncryption?: 'ssl' | 'tls' | 'none';
+  paystackActive?: boolean;
+  paystackSecretKey?: string;
+  paystackMode?: 'live' | 'test';
+  codActive?: boolean;
 }
 
 export interface HomeSlide {
@@ -129,4 +169,39 @@ export interface MediaFile {
   type: 'image' | 'video' | 'document' | 'url';
   size?: number;
   createdAt: string;
+}
+
+export interface ShippingZone {
+  id: string;
+  name: string;
+  regions: string;
+  cost: number;
+}
+
+export interface TaxClass {
+  id: string;
+  name: string;
+  rate: number;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  actor: string;
+  timestamp: string;
+  details?: string;
+}
+
+declare global {
+  interface Window {
+    showToast?: (message: string, type?: 'success' | 'warning') => void;
+  }
+}
+
+export function showToast(message: string, type: 'success' | 'warning' = 'success') {
+  if (typeof window !== 'undefined' && window.showToast) {
+    window.showToast(message, type);
+  } else {
+    console.log(`[Toast ${type}]: ${message}`);
+  }
 }

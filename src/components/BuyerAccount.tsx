@@ -86,6 +86,11 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
           notifyEmail: true,
           notifySms: false,
           notifyPromos: true,
+          username: '',
+          firstName: '',
+          lastName: '',
+          avatarUrl: '',
+          enable2FA: false
         };
         await saveBuyerProfile(initialProfile);
         setProfile(initialProfile);
@@ -226,7 +231,16 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
             </>
           ) : (
             <>
-              <div className="account-avatar">{getInitials()}</div>
+              {profile.avatarUrl ? (
+                <img 
+                  src={profile.avatarUrl} 
+                  alt={profile.fullName || 'Avatar'} 
+                  className="account-avatar" 
+                  style={{ objectFit: 'cover', borderRadius: '0px', width: '80px', height: '80px' }} 
+                />
+              ) : (
+                <div className="account-avatar">{getInitials()}</div>
+              )}
               <div>
                 <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.5px', opacity: 0.7, display: 'block', marginBottom: '4px', fontWeight: 600 }}>
                   Registered Member
@@ -748,6 +762,66 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pref-firstname" style={{ fontWeight: 600 }}>First Name</label>
+                    <input 
+                      id="pref-firstname"
+                      type="text" 
+                      className="form-input" 
+                      value={profile.firstName || ''}
+                      onChange={e => {
+                        const nextProfile = { ...profile, firstName: e.target.value };
+                        nextProfile.fullName = `${e.target.value} ${profile.lastName || ''}`.trim();
+                        setProfile(nextProfile);
+                      }}
+                      style={{ borderRadius: 0 }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pref-lastname" style={{ fontWeight: 600 }}>Last Name</label>
+                    <input 
+                      id="pref-lastname"
+                      type="text" 
+                      className="form-input" 
+                      value={profile.lastName || ''}
+                      onChange={e => {
+                        const nextProfile = { ...profile, lastName: e.target.value };
+                        nextProfile.fullName = `${profile.firstName || ''} ${e.target.value}`.trim();
+                        setProfile(nextProfile);
+                      }}
+                      style={{ borderRadius: 0 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pref-username" style={{ fontWeight: 600 }}>Username</label>
+                    <input 
+                      id="pref-username"
+                      type="text" 
+                      className="form-input" 
+                      value={profile.username || ''}
+                      onChange={e => setProfile({ ...profile, username: e.target.value })}
+                      placeholder="e.g. samuel99"
+                      style={{ borderRadius: 0 }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="pref-avatar" style={{ fontWeight: 600 }}>Avatar URL (1:1 Aspect Ratio)</label>
+                    <input 
+                      id="pref-avatar"
+                      type="text" 
+                      className="form-input" 
+                      value={profile.avatarUrl || ''}
+                      onChange={e => setProfile({ ...profile, avatarUrl: e.target.value })}
+                      placeholder="https://example.com/avatar.jpg"
+                      style={{ borderRadius: 0 }}
+                    />
+                  </div>
+                </div>
+
                 <div className="form-group">
                   <label className="form-label" htmlFor="pref-fullname" style={{ fontWeight: 600 }}>Shopper Full Name</label>
                   <input 
@@ -813,6 +887,19 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                       <div>
                         <span style={{ fontSize: '14px', fontWeight: 600, display: 'block' }}>Exclusive Health & Mobility Offers</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Send weekly newsletters, recovery guides, and pre-order drops notifications.</span>
+                      </div>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', marginTop: '2px' }}
+                        checked={profile.enable2FA || false}
+                        onChange={e => setProfile({ ...profile, enable2FA: e.target.checked })}
+                      />
+                      <div>
+                        <span style={{ fontSize: '14px', fontWeight: 600, display: 'block' }}>Two-Factor Authentication (2FA) <span style={{ fontSize: '10px', backgroundColor: 'var(--color-ink)', color: '#fff', padding: '2px 6px', marginLeft: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Coming Soon</span></span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Secure your account using a secondary mobile authenticator.</span>
                       </div>
                     </label>
                   </div>

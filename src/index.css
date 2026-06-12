@@ -855,7 +855,7 @@ a {
   min-width: 320px;
   max-width: 480px;
   padding: 16px 24px;
-  border-radius: var(--radius-lg); /* Pill toast */
+  border-radius: var(--radius-none); /* Zero-radius toast */
   background-color: var(--color-ink);
   color: var(--color-canvas);
   font-weight: 500;
