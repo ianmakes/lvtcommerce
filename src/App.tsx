@@ -19,7 +19,7 @@ import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon } from './types';
-import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons } from './db';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders } from './db';
 
 import './App.css';
 
@@ -294,7 +294,7 @@ function App() {
   };
 
   // Promo Coupon Code applying
-  const handleApplyPromo = (code: string) => {
+  const handleApplyPromo = async (code: string) => {
     if (code === '') {
       setPromoCode('');
       setDiscountPercent(0);
@@ -304,6 +304,69 @@ function App() {
     
     const matchedCoupon = dbCoupons.find(cp => cp.code.toUpperCase() === code.toUpperCase());
     if (matchedCoupon) {
+      // 1. Check Date/Duration Validity
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+
+      if (matchedCoupon.startDate && todayStr < matchedCoupon.startDate) {
+        handleShowToast(`This promo code is not active yet. It starts on ${matchedCoupon.startDate}.`, "warning");
+        return;
+      }
+      if (matchedCoupon.endDate && todayStr > matchedCoupon.endDate) {
+        handleShowToast(`This promo code has expired on ${matchedCoupon.endDate}.`, "warning");
+        return;
+      }
+
+      // 2. Check Customer Group Targeting Validity
+      const group = matchedCoupon.customerGroup || 'all';
+      if (group !== 'all') {
+        if (!currentUser) {
+          handleShowToast("Please log in to apply this promo code.", "warning");
+          return;
+        }
+
+        // Fetch user's orders history to determine eligibility
+        try {
+          const allOrders = await getOrders();
+          const userOrders = allOrders.filter(
+            o => o.buyerEmail === currentUser.email || 
+                 (currentUser.phoneNumber && o.customerPhone === currentUser.phoneNumber)
+          );
+
+          if (group === 'new') {
+            if (userOrders.length > 0) {
+              handleShowToast("This promo code is only available for first-time customers.", "warning");
+              return;
+            }
+          } else if (group === 'returning') {
+            if (userOrders.length === 0) {
+              handleShowToast("This promo code is only available for returning customers.", "warning");
+              return;
+            }
+          } else if (group === 'vip') {
+            const cumulativeSpent = userOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+            if (cumulativeSpent < 50000) {
+              handleShowToast(`This promo code is reserved for VIP customers (spent KSh 50,000+). Your spent: KSh ${cumulativeSpent.toLocaleString()}`, "warning");
+              return;
+            }
+          } else if (group === 'emails') {
+            const allowedEmailsList = (matchedCoupon.allowedEmails || '').split(',').map(e => e.trim().toLowerCase());
+            const userEmail = currentUser.email?.toLowerCase();
+            if (!userEmail || !allowedEmailsList.includes(userEmail)) {
+              handleShowToast("This promo code is not assigned to your customer account.", "warning");
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Error validating coupon eligibility:", err);
+          handleShowToast("Failed to validate promo code eligibility. Please try again.", "warning");
+          return;
+        }
+      }
+
       setPromoCode(matchedCoupon.code);
       setDiscountPercent(matchedCoupon.discountPercent);
       setFlatDiscount(matchedCoupon.flatDiscount || 0);

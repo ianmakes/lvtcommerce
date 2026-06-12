@@ -8,7 +8,7 @@ interface CartPageProps {
   onUpdateQuantity: (id: string, newQty: number) => void;
   onRemoveItem: (id: string) => void;
   promoCode: string;
-  onApplyPromo: (code: string) => void;
+  onApplyPromo: (code: string) => void | Promise<void>;
   discountPercent: number;
   flatDiscount: number;
   orderNote: string;

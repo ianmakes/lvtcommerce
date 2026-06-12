@@ -48,6 +48,10 @@ export interface Coupon {
   discountPercent: number; // e.g. 10 for 10%
   flatDiscount?: number; // e.g. 500 for KSh 500
   description?: string;
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+  customerGroup?: 'all' | 'new' | 'returning' | 'vip' | 'emails';
+  allowedEmails?: string; // Comma-separated list of customer emails
 }
 
 export interface CartItem {

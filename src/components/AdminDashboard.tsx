@@ -113,7 +113,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [couponType, setCouponType] = useState<'percent' | 'flat'>('percent');
   const [couponVal, setCouponVal] = useState(0);
   const [couponDesc, setCouponDesc] = useState('');
+  const [couponStartDate, setCouponStartDate] = useState('');
+  const [couponEndDate, setCouponEndDate] = useState('');
+  const [couponGroup, setCouponGroup] = useState<'all' | 'new' | 'returning' | 'vip' | 'emails'>('all');
+  const [couponEmails, setCouponEmails] = useState('');
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+
+  // Selected customer for history popup modal
+  const [selectedCustomer, setSelectedCustomer] = useState<{
+    name: string;
+    phone: string;
+    email: string;
+    orderCount: number;
+    spent: number;
+    orders: Order[];
+  } | null>(null);
 
   // Form Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -682,7 +696,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       code: formattedCode,
       discountPercent: couponType === 'percent' ? Number(couponVal) : 0,
       flatDiscount: couponType === 'flat' ? Number(couponVal) : undefined,
-      description: couponDesc.trim() || undefined
+      description: couponDesc.trim() || undefined,
+      startDate: couponStartDate || undefined,
+      endDate: couponEndDate || undefined,
+      customerGroup: couponGroup,
+      allowedEmails: couponGroup === 'emails' ? couponEmails.trim() : undefined
     };
     setIsLoading(true);
     try {
@@ -690,6 +708,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setCouponCode('');
       setCouponVal(0);
       setCouponDesc('');
+      setCouponStartDate('');
+      setCouponEndDate('');
+      setCouponGroup('all');
+      setCouponEmails('');
       setEditingCoupon(null);
       onRefreshCoupons();
       alert("Promo code saved successfully!");
@@ -707,6 +729,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setCouponType(cp.discountPercent > 0 ? 'percent' : 'flat');
     setCouponVal(cp.discountPercent > 0 ? cp.discountPercent : (cp.flatDiscount || 0));
     setCouponDesc(cp.description || '');
+    setCouponStartDate(cp.startDate || '');
+    setCouponEndDate(cp.endDate || '');
+    setCouponGroup(cp.customerGroup || 'all');
+    setCouponEmails(cp.allowedEmails || '');
   };
 
   const handleDeleteCoupon = async (code: string) => {
@@ -719,6 +745,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         setCouponCode('');
         setCouponVal(0);
         setCouponDesc('');
+        setCouponStartDate('');
+        setCouponEndDate('');
+        setCouponGroup('all');
+        setCouponEmails('');
       }
       onRefreshCoupons();
       alert("Promo code deleted successfully!");
@@ -1349,6 +1379,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {activeTab === 'customers' && (
             <div>
               <h1 className="wp-admin-page-title">Customers</h1>
+              <p style={{ fontSize: '13px', color: '#646970', marginBottom: '16px' }}>Click on any customer to view their complete details and order history.</p>
               
               <table className="wp-list-table">
                 <thead>
@@ -1356,8 +1387,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <th>Customer Name</th>
                     <th>Phone</th>
                     <th>Email Address</th>
-                    <th style={{ textAlign: 'right' }}>Total Orders</th>
-                    <th style={{ textAlign: 'right' }}>Cumulative Spent</th>
+                    <th style={{ textAlign: 'right', width: '120px' }}>Total Orders</th>
+                    <th style={{ textAlign: 'right', width: '180px' }}>Cumulative Spent</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1391,8 +1422,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     }
 
                     return customersList.map((c, i) => (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 600 }}>{c.name}</td>
+                      <tr 
+                        key={i} 
+                        className="wp-row-hover" 
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          const customerOrders = orders.filter(o => 
+                            (o.buyerEmail && o.buyerEmail.toLowerCase() === c.email.toLowerCase()) || 
+                            (o.customerPhone && o.customerPhone === c.phone) ||
+                            (o.customerName.toLowerCase() === c.name.toLowerCase())
+                          );
+                          setSelectedCustomer({
+                            ...c,
+                            orders: customerOrders
+                          });
+                        }}
+                      >
+                        <td style={{ fontWeight: 600, color: '#2271b1' }}>{c.name}</td>
                         <td>{c.phone}</td>
                         <td>{c.email}</td>
                         <td style={{ textAlign: 'right' }}>{c.orderCount}</td>
@@ -1402,6 +1448,140 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   })()}
                 </tbody>
               </table>
+
+              {/* Customer Detail History Modal */}
+              {selectedCustomer && (
+                <div 
+                  className="modal-overlay"
+                  onClick={() => setSelectedCustomer(null)}
+                  style={{ 
+                    zIndex: 5000, 
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: '20px' 
+                  }}
+                >
+                  <div 
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      width: '100%',
+                      maxWidth: '750px',
+                      maxHeight: '85vh',
+                      borderRadius: 'var(--radius-none)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Modal Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #f0f1f1' }}>
+                      <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#1d2327' }}>Customer Profile & Order History</h2>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedCustomer(null)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: '#646970' }}
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    {/* Modal Body */}
+                    <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      
+                      {/* Customer Info Card */}
+                      <div style={{ padding: '16px', background: '#f6f7f7', border: '1px solid #dcdcde', boxSizing: 'border-box' }}>
+                        <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#1d2327' }}>Customer Details</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+                          <div><strong>Name:</strong> {selectedCustomer.name}</div>
+                          <div><strong>Phone:</strong> {selectedCustomer.phone}</div>
+                          <div><strong>Email:</strong> {selectedCustomer.email}</div>
+                          <div>
+                            <strong>Delivery Addresses:</strong>{' '}
+                            {Array.from(new Set(selectedCustomer.orders.map(o => o.customerAddress).filter(Boolean))).join('; ') || 'N/A'}
+                          </div>
+                          <div><strong>Total Orders:</strong> {selectedCustomer.orderCount}</div>
+                          <div><strong>Total Spent:</strong> <strong style={{ color: '#2271b1' }}>KSh {selectedCustomer.spent.toLocaleString()}</strong></div>
+                        </div>
+                      </div>
+
+                      {/* Orders History List */}
+                      <div>
+                        <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#1d2327' }}>Order History</h3>
+                        {selectedCustomer.orders.length === 0 ? (
+                          <p style={{ margin: 0, color: '#a7aaad', fontStyle: 'italic', fontSize: '13px' }}>No orders found for this customer.</p>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {selectedCustomer.orders.map(o => {
+                              const dateStr = new Date(o.createdAt).toLocaleDateString('en-KE', { 
+                                year: 'numeric', 
+                                month: 'short', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              });
+                              return (
+                                <div 
+                                  key={o.id}
+                                  style={{ 
+                                    border: '1px solid #dcdcde', 
+                                    padding: '16px', 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    gap: '8px', 
+                                    boxSizing: 'border-box' 
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>Order ID: {o.id}</span>
+                                    <span style={{ fontSize: '12px', color: '#646970' }}>{dateStr}</span>
+                                  </div>
+
+                                  <div style={{ fontSize: '13px', color: '#2c3338' }}>
+                                    <strong>Items:</strong>{' '}
+                                    {o.items.map((it, idx) => (
+                                      <span key={idx}>
+                                        {it.name} ({it.variantDetails}) x{it.quantity}
+                                        {idx < o.items.length - 1 ? ', ' : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0f1f1', paddingTop: '8px', marginTop: '4px' }}>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                      <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`} style={{ fontSize: '11px' }}>{o.orderStatus}</span>
+                                      <span className={`wp-badge-status ${o.paymentStatus.toLowerCase() === 'paid' ? 'paid' : 'unpaid'}`} style={{ fontSize: '11px' }}>{o.paymentStatus}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '13px', fontWeight: 600 }}>KSh {o.totalAmount.toLocaleString()}</span>
+                                      <button
+                                        type="button"
+                                        className="wp-button-secondary"
+                                        style={{ padding: '4px 8px', fontSize: '11px', minHeight: 'auto', height: '24px' }}
+                                        onClick={() => {
+                                          setActiveOrderDetails(o);
+                                          setSelectedCustomer(null);
+                                          navigate('/dashboard/orders');
+                                        }}
+                                      >
+                                        View Full Order
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1608,7 +1788,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {activeTab === 'promos' && (
             <div>
               <h1 className="wp-admin-page-title">Promos</h1>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', alignItems: 'start' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '24px', alignItems: 'start' }}>
                 {/* Left Panel: Form */}
                 <div className="wp-postbox" style={{ margin: 0 }}>
                   <h2 className="wp-postbox-title">
@@ -1654,10 +1834,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       />
                     </div>
 
+                    {/* Duration Selection */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Start Date</label>
+                        <input 
+                          type="date" 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', height: '32px' }} 
+                          value={couponStartDate}
+                          onChange={e => setCouponStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>End Date</label>
+                        <input 
+                          type="date" 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', height: '32px' }} 
+                          value={couponEndDate}
+                          onChange={e => setCouponEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Customer Group targeting */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Target Customer Group</label>
+                      <select 
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', height: '32px' }}
+                        value={couponGroup}
+                        onChange={e => setCouponGroup(e.target.value as 'all' | 'new' | 'returning' | 'vip' | 'emails')}
+                      >
+                        <option value="all">All Customers</option>
+                        <option value="new">New Customers (First order)</option>
+                        <option value="returning">Returning Customers (1+ order)</option>
+                        <option value="vip">VIP Customers (Spent KSh 50,000+)</option>
+                        <option value="emails">Specific Customer Emails</option>
+                      </select>
+                    </div>
+
+                    {couponGroup === 'emails' && (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Allowed Customer Emails</label>
+                        <textarea 
+                          rows={3}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', resize: 'vertical' }} 
+                          value={couponEmails}
+                          onChange={e => setCouponEmails(e.target.value)}
+                          placeholder="customer1@gmail.com, customer2@yahoo.com"
+                          required
+                        />
+                        <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#646970' }}>Enter a comma-separated list of customer emails.</p>
+                      </div>
+                    )}
+
                     <div>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Description (Optional)</label>
                       <textarea 
-                        rows={4}
+                        rows={3}
                         style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', resize: 'vertical' }} 
                         value={couponDesc}
                         onChange={e => setCouponDesc(e.target.value)}
@@ -1678,6 +1911,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             setCouponCode('');
                             setCouponVal(0);
                             setCouponDesc('');
+                            setCouponStartDate('');
+                            setCouponEndDate('');
+                            setCouponGroup('all');
+                            setCouponEmails('');
                           }}
                           style={{ padding: '6px 12px' }}
                         >
@@ -1695,8 +1932,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <tr>
                         <th>Code</th>
                         <th>Description</th>
-                        <th>Type</th>
-                        <th style={{ textAlign: 'right', width: '120px' }}>Discount Amount</th>
+                        <th>Type / Discount</th>
+                        <th>Targeting & Duration</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1733,12 +1970,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </td>
                               <td style={{ color: '#646970', fontSize: '13px' }}>{cp.description || '—'}</td>
                               <td style={{ fontSize: '13px' }}>
-                                <span className={`wp-badge-status ${isPercent ? 'paid' : 'dispatched'}`} style={{ textTransform: 'capitalize' }}>
+                                <div style={{ fontWeight: 600 }}>
+                                  {isPercent ? `${cp.discountPercent}%` : `KSh ${(cp.flatDiscount || 0).toLocaleString()}`}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#646970', marginTop: '2px' }}>
                                   {isPercent ? 'Percentage' : 'Fixed KSh'}
-                                </span>
+                                </div>
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 600, fontSize: '14px' }}>
-                                {isPercent ? `${cp.discountPercent}%` : `KSh ${(cp.flatDiscount || 0).toLocaleString()}`}
+                              <td>
+                                <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                                  <strong>Group:</strong> <span style={{ textTransform: 'capitalize', color: cp.customerGroup && cp.customerGroup !== 'all' ? '#2271b1' : '#2c3338' }}>{cp.customerGroup || 'all'}</span>
+                                  {cp.customerGroup === 'emails' && (
+                                    <div style={{ fontSize: '11px', color: '#646970', maxWidth: '180px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={cp.allowedEmails}>
+                                      Emails: {cp.allowedEmails}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '11px', marginTop: '4px', color: '#646970' }}>
+                                  <strong>Start:</strong> {cp.startDate || 'Immediate'}<br />
+                                  <strong>End:</strong> {cp.endDate || 'No expiration'}
+                                </div>
                               </td>
                             </tr>
                           );
