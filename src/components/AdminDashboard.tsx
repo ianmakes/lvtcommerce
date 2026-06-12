@@ -98,9 +98,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Users list state
   const [usersList, setUsersList] = useState<BuyerProfile[]>([]);
   // Selected user for Edit view
-  const [selectedUser, setSelectedUser] = useState<(BuyerProfile & { orderCount?: number; spent?: number }) | null>(null);
+  const [selectedUser, setSelectedUser] = useState<(BuyerProfile & { orderCount?: number; spent?: number; isGuest?: boolean; orders?: Order[] }) | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'shop_manager' | 'contributor' | 'customer'>('all');
+
+  const getUserOrderStats = (u: BuyerProfile & { isGuest?: boolean }) => {
+    const email = u.email?.trim().toLowerCase();
+    const phone = u.phone?.trim();
+    const userOrders = orders.filter(o => {
+      const oEmail = o.buyerEmail?.trim().toLowerCase();
+      const oPhone = o.customerPhone?.trim();
+      return (email && oEmail === email) || (phone && oPhone === phone);
+    });
+    const spent = userOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    return {
+      orderCount: userOrders.length,
+      spent,
+      orders: userOrders
+    };
+  };
 
   // User form states
   const [userFormUsername, setUserFormUsername] = useState('');
@@ -1060,7 +1076,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       
       // If a new password was typed, show a notice
       if (userFormPassword) {
-        showToast("Profile details updated. Password manual update saved to profile document.", "info");
+        showToast("Profile details updated. Password manual update saved to profile document.", "success");
       } else {
         showToast("User updated successfully!", "success");
       }

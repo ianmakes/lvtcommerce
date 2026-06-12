@@ -90,7 +90,8 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
           firstName: '',
           lastName: '',
           avatarUrl: '',
-          enable2FA: false
+          enable2FA: false,
+          role: 'customer'
         };
         await saveBuyerProfile(initialProfile);
         setProfile(initialProfile);
