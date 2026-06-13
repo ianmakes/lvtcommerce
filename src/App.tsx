@@ -4,6 +4,7 @@ import { auth } from './firebase';
 import { Navbar } from './components/Navbar';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
+import { ProductQuickView } from './components/ProductQuickView';
 
 import { Checkout } from './components/Checkout';
 import { SuccessView } from './components/SuccessView';
@@ -55,6 +56,7 @@ function App() {
   });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   
   // Modals & Panels UI
 
@@ -992,6 +994,16 @@ function App() {
                       isWishlisted={wishlist.includes(prod.id)}
                       onToggleWishlist={handleToggleWishlist}
                       viewMode={viewMode}
+                      onAddToCart={(p) => {
+                        const item: CartItem = {
+                          id: `${p.id}-base`,
+                          product: p,
+                          selectedVariant: null,
+                          quantity: 1,
+                        };
+                        handleAddToCart(item);
+                      }}
+                      onQuickView={(p) => setQuickViewProduct(p)}
                     />
                   ))}
                 </div>
@@ -1250,6 +1262,15 @@ function App() {
           </div>
         ))}
       </div>
+
+      {/* Product Quick View Lightbox Modal */}
+      {quickViewProduct && (
+        <ProductQuickView
+          product={quickViewProduct}
+          onClose={() => setQuickViewProduct(null)}
+          onAddToCart={handleAddToCart}
+        />
+      )}
 
     </div>
   );

@@ -2098,3 +2098,134 @@ tr:hover .row-actions {
   width: 100%;
   display: block;
 }
+
+/* ==========================================================================
+   Product Card Hover actions and Quick View Lightbox
+   ========================================================================== */
+
+/* Hover action overlay on product card */
+.prod-card-hover-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform: translateY(10px);
+  transition: transform var(--transition-normal), opacity var(--transition-normal);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.prod-card:hover .prod-card-hover-actions {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Adjustments for list view hover actions */
+.prod-card.list-view .prod-img-container:hover .prod-card-hover-actions {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.prod-card-hover-actions .btn {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Quick View Lightbox Modal styles */
+.quickview-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: 860px !important;
+  height: auto;
+  max-height: 85vh !important;
+}
+
+.quickview-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  height: 100%;
+  align-items: stretch;
+}
+
+.quickview-media {
+  background-color: var(--color-soft-cloud);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: auto;
+  height: 100%;
+}
+
+.quickview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.quickview-info {
+  display: flex;
+  flex-direction: column;
+  padding: 32px 40px;
+  overflow-y: auto;
+  background-color: var(--color-canvas);
+  max-height: 85vh;
+}
+
+.quickview-info-scroll {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Modal animation overrides */
+.modal-overlay {
+  animation: fadeIn 0.2s ease;
+}
+
+.quickview-modal {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 767px) {
+  .quickview-modal {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+  .quickview-grid {
+    grid-template-columns: 1fr;
+  }
+  .quickview-media {
+    aspect-ratio: 4 / 3;
+    height: auto;
+  }
+  .quickview-info {
+    padding: 24px;
+    max-height: none;
+    overflow-y: visible;
+  }
+}

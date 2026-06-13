@@ -10,6 +10,8 @@ interface ProductCardProps {
   isWishlisted: boolean;
   onToggleWishlist: (productId: string, e: React.MouseEvent) => void;
   viewMode?: 'grid' | 'list';
+  onAddToCart: (product: Product) => void;
+  onQuickView: (product: Product) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -18,6 +20,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isWishlisted,
   onToggleWishlist,
   viewMode = 'grid',
+  onAddToCart,
+  onQuickView,
 }) => {
   const formattedPrice = product.basePrice.toLocaleString();
   const hasVariants = product.variants && product.variants.length > 0;
@@ -42,13 +46,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const originalPrice = isOnSale ? 10000 : null;
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent navigating if clicking the heart button
     const target = e.target as HTMLElement;
-    if (target.closest('.btn-icon-circular')) {
+    // Prevent navigating if clicking any overlay buttons or the wishlist heart
+    if (target.closest('.btn-icon-circular') || target.closest('.prod-card-hover-actions')) {
       return;
     }
     onSelectProduct(product);
     navigate(`/product/${product.id}`);
+  };
+
+  const handleAddToCartClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasVariants) {
+      onQuickView(product);
+    } else {
+      onAddToCart(product);
+    }
+  };
+
+  const handleQuickViewClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onQuickView(product);
   };
 
   return (
@@ -88,6 +106,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           className="prod-img"
           loading="lazy"
         />
+
+        {/* Hover Action Overlay */}
+        <div className="prod-card-hover-actions">
+          <button
+            type="button"
+            className="btn btn-primary btn-small btn-full"
+            onClick={handleAddToCartClick}
+            style={{ fontSize: '13px', fontWeight: 600, height: '36px', minHeight: '36px' }}
+          >
+            {hasVariants ? "Choose Option" : "Add to Cart"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-small btn-full"
+            onClick={handleQuickViewClick}
+            style={{ fontSize: '13px', fontWeight: 600, height: '36px', minHeight: '36px' }}
+          >
+            Quick View
+          </button>
+        </div>
       </div>
 
       <div className="prod-card-metadata">
