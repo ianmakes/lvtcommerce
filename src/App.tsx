@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
+import { onSnapshot, collection, doc } from 'firebase/firestore';
 import { Navbar } from './components/Navbar';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetail } from './components/ProductDetail';
@@ -217,43 +218,104 @@ function App() {
     }
   }, [settings]);
 
-  // Initialize DB and load states
+  // Initialize DB and load states in realtime
   useEffect(() => {
-    const loadInitialData = async () => {
-      setIsAppLoading(true);
+    // 1. Initialize database in background (seeds if empty)
+    const runInit = async () => {
       try {
         await initDb();
-        const [loadedProducts, loadedSettings, loadedSlides, loadedCategories, loadedCoupons, loadedZones, loadedTaxClasses] = await Promise.all([
-          getProducts(),
-          getSettings(),
-          getHomeSlides(),
-          getCategories(),
-          getCoupons(),
-          getShippingZones(),
-          getTaxClasses()
-        ]);
-        setProducts(loadedProducts);
-        setSettings(loadedSettings);
-        setSlides(loadedSlides);
-        setDbCategories(loadedCategories);
-        setDbCoupons(loadedCoupons);
-        setDbShippingZones(loadedZones);
-        setDbTaxClasses(loadedTaxClasses);
       } catch (err) {
-        console.error("Error loading initial data:", err);
-      } finally {
-        setIsAppLoading(false);
+        console.error("Error initializing DB:", err);
       }
     };
-    loadInitialData();
+    runInit();
+
+    setIsAppLoading(true);
+
+    // 2. Set up realtime listeners using onSnapshot
+    // These will immediately pull cached data from persistent cache, then sync from the network.
+    
+    // Listen to settings
+    const unsubSettings = onSnapshot(doc(db, "settings", "general"), (snapshot) => {
+      if (snapshot.exists()) {
+        setSettings(snapshot.data() as ShopSettings);
+      }
+    }, (err) => console.error("Error listening to settings:", err));
+
+    // Listen to products
+    const unsubProducts = onSnapshot(collection(db, "products"), (snapshot) => {
+      const prods: Product[] = [];
+      snapshot.forEach(docSnap => {
+        prods.push(docSnap.data() as Product);
+      });
+      setProducts(prods);
+      setIsAppLoading(false); // Disable loading spinner immediately once data is ready from cache/server
+    }, (err) => {
+      console.error("Error listening to products:", err);
+      setIsAppLoading(false);
+    });
+
+    // Listen to home slides
+    const unsubSlides = onSnapshot(collection(db, "home_slides"), (snapshot) => {
+      const list: HomeSlide[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as HomeSlide);
+      });
+      setSlides(list.sort((a, b) => (a.order || 0) - (b.order || 0)));
+    }, (err) => console.error("Error listening to slides:", err));
+
+    // Listen to categories
+    const unsubCategories = onSnapshot(collection(db, "categories"), (snapshot) => {
+      const list: Category[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as Category);
+      });
+      setDbCategories(list);
+    }, (err) => console.error("Error listening to categories:", err));
+
+    // Listen to coupons
+    const unsubCoupons = onSnapshot(collection(db, "coupons"), (snapshot) => {
+      const list: Coupon[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as Coupon);
+      });
+      setDbCoupons(list);
+    }, (err) => console.error("Error listening to coupons:", err));
+
+    // Listen to shipping zones
+    const unsubZones = onSnapshot(collection(db, "shipping_zones"), (snapshot) => {
+      const list: ShippingZone[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as ShippingZone);
+      });
+      setDbShippingZones(list);
+    }, (err) => console.error("Error listening to shipping zones:", err));
+
+    // Listen to tax classes
+    const unsubTax = onSnapshot(collection(db, "tax_classes"), (snapshot) => {
+      const list: TaxClass[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as TaxClass);
+      });
+      setDbTaxClasses(list);
+    }, (err) => console.error("Error listening to tax classes:", err));
 
     // Firebase Auth State Listener
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setAuthLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubSettings();
+      unsubProducts();
+      unsubSlides();
+      unsubCategories();
+      unsubCoupons();
+      unsubZones();
+      unsubTax();
+      unsubscribeAuth();
+    };
   }, []);
 
   // Fetch logged-in user's role

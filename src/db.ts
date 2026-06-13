@@ -293,22 +293,8 @@ export async function initDb(): Promise<void> {
       }
 
       console.log("Firebase Database seeded successfully with reviews and specifications.");
-    } else {
-      // Ensure demoMode is disabled, set live public key and default shipping/taxes if not already set
-      const currentData = settingsSnap.data();
-      await updateDoc(settingsRef, { 
-        demoMode: false,
-        paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94",
-        shippingFee: currentData?.shippingFee !== undefined ? currentData.shippingFee : 1500,
-        shippingFreeThreshold: currentData?.shippingFreeThreshold !== undefined ? currentData.shippingFreeThreshold : 30000,
-        taxRate: currentData?.taxRate !== undefined ? currentData.taxRate : 16
-      });
-    }
 
-    // Seed home_slides if empty
-    const slidesRef = collection(db, "home_slides");
-    const slidesSnap = await getDocs(slidesRef);
-    if (slidesSnap.empty) {
+      // Seed home_slides
       const defaultSlides: HomeSlide[] = [
         {
           id: "slide-1",
@@ -342,12 +328,8 @@ export async function initDb(): Promise<void> {
         await setDoc(doc(db, "home_slides", s.id), s);
       }
       console.log("Firebase Database: Seeded default home slides.");
-    }
 
-    // Seed media_files if empty
-    const mediaRef = collection(db, "media_files");
-    const mediaSnap = await getDocs(mediaRef);
-    if (mediaSnap.empty) {
+      // Seed media_files
       const defaultFiles: MediaFile[] = [
         {
           id: "media-cane",
@@ -382,12 +364,8 @@ export async function initDb(): Promise<void> {
         await setDoc(doc(db, "media_files", f.id), f);
       }
       console.log("Firebase Database: Seeded default media files.");
-    }
 
-    // Seed categories if empty
-    const categoriesRef = collection(db, "categories");
-    const categoriesSnap = await getDocs(categoriesRef);
-    if (categoriesSnap.empty) {
+      // Seed categories
       const defaultCategories: Category[] = [
         { id: "cat-mobility", name: "Mobility & Support", description: "Walking aids, supports, and ergonomic staffs for daily assistance." },
         { id: "cat-smart", name: "Smart Wellness", description: "Tech-enabled devices, smart organizers, and health sensors." },
@@ -398,12 +376,8 @@ export async function initDb(): Promise<void> {
         await setDoc(doc(db, "categories", c.id), c);
       }
       console.log("Firebase Database: Seeded default categories.");
-    }
 
-    // Seed coupons if empty
-    const couponsRef = collection(db, "coupons");
-    const couponsSnap = await getDocs(couponsRef);
-    if (couponsSnap.empty) {
+      // Seed coupons
       const defaultCoupons: Coupon[] = [
         { code: "GOLDENCARE", discountPercent: 10, description: "Get 10% off your recovery tools purchase" },
         { code: "KES500", discountPercent: 0, flatDiscount: 500, description: "KSh 500 off order total" }
@@ -412,12 +386,8 @@ export async function initDb(): Promise<void> {
         await setDoc(doc(db, "coupons", cp.code), cp);
       }
       console.log("Firebase Database: Seeded default coupons.");
-    }
 
-    // Seed shipping_zones if empty
-    const shippingZonesRef = collection(db, "shipping_zones");
-    const shippingZonesSnap = await getDocs(shippingZonesRef);
-    if (shippingZonesSnap.empty) {
+      // Seed shipping_zones
       const defaultZones: ShippingZone[] = [
         { id: "zone-nairobi", name: "Nairobi Metro", regions: "Nairobi, Kilimani, Westlands, Karen, Langata", cost: 500 },
         { id: "zone-default", name: "Rest of Kenya", regions: "Mombasa, Kisumu, Nakuru, Eldoret, Thika", cost: 1500 }
@@ -426,12 +396,8 @@ export async function initDb(): Promise<void> {
         await setDoc(doc(db, "shipping_zones", z.id), z);
       }
       console.log("Firebase Database: Seeded default shipping zones.");
-    }
 
-    // Seed tax_classes if empty
-    const taxClassesRef = collection(db, "tax_classes");
-    const taxClassesSnap = await getDocs(taxClassesRef);
-    if (taxClassesSnap.empty) {
+      // Seed tax_classes
       const defaultTaxes: TaxClass[] = [
         { id: "tax-standard", name: "Standard VAT (16%)", rate: 16 },
         { id: "tax-zero", name: "Zero Rated (0%)", rate: 0 }
@@ -440,6 +406,17 @@ export async function initDb(): Promise<void> {
         await setDoc(doc(db, "tax_classes", t.id), t);
       }
       console.log("Firebase Database: Seeded default tax classes.");
+
+    } else {
+      // Ensure demoMode is disabled, set live public key and default shipping/taxes if not already set
+      const currentData = settingsSnap.data();
+      await updateDoc(settingsRef, { 
+        demoMode: false,
+        paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94",
+        shippingFee: currentData?.shippingFee !== undefined ? currentData.shippingFee : 1500,
+        shippingFreeThreshold: currentData?.shippingFreeThreshold !== undefined ? currentData.shippingFreeThreshold : 30000,
+        taxRate: currentData?.taxRate !== undefined ? currentData.taxRate : 16
+      });
     }
 
     isDbInitialized = true;
