@@ -2141,6 +2141,25 @@ tr:hover .row-actions {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
+/* Desktop: Side-by-side buttons on hover */
+@media (min-width: 768px) {
+  .prod-card-hover-actions {
+    flex-direction: row;
+    padding: 12px;
+    gap: 6px;
+  }
+  
+  .prod-card-hover-actions .btn {
+    flex: 1;
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 11px !important;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+}
+
 /* Quick View Lightbox Modal styles */
 .quickview-modal {
   display: flex;
