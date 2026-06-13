@@ -2139,6 +2139,7 @@ tr:hover .row-actions {
 
 .prod-card-hover-actions .btn {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-none) !important;
 }
 
 /* Desktop: Side-by-side buttons on hover */
