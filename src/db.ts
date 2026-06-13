@@ -733,3 +733,20 @@ export async function addAuditLog(action: string, actor: string, details?: strin
   const logRef = doc(db, "audit_logs", id);
   await setDoc(logRef, cleanObject(log));
 }
+
+// ---- Wishlist Persistence (per-user, Firestore-backed) ----
+
+export async function getWishlist(uid: string): Promise<string[]> {
+  const wishlistRef = doc(db, "wishlists", uid);
+  const wishlistSnap = await getDoc(wishlistRef);
+  if (wishlistSnap.exists()) {
+    const data = wishlistSnap.data();
+    return Array.isArray(data.items) ? data.items : [];
+  }
+  return [];
+}
+
+export async function saveWishlist(uid: string, productIds: string[]): Promise<void> {
+  const wishlistRef = doc(db, "wishlists", uid);
+  await setDoc(wishlistRef, { items: productIds, updatedAt: new Date().toISOString() });
+}

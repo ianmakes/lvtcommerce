@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import { Navbar } from './components/Navbar';
@@ -17,9 +17,10 @@ import { BuyerAuth } from './components/BuyerAuth';
 import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
+import { LayoutGrid, List, ChevronRight } from 'lucide-react';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
-import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile } from './db';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist } from './db';
 
 import './App.css';
 
@@ -81,6 +82,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('featured');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const wishlistSyncRef = useRef(false);
   const accountTab = 'overview';
 
   // Coupon states
@@ -109,10 +112,47 @@ function App() {
     }, 4000);
   };
 
-  // Sync wishlist to local storage
+  // Sync wishlist to local storage + Firestore
   useEffect(() => {
     localStorage.setItem('goldencare_wishlist', JSON.stringify(wishlist));
-  }, [wishlist]);
+    // Persist to Firestore for logged-in users (skip the initial load sync)
+    if (currentUser && wishlistSyncRef.current) {
+      saveWishlist(currentUser.uid, wishlist).catch(err => console.error('Wishlist sync error:', err));
+    }
+  }, [wishlist, currentUser]);
+
+  // Load wishlist from Firestore when user logs in
+  useEffect(() => {
+    const loadWishlist = async () => {
+      if (currentUser) {
+        try {
+          const firestoreWishlist = await getWishlist(currentUser.uid);
+          const localWishlist: string[] = JSON.parse(localStorage.getItem('goldencare_wishlist') || '[]');
+          // Merge: union of Firestore + localStorage items
+          const merged = Array.from(new Set([...firestoreWishlist, ...localWishlist]));
+          setWishlist(merged);
+          // Save merged list back to Firestore
+          if (merged.length > 0) {
+            await saveWishlist(currentUser.uid, merged);
+          }
+        } catch (err) {
+          console.error('Error loading wishlist from Firestore:', err);
+        }
+        // Enable Firestore sync after initial load
+        wishlistSyncRef.current = true;
+      } else {
+        wishlistSyncRef.current = false;
+      }
+    };
+    loadWishlist();
+  }, [currentUser]);
+
+  // Initialize viewMode from admin settings once loaded
+  useEffect(() => {
+    if (settings.shopPageDefaultView) {
+      setViewMode(settings.shopPageDefaultView);
+    }
+  }, [settings.shopPageDefaultView]);
 
   // Sync cart to local storage
   useEffect(() => {
@@ -849,80 +889,101 @@ function App() {
         {/* VIEW A: Storefront */}
         {path === '/shop' && (
           <div>
-            {/* Stark campaign hero for Shop page */}
-            <section 
-              className="campaign-hero" 
-              style={{ 
-                height: '360px', 
-                marginBottom: '32px', 
-                backgroundImage: 'linear-gradient(to bottom, rgba(17,17,17,0.2) 0%, rgba(17,17,17,0.5) 100%), url(https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1600)' 
-              }}
-            >
-              <div className="campaign-hero-inner">
-                <div className="campaign-hero-content" style={{ paddingBottom: '0px' }}>
-                  <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
-                    Engineered Catalog
-                  </span>
-                  <h1 className="font-display-campaign" style={{ fontSize: '64px', marginBottom: '8px' }}>
-                    SYSTEMS SHOP
-                  </h1>
-                  <p className="font-body-md" style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '15px', marginBottom: '0px', maxWidth: '600px' }}>
-                    Explore our engineered wellness objects. Pure geometry, carbon fiber construction, and smart alert integrations.
-                  </p>
-                </div>
-              </div>
-            </section>
 
             {/* Grid Container */}
             <section className="container section-block" id="products-section">
+              {/* Breadcrumb */}
+              <nav className="shop-breadcrumb">
+                <Link to="/">Home</Link>
+                <ChevronRight size={12} className="breadcrumb-separator" />
+                <span className="breadcrumb-current">Shop</span>
+              </nav>
+
+              {/* Page Header */}
+              <div className="shop-page-header">
+                <h1 className="shop-page-title">Shop All</h1>
+                <p className="shop-page-subtitle">Explore our curated collection of engineered wellness products.</p>
+              </div>
+
+              {/* Controls Bar */}
               <div className="store-controls-bar">
-                <div className="category-pills">
-                  {categories.map(cat => (
-                    <button
-                      key={cat}
-                      type="button"
-                      className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
-                      onClick={() => setSelectedCategory(cat)}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+                <div className="store-controls-left">
+                  <div className="category-pills">
+                    {categories.map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
+                        onClick={() => setSelectedCategory(cat)}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="store-results-count">
+                    {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+                  </span>
                 </div>
                 
-                <div className="sort-select-wrapper">
-                  <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-mute)' }}>Sort By:</span>
-                  <select
-                    id="sort-select"
-                    className="sort-select"
-                    value={sortBy}
-                    onChange={e => setSortBy(e.target.value)}
-                    style={{ borderRadius: '24px', border: '1px solid var(--color-hairline)', padding: '6px 16px' }}
-                  >
-                    <option value="featured">Featured</option>
-                    <option value="price-asc">Price: Low to High</option>
-                    <option value="price-desc">Price: High to Low</option>
-                    <option value="rating">Avg. Customer Rating</option>
-                  </select>
+                <div className="store-controls-right">
+                  <div className="sort-select-wrapper">
+                    <select
+                      id="sort-select"
+                      className="sort-select"
+                      value={sortBy}
+                      onChange={e => setSortBy(e.target.value)}
+                    >
+                      <option value="featured">Featured</option>
+                      <option value="price-asc">Price: Low to High</option>
+                      <option value="price-desc">Price: High to Low</option>
+                      <option value="rating">Top Rated</option>
+                    </select>
+                  </div>
+
+                  <div className="view-toggle-group">
+                    <button
+                      type="button"
+                      className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                      onClick={() => setViewMode('grid')}
+                      aria-label="Grid view"
+                      title="Grid view"
+                    >
+                      <LayoutGrid size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                      onClick={() => setViewMode('list')}
+                      aria-label="List view"
+                      title="List view"
+                    >
+                      <List size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
               
               {isAppLoading ? (
-                <div className="product-grid">
+                <div className={viewMode === 'list' ? 'product-list' : 'product-grid'}>
                   {[1, 2, 3, 4].map(n => (
-                    <div key={n} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div className="skeleton-image skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
-                      <div className="skeleton-text title skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
-                      <div className="skeleton-text skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
-                      <div className="skeleton-text short skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                    <div key={n} style={{ display: 'flex', flexDirection: viewMode === 'list' ? 'row' : 'column', gap: '12px' }}>
+                      <div className="skeleton-image skeleton-pulse" style={{ backgroundColor: '#f0f0f1', width: viewMode === 'list' ? '220px' : '100%', flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div className="skeleton-text title skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                        <div className="skeleton-text skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                        <div className="skeleton-text short skeleton-pulse" style={{ backgroundColor: '#f0f0f1' }} />
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                  <h3>No products found matching your search.</h3>
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-mute)' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>🔍</div>
+                  <h3 style={{ fontWeight: 600, marginBottom: '8px' }}>No products found</h3>
+                  <p style={{ fontSize: '14px' }}>Try adjusting your search or filter to find what you're looking for.</p>
                 </div>
               ) : (
-                <div className="product-grid">
+                <div className={viewMode === 'list' ? 'product-list' : 'product-grid'}>
                   {filteredProducts.map(prod => (
                     <ProductCard
                       key={prod.id}
@@ -930,6 +991,7 @@ function App() {
                       onSelectProduct={() => {}}
                       isWishlisted={wishlist.includes(prod.id)}
                       onToggleWishlist={handleToggleWishlist}
+                      viewMode={viewMode}
                     />
                   ))}
                 </div>

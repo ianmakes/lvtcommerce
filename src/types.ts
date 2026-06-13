@@ -155,6 +155,7 @@ export interface ShopSettings {
   paystackMode?: 'live' | 'test';
   codActive?: boolean;
   rolesConfig?: Record<string, Record<string, boolean>>;
+  shopPageDefaultView?: 'grid' | 'list';
 }
 
 export interface HomeSlide {

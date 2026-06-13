@@ -9,6 +9,7 @@ interface ProductCardProps {
   onSelectProduct: (product: Product) => void;
   isWishlisted: boolean;
   onToggleWishlist: (productId: string, e: React.MouseEvent) => void;
+  viewMode?: 'grid' | 'list';
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -16,6 +17,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onSelectProduct,
   isWishlisted,
   onToggleWishlist,
+  viewMode = 'grid',
 }) => {
   const formattedPrice = product.basePrice.toLocaleString();
   const hasVariants = product.variants && product.variants.length > 0;
@@ -50,7 +52,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   return (
-    <article className="prod-card" onClick={handleCardClick} style={{ cursor: 'pointer' }}>
+    <article className={`prod-card ${viewMode === 'list' ? 'list-view' : ''}`} onClick={handleCardClick} style={{ cursor: 'pointer' }}>
       <div className="prod-img-container">
         {/* Promo Badge */}
         {product.badge && (
@@ -106,6 +108,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <span className="prod-card-category">{(product.categories && product.categories.length > 0) ? product.categories[0] : product.category}</span>
         <h3 className="prod-card-title">{product.name}</h3>
         
+        {/* Description excerpt — only shown in list view */}
+        {viewMode === 'list' && (
+          <p className="prod-card-description">{product.description}</p>
+        )}
+
         <div className="prod-card-price-row">
           {isOnSale && originalPrice ? (
             <>
@@ -119,6 +126,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           )}
         </div>
+
+        {/* View Details link — only shown in list view */}
+        {viewMode === 'list' && (
+          <span className="prod-card-view-link">View Details &rarr;</span>
+        )}
       </div>
     </article>
   );

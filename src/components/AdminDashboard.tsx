@@ -93,7 +93,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
   
-  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax'>('general');
+  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage'>('general');
 
   // Users list state
   const [usersList, setUsersList] = useState<BuyerProfile[]>([]);
@@ -1779,6 +1779,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   >
                     Tax Details
                   </button>
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'shoppage' ? 'active' : ''}`}
+                    onClick={() => setSettingsSubTab('shoppage')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'shoppage' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'shoppage' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Shop Page
+                  </button>
                 </aside>
 
                 {/* Sub-panel Content Box */}
@@ -2727,6 +2735,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </table>
                         </div>
                       </div>
+                    )}
+
+                    {/* SUB-TAB: Shop Page Settings */}
+                    {settingsSubTab === 'shoppage' && (
+                      <form onSubmit={handleSaveSettingsSubmit}>
+                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 6px', textTransform: 'uppercase' }}>Shop Page Settings</h2>
+                        <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 24px' }}>Configure the default appearance and behavior of your storefront shop page.</p>
+                        
+                        <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <tbody>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Default Product View</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                                    <input
+                                      type="radio"
+                                      name="shopPageDefaultView"
+                                      value="grid"
+                                      checked={(localSettings.shopPageDefaultView || 'grid') === 'grid'}
+                                      onChange={() => setLocalSettings(prev => ({ ...prev, shopPageDefaultView: 'grid' }))}
+                                    />
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                                      Grid View
+                                    </span>
+                                  </label>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                                    <input
+                                      type="radio"
+                                      name="shopPageDefaultView"
+                                      value="list"
+                                      checked={(localSettings.shopPageDefaultView || 'grid') === 'list'}
+                                      onChange={() => setLocalSettings(prev => ({ ...prev, shopPageDefaultView: 'list' }))}
+                                    />
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                                      List View
+                                    </span>
+                                  </label>
+                                </div>
+                                <p style={{ fontSize: '12px', color: '#646970', margin: '8px 0 0', lineHeight: 1.5 }}>Choose whether products on the shop page should initially display as a grid of cards or a vertical list. Customers can still toggle between views.</p>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #f0f1f1' }}>
+                          <button type="submit" className="wp-button-primary" disabled={isLoading}>
+                            {isLoading ? 'Saving...' : 'Save Shop Page Settings'}
+                          </button>
+                        </div>
+                      </form>
                     )}
 
                   </div>
