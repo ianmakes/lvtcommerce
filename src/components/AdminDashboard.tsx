@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
   Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail,
-  Boxes
+  Boxes, Send
 } from 'lucide-react';
 import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier } from '../types';
 import { 
@@ -23,7 +23,7 @@ import {
 import { initializeApp, deleteApp } from 'firebase/app';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
-import { compileEmailTemplate, sendOrderStatusEmail } from '../utils/emailService';
+import { compileEmailTemplate, sendOrderStatusEmail, sendTestEmail } from '../utils/emailService';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
@@ -105,6 +105,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   
   const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage'>('general');
   const [selectedTemplateTab, setSelectedTemplateTab] = useState<'order_customer' | 'order_admin' | 'order_status'>('order_customer');
+
+  // Test email delivery states
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailStatus, setTestEmailStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // 2FA state variables
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -1468,6 +1473,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Send Test Email Delivery Handler
+  const handleSendTestEmailClick = async () => {
+    if (!testEmailAddress || !testEmailAddress.includes('@')) {
+      setTestEmailStatus({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+    
+    setIsSendingTestEmail(true);
+    setTestEmailStatus(null);
+    
+    try {
+      await sendTestEmail(testEmailAddress.trim(), localSettings);
+      setTestEmailStatus({ type: 'success', message: `Test email dispatched to ${testEmailAddress.trim()} successfully! Check inbox/spam or check Firestore sent_emails log.` });
+    } catch (err: any) {
+      console.error(err);
+      setTestEmailStatus({ type: 'error', message: `Delivery failed: ${err.message || String(err)}` });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
   // User CRUD Handlers
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2802,6 +2828,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               )}
                             </tbody>
                           </table>
+
+                          {/* Test Email Delivery Section */}
+                          <div style={{ marginTop: '30px', borderTop: '1px solid #c3c4c7', paddingTop: '20px' }}>
+                            <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 10px', color: '#1d2327', textTransform: 'uppercase' }}>
+                              Test Email Delivery
+                            </h3>
+                            <p style={{ fontSize: '13px', color: '#50575e', margin: '0 0 15px' }}>
+                              Verify that your Resend API configurations are working correctly by sending a mock checkout template email.
+                            </p>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', maxWidth: '500px' }}>
+                              <input 
+                                type="email"
+                                placeholder="test-recipient@domain.com"
+                                style={{ flex: 1, padding: '8px 10px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                value={testEmailAddress}
+                                onChange={e => setTestEmailAddress(e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                className="wp-button-secondary"
+                                disabled={isSendingTestEmail}
+                                onClick={handleSendTestEmailClick}
+                                style={{ padding: '8px 16px', fontSize: '13px', minHeight: '36px', height: '36px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                              >
+                                <Send size={14} />
+                                {isSendingTestEmail ? 'Sending...' : 'Send Test Email'}
+                              </button>
+                            </div>
+                            {testEmailStatus && (
+                              <div style={{ 
+                                marginTop: '10px', 
+                                padding: '10px 14px', 
+                                borderRadius: '4px', 
+                                fontSize: '13px', 
+                                borderLeft: '4px solid',
+                                borderColor: testEmailStatus.type === 'success' ? '#46b450' : '#d63638',
+                                background: testEmailStatus.type === 'success' ? '#ecf7ed' : '#fcf0f1',
+                                color: testEmailStatus.type === 'success' ? '#2e6b34' : '#a22d2f',
+                                maxWidth: '500px'
+                              }}>
+                                {testEmailStatus.message}
+                              </div>
+                            )}
+                          </div>
 
                           <div style={{ marginTop: '40px', borderTop: '1px solid #c3c4c7', paddingTop: '30px' }}>
                             <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 15px', color: '#1d2327', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>

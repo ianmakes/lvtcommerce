@@ -283,6 +283,40 @@ export async function sendOrderStatusEmail(order: Order, settings: ShopSettings,
 }
 
 /**
+ * Sends a test email to verify Resend/SMTP setup
+ */
+export async function sendTestEmail(to: string, settings: ShopSettings): Promise<void> {
+  const mockOrderForTest: Order = {
+    id: 'ord-TEST',
+    customerName: 'Test Recipient',
+    customerPhone: '0700000000',
+    customerAddress: '123 Test Street, Nairobi, Kenya',
+    items: [
+      { productId: 'prod-test', name: 'Test Configuration Product', variantDetails: 'Standard Option', price: 1000, quantity: 1 }
+    ],
+    totalAmount: 1000,
+    paymentStatus: 'Pending',
+    orderStatus: 'Pending',
+    createdAt: new Date().toISOString(),
+    subtotal: 1000,
+    taxAmount: 0,
+    shippingFee: 0,
+    buyerEmail: to
+  };
+
+  const { subject, html } = compileEmailTemplate('order_customer', mockOrderForTest, settings);
+  
+  await deliverEmail({
+    to,
+    subject: `[TEST] ${subject}`,
+    html: html.replace(/Thank You for Your Order!/g, '[TEST EMAIL] Resend Setup Verified Successfully!'),
+    settings,
+    orderId: 'TEST-ORDER-ID',
+    type: 'order_customer'
+  });
+}
+
+/**
  * Delivers email using Resend API (or simulates SMTP) and logs to Firestore
  */
 async function deliverEmail({
