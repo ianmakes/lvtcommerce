@@ -1758,8 +1758,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <header className="wp-admin-bar">
         <div className="wp-admin-bar-left">
           <span style={{ fontWeight: 'bold', color: '#fff', marginRight: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ backgroundColor: '#2271b1', width: '20px', height: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', borderRadius: '3px', fontSize: '11px', fontWeight: 900 }}>G</span>
-            GoldenCare Admin
+            <span style={{ backgroundColor: '#2271b1', width: '20px', height: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff', borderRadius: '3px', fontSize: '11px', fontWeight: 900 }}>
+              {(localSettings.shopName || 'G').charAt(0).toUpperCase()}
+            </span>
+            {localSettings.shopName || 'GoldenCare'} Admin
           </span>
           <a href="/" className="wp-admin-bar-link" target="_blank" rel="noopener noreferrer">
             <ExternalLink size={14} />
