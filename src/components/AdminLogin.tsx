@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, signOut, getMultiFactorResolver, TotpMultiFactorGenerator } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, getMultiFactorResolver, TotpMultiFactorGenerator, MultiFactorResolver, MultiFactorError, User as FirebaseUser } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { getBuyerProfile } from '../db';
@@ -29,14 +29,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
 
   // MFA Challenge State
   const [showMfaChallenge, setShowMfaChallenge] = useState(false);
-  const [mfaResolver, setMfaResolver] = useState<any>(null);
+  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null);
   const [totpInput, setTotpInput] = useState('');
   const [recoveryInput, setRecoveryInput] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState('');
   const [mfaChallengeType, setMfaChallengeType] = useState<'totp' | 'recovery'>('totp');
 
-  const checkAdminAccess = async (user: any) => {
+  const checkAdminAccess = async (user: FirebaseUser) => {
     if (user.uid === superAdminUid) {
       onLoginSuccess();
     } else {
@@ -69,7 +69,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       console.error("Login error:", error);
       const firebaseError = error as { code?: string; message?: string };
       if (firebaseError.code === 'auth/multi-factor-auth-required') {
-        const resolver = getMultiFactorResolver(auth, error as any);
+        const resolver = getMultiFactorResolver(auth, error as MultiFactorError);
         setMfaResolver(resolver);
         setShowMfaChallenge(true);
         setMfaChallengeType('totp');
@@ -99,7 +99,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       const user = userCredential.user;
 
       await checkAdminAccess(user);
-    } catch (error: any) {
+    } catch (error) {
       console.error("MFA TOTP verification failed:", error);
       setMfaError("Invalid verification code. Please check your app and try again.");
     } finally {
@@ -162,9 +162,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({
       });
 
       await checkAdminAccess(user);
-    } catch (error: any) {
-      console.error("MFA Recovery Code verification failed:", error);
-      setMfaError(error.message || "Failed to verify recovery code. Please try again.");
+    } catch (error) {
+      const err = error as Error;
+      console.error("MFA Recovery Code verification failed:", err);
+      setMfaError(err.message || "Failed to verify recovery code. Please try again.");
     } finally {
       setMfaLoading(false);
     }
