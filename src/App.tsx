@@ -737,6 +737,10 @@ function App() {
             onToggleWishlist={(product) => handleToggleWishlist(product.id)}
             onQuickView={(product) => setQuickViewProduct(product)}
             handleShowToast={handleShowToast}
+            onSelectCategory={(categoryName) => {
+              setSelectedCategory(categoryName);
+              navigate('/shop');
+            }}
           />
         )}
 

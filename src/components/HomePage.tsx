@@ -5,10 +5,6 @@ import {
   Lock, 
   ChevronRight, 
   Star, 
-  ArrowRight,
-  TrendingUp,
-  Sparkles,
-  Heart,
   ChevronLeft
 } from 'lucide-react';
 import { Product, HomeSlide, Category } from '../types';
@@ -26,6 +22,7 @@ interface HomePageProps {
   onToggleWishlist: (product: Product) => void;
   onQuickView: (product: Product) => void;
   handleShowToast: (msg: string, type: 'success' | 'warning') => void;
+  onSelectCategory: (category: string) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -37,13 +34,11 @@ export const HomePage: React.FC<HomePageProps> = ({
   dbCategories,
   navigate,
   onAddToCart,
-  isWishlisted,
-  onToggleWishlist,
   onQuickView,
-  handleShowToast
+  handleShowToast,
+  onSelectCategory
 }) => {
   const [selectedTab, setSelectedTab] = useState<string>('All');
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
 
   // Auto advance hero slider
   useEffect(() => {
@@ -69,24 +64,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     return getYouTubeEmbedUrl(url) || getVimeoEmbedUrl(url);
   };
 
-  // Helper to slice products for columns
-  const getBestSellers = () => {
-    return [...products]
-      .sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0))
-      .slice(0, 4);
-  };
-
-  const getNewArrivals = () => {
-    // Just slice or sort by id descending (assuming newer ones have higher IDs or are later in the array)
-    return [...products].reverse().slice(0, 4);
-  };
-
-  const getRecommended = () => {
-    return products.filter(p => p.isFeatured).slice(0, 4).length > 0
-      ? products.filter(p => p.isFeatured).slice(0, 4)
-      : products.slice(0, 4);
-  };
-
   // Filter products by tab
   const getFilteredProductsForTab = () => {
     if (selectedTab === 'All') {
@@ -97,33 +74,10 @@ export const HomePage: React.FC<HomePageProps> = ({
       .slice(0, 8);
   };
 
-  // Static Testimonials
-  const testimonials = [
-    {
-      id: 1,
-      name: "Arlene McCoy",
-      role: "Customer",
-      rating: 5,
-      avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face",
-      content: "The Carbon Fiber Walking Staff completely transformed my morning routines. It is incredibly lightweight and looks absolutely beautiful. Excellent customer support too!"
-    },
-    {
-      id: 2,
-      name: "Eleanor Pena",
-      role: "Designer",
-      rating: 5,
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face",
-      content: "I'm obsessed with the Smart Modular Capsule Pod. It sits on my counter like a piece of modern art, and the Bluetooth reminders make sure I never miss my wellness routine."
-    },
-    {
-      id: 3,
-      name: "Guy Hawkins",
-      role: "Active Recovery",
-      rating: 4,
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      content: "High quality thermal recovery wraps. The heat settings are precise, and the battery life is solid. It's definitely premium grade."
-    }
-  ];
+  // Get dynamic categories list for sidebar
+  const sidebarCategoriesList = dbCategories.length > 0 
+    ? dbCategories.map(c => c.name) 
+    : categories.filter(c => c !== 'All');
 
   return (
     <div className="homepage-redesign">
@@ -132,7 +86,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="homepage-hero-section">
         <div className="container hero-split-container">
           
-          {/* Left Sidebar Menu */}
+          {/* Left Sidebar Menu (Fully Dynamic Realtime Categories) */}
           <div className="hero-category-sidebar">
             <div className="sidebar-header">
               <span className="hamburger-lines">
@@ -143,33 +97,12 @@ export const HomePage: React.FC<HomePageProps> = ({
               <h3>All Categories</h3>
             </div>
             <ul className="sidebar-list">
-              {dbCategories.map(cat => (
-                <li key={cat.id} className="sidebar-item" onClick={() => navigate('/shop')}>
-                  <span>{cat.name}</span>
+              {sidebarCategoriesList.map(catName => (
+                <li key={catName} className="sidebar-item" onClick={() => onSelectCategory(catName)}>
+                  <span>{catName}</span>
                   <ChevronRight size={14} className="sidebar-arrow" />
                 </li>
               ))}
-              {/* Fillers to match the screenshot if categories are few */}
-              {dbCategories.length < 5 && (
-                <>
-                  <li className="sidebar-item" onClick={() => navigate('/shop')}>
-                    <span>Wellness Wearables</span>
-                    <ChevronRight size={14} className="sidebar-arrow" />
-                  </li>
-                  <li className="sidebar-item" onClick={() => navigate('/shop')}>
-                    <span>Smart Organizers</span>
-                    <ChevronRight size={14} className="sidebar-arrow" />
-                  </li>
-                  <li className="sidebar-item" onClick={() => navigate('/shop')}>
-                    <span>Daily Visual Aids</span>
-                    <ChevronRight size={14} className="sidebar-arrow" />
-                  </li>
-                  <li className="sidebar-item" onClick={() => navigate('/shop')}>
-                    <span>Recovery Supports</span>
-                    <ChevronRight size={14} className="sidebar-arrow" />
-                  </li>
-                </>
-              )}
             </ul>
           </div>
 
@@ -200,9 +133,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                   )}
                   
                   <div className="slide-content-wrapper">
-                    <span className="slide-tagline">16X Digital Zoom 1080P HD SLR Camera</span>
-                    <h1 className="slide-title-display">{slide.title}</h1>
-                    <p className="slide-description-text">{slide.description}</p>
+                    <span className="slide-tagline" style={{ color: '#e8eaf6' }}>16X Digital Zoom 1080P HD SLR Camera</span>
+                    <h1 className="slide-title-display" style={{ color: '#ffffff' }}>{slide.title}</h1>
+                    <p className="slide-description-text" style={{ color: 'rgba(255, 255, 255, 0.95)' }}>{slide.description}</p>
                     <div className="slide-actions-row">
                       <button 
                         className="btn-red-action" 
@@ -322,7 +255,6 @@ export const HomePage: React.FC<HomePageProps> = ({
           
           <div className="deals-products-grid">
             {products.slice(0, 4).map((prod, idx) => {
-              // Create dynamic discounts to simulate screenshot
               const discounts = ["-15%", "-10%", "-25%", "-20%"];
               const disc = discounts[idx % discounts.length];
               return (
@@ -358,7 +290,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="container">
           <div className="promo-banner-blue">
             <div className="promo-banner-content">
-              <h2>Celebrate July with Discounts on All Phone Accessories!</h2>
+              <h2 style={{ color: '#ffffff' }}>Celebrate July with Discounts on All Phone Accessories!</h2>
               <div className="promo-banner-actions">
                 <button className="btn-red-action" onClick={() => navigate('/shop')}>
                   Shop Recently &rarr;
@@ -377,103 +309,47 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </section>
 
-      {/* 5. Product Columns (3-up) */}
-      <section className="homepage-columns-section">
-        <div className="container">
-          <div className="columns-grid">
-            
-            {/* Column 1: Best Sellers */}
-            <div className="product-column-box">
-              <h3 className="column-heading">Best Sellers</h3>
-              <div className="column-items-list">
-                {getBestSellers().map(prod => (
-                  <div key={prod.id} className="column-product-row" onClick={() => navigate(`/product/${prod.id}`)}>
-                    <div className="column-img-box">
-                      <img src={prod.image} alt={prod.name} />
-                    </div>
-                    <div className="column-text-box">
-                      <h4>{prod.name}</h4>
-                      <p className="column-price">KSh {prod.basePrice.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Column 2: New Arrival */}
-            <div className="product-column-box">
-              <h3 className="column-heading">New Arrival</h3>
-              <div className="column-items-list">
-                {getNewArrivals().map(prod => (
-                  <div key={prod.id} className="column-product-row" onClick={() => navigate(`/product/${prod.id}`)}>
-                    <div className="column-img-box">
-                      <img src={prod.image} alt={prod.name} />
-                    </div>
-                    <div className="column-text-box">
-                      <h4>{prod.name}</h4>
-                      <p className="column-price">KSh {prod.basePrice.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Column 3: Recommended for you */}
-            <div className="product-column-box">
-              <h3 className="column-heading">Recommended for you</h3>
-              <div className="column-items-list">
-                {getRecommended().map(prod => (
-                  <div key={prod.id} className="column-product-row" onClick={() => navigate(`/product/${prod.id}`)}>
-                    <div className="column-img-box">
-                      <img src={prod.image} alt={prod.name} />
-                    </div>
-                    <div className="column-text-box">
-                      <h4>{prod.name}</h4>
-                      <p className="column-price">KSh {prod.basePrice.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Two Promo Cards side-by-side */}
+      {/* 6. Two Promo Cards side-by-side (Linked to actual dynamic products) */}
       <section className="homepage-two-banners-section">
         <div className="container">
           <div className="two-banners-grid">
             
             {/* Banner 1 */}
-            <div className="promo-card-box purple-gradient-box">
+            <div className="promo-card-box purple-gradient-box" onClick={() => products[0] && navigate(`/product/${products[0].id}`)} style={{ cursor: 'pointer' }}>
               <div className="promo-card-text">
-                <span className="promo-badge-text">Save Up To 70%</span>
-                <h3>Great discounts on accessories</h3>
-                <p className="promo-price-tag">$120.00</p>
-                <button className="btn-red-action-small" onClick={() => navigate('/shop')}>
+                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>Save Up To 70%</span>
+                <h3 style={{ color: '#ffffff' }}>{products[0] ? products[0].name : "Great discounts on accessories"}</h3>
+                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>{products[0] ? `KSh ${products[0].basePrice.toLocaleString()}` : "$120.00"}</p>
+                <button className="btn-red-action-small" onClick={(e) => {
+                  e.stopPropagation();
+                  products[0] && navigate(`/product/${products[0].id}`);
+                }}>
                   Shop Now &rarr;
                 </button>
               </div>
               <div className="promo-card-image-box">
                 {products[0] && (
-                  <img src={products[0].image} alt="Featured product" className="floating-img" />
+                  <img src={products[0].image} alt={products[0].name} className="floating-img" />
                 )}
               </div>
             </div>
 
             {/* Banner 2 */}
-            <div className="promo-card-box dark-navy-box">
+            <div className="promo-card-box dark-navy-box" onClick={() => products[1] && navigate(`/product/${products[1].id}`)} style={{ cursor: 'pointer' }}>
               <div className="promo-card-text">
-                <span className="promo-badge-text">Local Alarm Clock</span>
-                <h3>Smart alarm for daily routine</h3>
-                <button className="btn-red-action-small" onClick={() => navigate('/shop')}>
+                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>Local Alarm Clock</span>
+                <h3 style={{ color: '#ffffff' }}>{products[1] ? products[1].name : "Smart alarm for daily routine"}</h3>
+                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>{products[1] ? `KSh ${products[1].basePrice.toLocaleString()}` : ""}</p>
+                <button className="btn-red-action-small" onClick={(e) => {
+                  e.stopPropagation();
+                  products[1] && navigate(`/product/${products[1].id}`);
+                }}>
                   Shop Now &rarr;
                 </button>
               </div>
               <div className="promo-card-image-box">
                 {products[1] && (
-                  <img src={products[1].image} alt="Featured product" className="floating-img" />
+                  <img src={products[1].image} alt={products[1].name} className="floating-img" />
                 )}
               </div>
             </div>
@@ -570,46 +446,6 @@ export const HomePage: React.FC<HomePageProps> = ({
             <div className="brand-logo-item">
               <span className="logo-placeholder-text">LogoIpsum</span>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 9. Testimonials */}
-      <section className="homepage-testimonials-section">
-        <div className="container">
-          <div className="testimonials-list-row">
-            {testimonials.map((test, idx) => (
-              <div 
-                key={test.id} 
-                className={`testimonial-single-card ${idx === activeTestimonial ? 'active' : ''}`}
-                style={{ display: idx === activeTestimonial ? 'flex' : 'none' }}
-              >
-                <div className="testimonial-avatar-box">
-                  <img src={test.avatar} alt={test.name} />
-                </div>
-                <div className="testimonial-content-box">
-                  <div className="testimonial-stars">
-                    {[...Array(test.rating)].map((_, i) => (
-                      <Star key={i} size={14} fill="#dba617" color="#dba617" />
-                    ))}
-                  </div>
-                  <p className="testimonial-quote">"{test.content}"</p>
-                  <h4 className="testimonial-author">{test.name}</h4>
-                  <span className="testimonial-role">{test.role}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="testimonials-nav-dots">
-            {testimonials.map((_, idx) => (
-              <button
-                key={idx}
-                className={`testimonial-nav-dot ${idx === activeTestimonial ? 'active' : ''}`}
-                onClick={() => setActiveTestimonial(idx)}
-                aria-label={`Go to testimonial ${idx + 1}`}
-              />
-            ))}
           </div>
         </div>
       </section>
