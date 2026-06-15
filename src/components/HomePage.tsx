@@ -45,7 +45,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     if (slides.length <= 1) return;
     const interval = setInterval(() => {
       setActiveSlide(prev => (prev + 1) % slides.length);
-    }, 6000);
+    }, 9000);
     return () => clearInterval(interval);
   }, [slides.length, setActiveSlide]);
 
@@ -165,43 +165,19 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
             )}
 
-            {/* Slider Controls */}
+            {/* Slider Controls (Dots only, arrows removed) */}
             {slides.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  className="slider-control-nav prev"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveSlide(prev => (prev - 1 + slides.length) % slides.length);
-                  }}
-                  aria-label="Previous slide"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <button
-                  type="button"
-                  className="slider-control-nav next"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveSlide(prev => (prev + 1) % slides.length);
-                  }}
-                  aria-label="Next slide"
-                >
-                  <ChevronRight size={20} />
-                </button>
-                <div className="slider-nav-dots">
-                  {slides.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      className={`slider-nav-dot ${idx === activeSlide ? 'active' : ''}`}
-                      onClick={() => setActiveSlide(idx)}
-                      aria-label={`Go to slide ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-              </>
+              <div className="slider-nav-dots">
+                {slides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`slider-nav-dot ${idx === activeSlide ? 'active' : ''}`}
+                    onClick={() => setActiveSlide(idx)}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
@@ -258,10 +234,34 @@ export const HomePage: React.FC<HomePageProps> = ({
               const discounts = ["-15%", "-10%", "-25%", "-20%"];
               const disc = discounts[idx % discounts.length];
               return (
-                <div key={prod.id} className="deal-product-card" onClick={() => navigate(`/product/${prod.id}`)}>
+                <div key={prod.id} className="deal-product-card featured-highlight" onClick={() => navigate(`/product/${prod.id}`)}>
                   <div className="deal-img-wrapper">
                     <span className="deal-badge-percent">{disc}</span>
+                    <span className="deal-badge-featured">FEATURED</span>
                     <img src={prod.image} alt={prod.name} className="deal-product-image" />
+                    
+                    {/* Action overlays for add to cart and quick view */}
+                    <div className="deal-hover-actions">
+                      <button 
+                        className="btn-quickview"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onQuickView(prod);
+                        }}
+                      >
+                        Quick View
+                      </button>
+                      <button 
+                        className="btn-add-cart"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToCart(prod, 1);
+                          handleShowToast(`${prod.name} added to cart!`, 'success');
+                        }}
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
                   </div>
                   <div className="deal-info-wrapper">
                     <h4 className="deal-product-name">{prod.name}</h4>

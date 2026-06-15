@@ -23,6 +23,7 @@ import {
 import { initializeApp, deleteApp } from 'firebase/app';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
+import { compileEmailTemplate, sendOrderStatusEmail } from '../utils/emailService';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
@@ -103,6 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
   
   const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage'>('general');
+  const [selectedTemplateTab, setSelectedTemplateTab] = useState<'order_customer' | 'order_admin' | 'order_status'>('order_customer');
 
   // 2FA state variables
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -1364,6 +1366,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsLoading(true);
     try {
       await updateOrderStatus(orderId, status, paymentStatus);
+
+      // Trigger status update email
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        try {
+          await sendOrderStatusEmail(order, localSettings, status);
+        } catch (mailErr) {
+          console.error("Failed to send status update email:", mailErr);
+        }
+      }
+
       await loadAdminData();
       
       // Update drawer if open
@@ -1380,6 +1393,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper for email template builder
+  const handleInjectPlaceholder = (fieldId: string, placeholder: string) => {
+    const textarea = document.getElementById(fieldId) as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const before = text.substring(0, start);
+      const after = text.substring(end, text.length);
+      const newValue = before + placeholder + after;
+      
+      setLocalSettings(prev => ({
+        ...prev,
+        [fieldId]: newValue
+      }));
+      
+      // Reset focus and cursor position after state updates
+      setTimeout(() => {
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + placeholder.length;
+      }, 0);
+    } else {
+      // Append to the end of the text if no focus found
+      const currentValue = (localSettings as any)[fieldId] || '';
+      setLocalSettings(prev => ({
+        ...prev,
+        [fieldId]: currentValue + placeholder
+      }));
+    }
+  };
+
+  const renderPlaceholderButtons = (fieldId: string) => {
+    const tags = [
+      { label: 'Customer Name', value: '{{customerName}}' },
+      { label: 'Order ID', value: '{{orderId}}' },
+      { label: 'Total Amount', value: '{{totalAmount}}' },
+      { label: 'Order Status', value: '{{orderStatus}}' },
+      { label: 'Shop Name', value: '{{shopName}}' },
+      { label: 'Delivery Address', value: '{{customerAddress}}' },
+      { label: 'Phone Number', value: '{{customerPhone}}' }
+    ];
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', margin: '4px 0 8px' }}>
+        {tags.map(tag => (
+          <button
+            key={tag.value}
+            type="button"
+            onClick={() => handleInjectPlaceholder(fieldId, tag.value)}
+            style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #c3c4c7', borderRadius: '3px', background: '#f6f7f7', cursor: 'pointer', color: '#2271b1' }}
+          >
+            + {tag.label}
+          </button>
+        ))}
+      </div>
+    );
   };
 
   // Save Settings to Firestore
@@ -2613,6 +2683,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </td>
                             </tr>
 
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Sender Email Address</th>
+                              <td style={{ padding: '10px 0' }}>
+                                <input 
+                                  type="email" 
+                                  placeholder="e.g. orders@yourdomain.com"
+                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                  value={localSettings.emailFromAddress || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, emailFromAddress: e.target.value })}
+                                />
+                                <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#666' }}>
+                                  The email address that sends customer orders. If using Resend sandbox, use your registered account email or <strong>onboarding@resend.dev</strong>.
+                                </p>
+                              </td>
+                            </tr>
+
                             {localSettings.emailProvider === 'resend' ? (
                               <tr>
                                 <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Resend API Key</th>
@@ -2694,9 +2780,479 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             )}
                           </tbody>
                         </table>
-                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
-                        <button type="submit" className="wp-button-primary">Save SMTP Settings</button>
-                      </form>
+                    {settingsSubTab === 'smtp' && (() => {
+                      const mockOrderForPreview: Order = {
+                        id: 'ord-5739',
+                        customerName: 'Margaret Wambui',
+                        customerPhone: '0712345678',
+                        customerAddress: 'Flat 4, Palms Court, Kilimani, Nairobi, Kenya',
+                        items: [
+                          { productId: 'prod-cane', name: 'GC-01 Carbon Fiber Walking Staff', variantDetails: 'Handle Grip: Premium Cork, Color: Stealth Black', price: 18500, quantity: 1 },
+                          { productId: 'prod-magnify', name: 'GC-04 Ultra-Thin LED Page Reader', variantDetails: 'Standard Option', price: 8500, quantity: 1 }
+                        ],
+                        totalAmount: 27000,
+                        paymentStatus: 'Paid',
+                        orderStatus: 'Paid',
+                        createdAt: new Date().toISOString(),
+                        subtotal: 27000,
+                        taxAmount: 4320,
+                        shippingFee: 0,
+                        buyerEmail: 'customer@example.com'
+                      };
+
+                      const renderedPreview = compileEmailTemplate(selectedTemplateTab, mockOrderForPreview, localSettings, 'Paid');
+
+                      return (
+                        <form onSubmit={handleSaveSettingsSubmit}>
+                          <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>SMTP & Email Settings</h2>
+                          <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                            <tbody>
+                              <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Email Provider</th>
+                                <td style={{ padding: '10px 0', display: 'flex', gap: '20px' }}>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                                    <input 
+                                      type="radio" 
+                                      name="emailProvider" 
+                                      value="resend" 
+                                      checked={localSettings.emailProvider === 'resend'}
+                                      onChange={() => setLocalSettings({ ...localSettings, emailProvider: 'resend' })}
+                                    />
+                                    <span>Resend Service API</span>
+                                  </label>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                                    <input 
+                                      type="radio" 
+                                      name="emailProvider" 
+                                      value="smtp" 
+                                      checked={localSettings.emailProvider === 'smtp'}
+                                      onChange={() => setLocalSettings({ ...localSettings, emailProvider: 'smtp' })}
+                                    />
+                                    <span>Custom SMTP Credentials</span>
+                                  </label>
+                                </td>
+                              </tr>
+
+                              <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Sender Email Address</th>
+                                <td style={{ padding: '10px 0' }}>
+                                  <input 
+                                    type="email" 
+                                    placeholder="e.g. orders@yourdomain.com"
+                                    style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                    value={localSettings.emailFromAddress || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, emailFromAddress: e.target.value })}
+                                  />
+                                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#666' }}>
+                                    The email address that sends customer orders. If using Resend sandbox, use your registered account email or <strong>onboarding@resend.dev</strong>.
+                                  </p>
+                                </td>
+                              </tr>
+
+                              {localSettings.emailProvider === 'resend' ? (
+                                <tr>
+                                  <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Resend API Key</th>
+                                  <td style={{ padding: '10px 0' }}>
+                                    <input 
+                                      type="password" 
+                                      placeholder="re_..."
+                                      style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                      value={localSettings.resendApiKey || ''}
+                                      onChange={e => setLocalSettings({ ...localSettings, resendApiKey: e.target.value })}
+                                    />
+                                  </td>
+                                </tr>
+                              ) : (
+                                <>
+                                  <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                    <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP Host</th>
+                                    <td style={{ padding: '10px 0' }}>
+                                      <input 
+                                        type="text" 
+                                        placeholder="smtp.mailgun.org"
+                                        style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.smtpHost || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, smtpHost: e.target.value })}
+                                      />
+                                    </td>
+                                  </tr>
+                                  <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                    <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP Port</th>
+                                    <td style={{ padding: '10px 0' }}>
+                                      <input 
+                                        type="number" 
+                                        placeholder="587"
+                                        style={{ width: '100px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.smtpPort || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, smtpPort: Number(e.target.value) })}
+                                      />
+                                    </td>
+                                  </tr>
+                                  <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                    <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP User / Email</th>
+                                    <td style={{ padding: '10px 0' }}>
+                                      <input 
+                                        type="text" 
+                                        placeholder="postmaster@domain.com"
+                                        style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.smtpUser || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, smtpUser: e.target.value })}
+                                      />
+                                    </td>
+                                  </tr>
+                                  <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                                    <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>SMTP Password</th>
+                                    <td style={{ padding: '10px 0' }}>
+                                      <input 
+                                        type="password" 
+                                        placeholder="SMTP password"
+                                        style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.smtpPassword || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, smtpPassword: e.target.value })}
+                                      />
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Encryption Type</th>
+                                    <td style={{ padding: '10px 0' }}>
+                                      <select 
+                                        style={{ width: '150px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.smtpEncryption || 'tls'}
+                                        onChange={e => setLocalSettings({ ...localSettings, smtpEncryption: e.target.value as 'ssl' | 'tls' | 'none' })}
+                                      >
+                                        <option value="ssl">SSL (Port 465)</option>
+                                        <option value="tls">TLS (Port 587)</option>
+                                        <option value="none">None (Plaintext)</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                </>
+                              )}
+                            </tbody>
+                          </table>
+
+                          <div style={{ marginTop: '40px', borderTop: '1px solid #c3c4c7', paddingTop: '30px' }}>
+                            <h3 style={{ fontSize: '15px', fontWeight: 600, margin: '0 0 15px', color: '#1d2327', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <Mail size={18} />
+                              <span>Dynamic Email Templates Designer</span>
+                            </h3>
+                            <p style={{ fontSize: '13px', color: '#50575e', margin: '0 0 20px' }}>
+                              Customize the templates for transactional emails sent to customers and administrators. Use placeholders like <code>{"{{customerName}}"}</code>, <code>{"{{orderId}}"}</code>, <code>{"{{totalAmount}}"}</code>, and <code>{"{{orderStatus}}"}</code> to insert dynamic details.
+                            </p>
+                            
+                            {/* Tab selectors for the template types */}
+                            <div style={{ display: 'flex', borderBottom: '1px solid #c3c4c7', marginBottom: '20px' }}>
+                              <button 
+                                type="button" 
+                                onClick={() => setSelectedTemplateTab('order_customer')}
+                                style={{ padding: '10px 20px', border: 'none', borderBottom: selectedTemplateTab === 'order_customer' ? '2px solid #2271b1' : 'none', background: 'transparent', fontWeight: selectedTemplateTab === 'order_customer' ? 600 : 400, color: selectedTemplateTab === 'order_customer' ? '#2271b1' : '#50575e', cursor: 'pointer', fontSize: '13px' }}
+                              >
+                                Customer Order Confirmation
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => setSelectedTemplateTab('order_admin')}
+                                style={{ padding: '10px 20px', border: 'none', borderBottom: selectedTemplateTab === 'order_admin' ? '2px solid #2271b1' : 'none', background: 'transparent', fontWeight: selectedTemplateTab === 'order_admin' ? 600 : 400, color: selectedTemplateTab === 'order_admin' ? '#2271b1' : '#50575e', cursor: 'pointer', fontSize: '13px' }}
+                              >
+                                Admin Order Alert
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => setSelectedTemplateTab('order_status')}
+                                style={{ padding: '10px 20px', border: 'none', borderBottom: selectedTemplateTab === 'order_status' ? '2px solid #2271b1' : 'none', background: 'transparent', fontWeight: selectedTemplateTab === 'order_status' ? 600 : 400, color: selectedTemplateTab === 'order_status' ? '#2271b1' : '#50575e', cursor: 'pointer', fontSize: '13px' }}
+                              >
+                                Order Status Update
+                              </button>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', alignItems: 'start' }}>
+                              {/* LEFT COLUMN: EDITING FORM */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                
+                                {selectedTemplateTab === 'order_customer' && (
+                                  <>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Subject Line</label>
+                                      <input 
+                                        type="text" 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateCustomerSubject || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateCustomerSubject: e.target.value })}
+                                        placeholder="e.g. Order Confirmation #{{orderId}} - {{shopName}}"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Header Title</label>
+                                      <input 
+                                        type="text" 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateCustomerHeader || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateCustomerHeader: e.target.value })}
+                                        placeholder="e.g. Thank You for Your Order!"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Layout Template Style</label>
+                                      <select 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateCustomerLayout || 'modern-gradient'}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateCustomerLayout: e.target.value })}
+                                      >
+                                        <option value="modern-gradient">Modern Gradient Header</option>
+                                        <option value="minimalist">Minimalist Clean Card</option>
+                                        <option value="warm-cozy">Warm Cozy Tones</option>
+                                        <option value="dark-mode">Dark Mode Premium</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Theme Accent Color</label>
+                                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <input 
+                                          type="color" 
+                                          style={{ width: '50px', height: '36px', padding: '0', border: '1px solid #c3c4c7', cursor: 'pointer' }}
+                                          value={localSettings.emailTemplateCustomerColor || '#1a237e'}
+                                          onChange={e => setLocalSettings({ ...localSettings, emailTemplateCustomerColor: e.target.value })}
+                                        />
+                                        <span style={{ fontSize: '12px', fontFamily: 'monospace' }}>{localSettings.emailTemplateCustomerColor || '#1a237e'}</span>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Intro Message</label>
+                                      {renderPlaceholderButtons('emailTemplateCustomerIntro')}
+                                      <textarea 
+                                        id="emailTemplateCustomerIntro"
+                                        rows={5}
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                        value={localSettings.emailTemplateCustomerIntro || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateCustomerIntro: e.target.value })}
+                                        placeholder="Hi {{customerName}},\n\nWe have received your order #{{orderId}}..."
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Footer Text</label>
+                                      {renderPlaceholderButtons('emailTemplateCustomerFooter')}
+                                      <textarea 
+                                        id="emailTemplateCustomerFooter"
+                                        rows={3}
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                        value={localSettings.emailTemplateCustomerFooter || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateCustomerFooter: e.target.value })}
+                                        placeholder="If you have any questions, contact support..."
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <input 
+                                        type="checkbox" 
+                                        id="emailTemplateCustomerIncludeItems"
+                                        checked={localSettings.emailTemplateCustomerIncludeItems !== false}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateCustomerIncludeItems: e.target.checked })}
+                                      />
+                                      <label htmlFor="emailTemplateCustomerIncludeItems" style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Include Order Items & Pricing Table</label>
+                                    </div>
+                                  </>
+                                )}
+
+                                {selectedTemplateTab === 'order_admin' && (
+                                  <>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Subject Line</label>
+                                      <input 
+                                        type="text" 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateAdminSubject || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateAdminSubject: e.target.value })}
+                                        placeholder="e.g. Alert: New Order #{{orderId}} Received"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Header Title</label>
+                                      <input 
+                                        type="text" 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateAdminHeader || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateAdminHeader: e.target.value })}
+                                        placeholder="e.g. New Customer Order"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Layout Template Style</label>
+                                      <select 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateAdminLayout || 'minimalist'}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateAdminLayout: e.target.value })}
+                                      >
+                                        <option value="modern-gradient">Modern Gradient Header</option>
+                                        <option value="minimalist">Minimalist Clean Card</option>
+                                        <option value="warm-cozy">Warm Cozy Tones</option>
+                                        <option value="dark-mode">Dark Mode Premium</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Theme Accent Color</label>
+                                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <input 
+                                          type="color" 
+                                          style={{ width: '50px', height: '36px', padding: '0', border: '1px solid #c3c4c7', cursor: 'pointer' }}
+                                          value={localSettings.emailTemplateAdminColor || '#0f172a'}
+                                          onChange={e => setLocalSettings({ ...localSettings, emailTemplateAdminColor: e.target.value })}
+                                        />
+                                        <span style={{ fontSize: '12px', fontFamily: 'monospace' }}>{localSettings.emailTemplateAdminColor || '#0f172a'}</span>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Intro Message</label>
+                                      {renderPlaceholderButtons('emailTemplateAdminIntro')}
+                                      <textarea 
+                                        id="emailTemplateAdminIntro"
+                                        rows={5}
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                        value={localSettings.emailTemplateAdminIntro || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateAdminIntro: e.target.value })}
+                                        placeholder="An order #{{orderId}} has been placed on {{shopName}}..."
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Footer Text</label>
+                                      {renderPlaceholderButtons('emailTemplateAdminFooter')}
+                                      <textarea 
+                                        id="emailTemplateAdminFooter"
+                                        rows={3}
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                        value={localSettings.emailTemplateAdminFooter || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateAdminFooter: e.target.value })}
+                                        placeholder="Please log in to the administrator portal..."
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <input 
+                                        type="checkbox" 
+                                        id="emailTemplateAdminIncludeItems"
+                                        checked={localSettings.emailTemplateAdminIncludeItems !== false}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateAdminIncludeItems: e.target.checked })}
+                                      />
+                                      <label htmlFor="emailTemplateAdminIncludeItems" style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Include Order Items & Pricing Table</label>
+                                    </div>
+                                  </>
+                                )}
+
+                                {selectedTemplateTab === 'order_status' && (
+                                  <>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Subject Line</label>
+                                      <input 
+                                        type="text" 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateStatusSubject || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateStatusSubject: e.target.value })}
+                                        placeholder="e.g. Update on Order #{{orderId}} - {{shopName}}"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Header Title</label>
+                                      <input 
+                                        type="text" 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateStatusHeader || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateStatusHeader: e.target.value })}
+                                        placeholder="e.g. Order Status Updated"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Layout Template Style</label>
+                                      <select 
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                        value={localSettings.emailTemplateStatusLayout || 'modern-gradient'}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateStatusLayout: e.target.value })}
+                                      >
+                                        <option value="modern-gradient">Modern Gradient Header</option>
+                                        <option value="minimalist">Minimalist Clean Card</option>
+                                        <option value="warm-cozy">Warm Cozy Tones</option>
+                                        <option value="dark-mode">Dark Mode Premium</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Theme Accent Color</label>
+                                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <input 
+                                          type="color" 
+                                          style={{ width: '50px', height: '36px', padding: '0', border: '1px solid #c3c4c7', cursor: 'pointer' }}
+                                          value={localSettings.emailTemplateStatusColor || '#1a237e'}
+                                          onChange={e => setLocalSettings({ ...localSettings, emailTemplateStatusColor: e.target.value })}
+                                        />
+                                        <span style={{ fontSize: '12px', fontFamily: 'monospace' }}>{localSettings.emailTemplateStatusColor || '#1a237e'}</span>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Intro Message</label>
+                                      {renderPlaceholderButtons('emailTemplateStatusIntro')}
+                                      <textarea 
+                                        id="emailTemplateStatusIntro"
+                                        rows={5}
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                        value={localSettings.emailTemplateStatusIntro || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateStatusIntro: e.target.value })}
+                                        placeholder="Hi {{customerName}},\n\nThe status of your order #{{orderId}} has been updated..."
+                                      />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Footer Text</label>
+                                      {renderPlaceholderButtons('emailTemplateStatusFooter')}
+                                      <textarea 
+                                        id="emailTemplateStatusFooter"
+                                        rows={3}
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }}
+                                        value={localSettings.emailTemplateStatusFooter || ''}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateStatusFooter: e.target.value })}
+                                        placeholder="Thank you for shopping with us!..."
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <input 
+                                        type="checkbox" 
+                                        id="emailTemplateStatusIncludeItems"
+                                        checked={localSettings.emailTemplateStatusIncludeItems !== false}
+                                        onChange={e => setLocalSettings({ ...localSettings, emailTemplateStatusIncludeItems: e.target.checked })}
+                                      />
+                                      <label htmlFor="emailTemplateStatusIncludeItems" style={{ fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Include Order Items & Pricing Table</label>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* RIGHT COLUMN: EMAIL CLIENT PREVIEW */}
+                              <div style={{ border: '1px solid #d3d4d5', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.07)' }}>
+                                <div style={{ background: '#f0f1f1', padding: '10px 15px', borderBottom: '1px solid #d3d4d5', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f56', display: 'inline-block' }}></span>
+                                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffbd2e', display: 'inline-block' }}></span>
+                                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#27c93f', display: 'inline-block' }}></span>
+                                  <span style={{ marginLeft: '10px', fontSize: '11px', color: '#666', fontFamily: 'sans-serif', fontWeight: 500 }}>
+                                    Live Email Client Preview
+                                  </span>
+                                </div>
+                                <div style={{ background: '#ffffff', padding: '12px 16px', borderBottom: '1px solid #edf2f7', fontSize: '12px', color: '#4a5568', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <div>
+                                    <strong style={{ color: '#2d3748' }}>From:</strong> {localSettings.emailFromAddress || 'onboarding@resend.dev'}
+                                  </div>
+                                  <div>
+                                    <strong style={{ color: '#2d3748' }}>To:</strong> {selectedTemplateTab === 'order_admin' ? (localSettings.adminEmail || 'admin@yourdomain.com') : 'customer@example.com'}
+                                  </div>
+                                  <div>
+                                    <strong style={{ color: '#2d3748' }}>Subject:</strong> <span style={{ color: '#2b6cb0', fontWeight: 600 }}>{renderedPreview.subject}</span>
+                                  </div>
+                                </div>
+                                <div 
+                                  style={{ background: '#f7fafc', padding: '20px', minHeight: '300px', maxHeight: '500px', overflowY: 'auto' }}
+                                  dangerouslySetInnerHTML={{ __html: renderedPreview.html }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                          <button type="submit" className="wp-button-primary">Save SMTP & Template Settings</button>
+                        </form>
+                      );
+                    })()}
                     )}
 
                     {/* SUB-TAB: Payment Options */}

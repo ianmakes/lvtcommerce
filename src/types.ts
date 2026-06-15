@@ -157,6 +157,28 @@ export interface ShopSettings {
   codActive?: boolean;
   rolesConfig?: Record<string, Record<string, boolean>>;
   shopPageDefaultView?: 'grid' | 'list';
+  emailFromAddress?: string;
+  emailTemplateCustomerSubject?: string;
+  emailTemplateCustomerHeader?: string;
+  emailTemplateCustomerIntro?: string;
+  emailTemplateCustomerFooter?: string;
+  emailTemplateCustomerLayout?: string;
+  emailTemplateCustomerColor?: string;
+  emailTemplateCustomerIncludeItems?: boolean;
+  emailTemplateAdminSubject?: string;
+  emailTemplateAdminHeader?: string;
+  emailTemplateAdminIntro?: string;
+  emailTemplateAdminFooter?: string;
+  emailTemplateAdminLayout?: string;
+  emailTemplateAdminColor?: string;
+  emailTemplateAdminIncludeItems?: boolean;
+  emailTemplateStatusSubject?: string;
+  emailTemplateStatusHeader?: string;
+  emailTemplateStatusIntro?: string;
+  emailTemplateStatusFooter?: string;
+  emailTemplateStatusLayout?: string;
+  emailTemplateStatusColor?: string;
+  emailTemplateStatusIncludeItems?: boolean;
 }
 
 export interface HomeSlide {

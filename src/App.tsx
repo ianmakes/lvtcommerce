@@ -24,6 +24,7 @@ import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as User
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
 import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist } from './db';
+import { sendOrderEmails } from './utils/emailService';
 
 import './App.css';
 
@@ -612,6 +613,14 @@ function App() {
   const handleSubmitOrder = async (order: Order) => {
     try {
       await addOrder(order);
+      
+      // Dispatch order confirmation and alert emails
+      try {
+        await sendOrderEmails(order, settings);
+      } catch (mailErr) {
+        console.error("Failed to send order confirmation emails:", mailErr);
+      }
+
       setActiveOrder(order);
       setCart([]); // Reset Cart
       setPromoCode('');
