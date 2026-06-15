@@ -15,7 +15,8 @@ import { useLocation, navigate } from '../Router';
 import { auth, db, firebaseConfig } from '../firebase';
 import { 
   signOut, createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail,
-  multiFactor, TotpMultiFactorGenerator, reauthenticateWithCredential, EmailAuthProvider
+  multiFactor, TotpMultiFactorGenerator, reauthenticateWithCredential, EmailAuthProvider,
+  sendEmailVerification
 } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -103,7 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // 2FA state variables
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
   const [mfaEnrollmentOpen, setMfaEnrollmentOpen] = useState(false);
-  const [mfaModalStep, setMfaModalStep] = useState<'password' | 'scan' | 'recovery' | 'verify'>('password');
+  const [mfaModalStep, setMfaModalStep] = useState<'unverified' | 'password' | 'scan' | 'recovery' | 'verify'>('password');
   const [mfaPassword, setMfaPassword] = useState('');
   const [totpSecret, setTotpSecret] = useState<any>(null);
   const [totpQrUrl, setTotpQrUrl] = useState('');
@@ -153,6 +154,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setDownloadedCodes(true);
   };
 
+  const handleSendVerificationEmail = async () => {
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await sendEmailVerification(user);
+        showToast("Verification email sent! Please check your inbox.", "success");
+      }
+    } catch (err: any) {
+      console.error("Failed to send verification email:", err);
+      setMfaError(err.message || "Failed to send verification email. Please try again.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleCheckVerificationStatus = async () => {
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await user.reload();
+        if (auth.currentUser?.emailVerified) {
+          setMfaModalStep('password');
+          showToast("Email verified successfully! You can now proceed.", "success");
+        } else {
+          setMfaError("Email is still unverified. Please check your inbox and click the verification link.");
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to check verification status:", err);
+      setMfaError(err.message || "Failed to check status. Please try again.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
   const handleVerifyPasswordStep = async (e: React.FormEvent) => {
     e.preventDefault();
     setMfaLoading(true);
@@ -179,7 +219,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setMfaModalStep('scan');
     } catch (err: any) {
       console.error("Re-authentication failed:", err);
-      setMfaError(err.message || "Incorrect password. Please try again.");
+      if (err.code === 'auth/unverified-email') {
+        setMfaModalStep('unverified');
+        setMfaError("Your email must be verified before enrolling a second factor.");
+      } else {
+        setMfaError(err.message || "Incorrect password. Please try again.");
+      }
     } finally {
       setMfaLoading(false);
     }
@@ -237,10 +282,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
       }
     } else {
-      setMfaModalStep('password');
+      const user = auth.currentUser;
       setMfaPassword('');
       setTotpVerificationCode('');
       setMfaError('');
+      
+      if (user && !user.emailVerified) {
+        setMfaModalStep('unverified');
+      } else {
+        setMfaModalStep('password');
+      }
       setMfaEnrollmentOpen(true);
     }
   };
@@ -5235,6 +5286,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {mfaError && (
                 <div style={{ backgroundColor: '#fcf0f1', borderLeft: '4px solid #d30005', padding: '12px', marginBottom: '16px', fontSize: '13px', color: '#d30005' }}>
                   {mfaError}
+                </div>
+              )}
+
+              {/* STEP 0: Unverified Email Warning */}
+              {mfaModalStep === 'unverified' && (
+                <div>
+                  <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 16px', lineHeight: 1.5 }}>
+                    Your email address must be verified before you can enroll in Two-Factor Authentication. This is a security requirement to prevent lockout.
+                  </p>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-ink)', margin: '0 0 20px' }}>
+                    Current Email: {auth.currentUser?.email}
+                  </p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+                    <button 
+                      type="button" 
+                      className="wp-button-primary"
+                      onClick={handleSendVerificationEmail}
+                      disabled={mfaLoading}
+                      style={{ width: '100%', justifyContent: 'center' }}
+                    >
+                      {mfaLoading ? 'Sending...' : 'Send Verification Email'}
+                    </button>
+                    
+                    <button 
+                      type="button" 
+                      className="wp-button-secondary"
+                      onClick={handleCheckVerificationStatus}
+                      disabled={mfaLoading}
+                      style={{ width: '100%', justifyContent: 'center' }}
+                    >
+                      Check Verification Status
+                    </button>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #c3c4c7' }}>
+                    <button 
+                      type="button" 
+                      className="wp-button-secondary"
+                      onClick={() => setMfaEnrollmentOpen(false)}
+                      disabled={mfaLoading}
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               )}
 
