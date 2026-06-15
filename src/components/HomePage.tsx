@@ -254,7 +254,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
           
           <div className="deals-products-grid">
-            {products.slice(0, 4).map((prod, idx) => {
+            {products.filter(p => p.isFeatured).slice(0, 4).map((prod, idx) => {
               const discounts = ["-15%", "-10%", "-25%", "-20%"];
               const disc = discounts[idx % discounts.length];
               return (
