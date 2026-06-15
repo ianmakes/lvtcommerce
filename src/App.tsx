@@ -23,7 +23,7 @@ import { useLocation, navigate, Link } from './Router';
 import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon } from 'lucide-react';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
-import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist } from './db';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist, migrateSettings } from './db';
 import { sendOrderEmails } from './utils/emailService';
 
 import './App.css';
@@ -247,7 +247,7 @@ function App() {
     // Listen to settings
     const unsubSettings = onSnapshot(doc(db, "settings", "general"), (snapshot) => {
       if (snapshot.exists()) {
-        setSettings(snapshot.data() as ShopSettings);
+        setSettings(migrateSettings(snapshot.data() as ShopSettings));
       }
     }, (err) => console.error("Error listening to settings:", err));
 

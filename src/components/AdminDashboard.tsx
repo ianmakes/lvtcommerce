@@ -89,7 +89,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' = 'overview';
   if (path === '/dashboard/orders') activeTab = 'orders';
   else if (path === '/dashboard/products') activeTab = 'products';
-  else if (path === '/dashboard/settings') activeTab = 'settings';
+  else if (path.startsWith('/dashboard/settings')) activeTab = 'settings';
   else if (path === '/dashboard/customers') activeTab = 'customers';
   else if (path === '/dashboard/reports') activeTab = 'reports';
   else if (path === '/dashboard/categories') activeTab = 'categories';
@@ -97,13 +97,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/media') activeTab = 'media';
   else if (path === '/dashboard/slides') activeTab = 'slides';
   else if (path === '/dashboard/inventory') activeTab = 'inventory';
+
+  // Derive settingsSubTab from URL path
+  let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' = 'general';
+  if (path === '/dashboard/settings/profile') settingsSubTab = 'profile';
+  else if (path === '/dashboard/settings/smtp') settingsSubTab = 'smtp';
+  else if (path === '/dashboard/settings/payment') settingsSubTab = 'payment';
+  else if (path === '/dashboard/settings/rbac') settingsSubTab = 'rbac';
+  else if (path === '/dashboard/settings/audit') settingsSubTab = 'audit';
+  else if (path === '/dashboard/settings/shipping') settingsSubTab = 'shipping';
+  else if (path === '/dashboard/settings/tax') settingsSubTab = 'tax';
+  else if (path === '/dashboard/settings/shoppage') settingsSubTab = 'shoppage';
   
   // Lists from Firestore DB
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
   
-  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage'>('general');
   const [selectedTemplateTab, setSelectedTemplateTab] = useState<'order_customer' | 'order_admin' | 'order_status'>('order_customer');
 
   // Test email delivery states
@@ -1462,8 +1472,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     setIsLoading(true);
     try {
-      await saveSettings(localSettings);
-      onChangeSettings(localSettings);
+      // Synchronize key properties based on mode directly (allowing clearing keys if edited on the Payment tab)
+      const updatedSettings = { ...localSettings };
+      if (updatedSettings.paystackMode === 'live') {
+        updatedSettings.paystackPublicKey = updatedSettings.paystackLivePublicKey || '';
+        updatedSettings.paystackSecretKey = updatedSettings.paystackLiveSecretKey || '';
+      } else {
+        updatedSettings.paystackPublicKey = updatedSettings.paystackTestPublicKey || '';
+        updatedSettings.paystackSecretKey = updatedSettings.paystackTestSecretKey || '';
+      }
+      
+      await saveSettings(updatedSettings);
+      onChangeSettings(updatedSettings);
+      setLocalSettings(updatedSettings);
       alert("Settings saved to Firestore successfully!");
     } catch (err) {
       console.error(err);
@@ -2248,7 +2269,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'general' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('general')}
+                    onClick={() => navigate('/dashboard/settings/general')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'general' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'general' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     General Settings
@@ -2256,7 +2277,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'profile' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('profile')}
+                    onClick={() => navigate('/dashboard/settings/profile')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'profile' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'profile' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Profile Settings
@@ -2264,7 +2285,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'smtp' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('smtp')}
+                    onClick={() => navigate('/dashboard/settings/smtp')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'smtp' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'smtp' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     SMTP Settings
@@ -2272,7 +2293,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'payment' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('payment')}
+                    onClick={() => navigate('/dashboard/settings/payment')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'payment' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'payment' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Payment Options
@@ -2280,7 +2301,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'rbac' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('rbac')}
+                    onClick={() => navigate('/dashboard/settings/rbac')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'rbac' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'rbac' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Roles & Permissions
@@ -2288,7 +2309,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'audit' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('audit')}
+                    onClick={() => navigate('/dashboard/settings/audit')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'audit' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'audit' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Audit Logs
@@ -2296,7 +2317,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'shipping' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('shipping')}
+                    onClick={() => navigate('/dashboard/settings/shipping')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'shipping' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'shipping' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Shipping Zones
@@ -2304,7 +2325,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'tax' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('tax')}
+                    onClick={() => navigate('/dashboard/settings/tax')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'tax' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'tax' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Tax Details
@@ -2312,7 +2333,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'shoppage' ? 'active' : ''}`}
-                    onClick={() => setSettingsSubTab('shoppage')}
+                    onClick={() => navigate('/dashboard/settings/shoppage')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'shoppage' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'shoppage' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
                   >
                     Shop Page
@@ -3196,106 +3217,189 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       );
                     })()}
 
-                    {/* SUB-TAB: Payment Options */}
-                    {settingsSubTab === 'payment' && (
-                      <form onSubmit={handleSaveSettingsSubmit}>
-                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>Store Payment Gateways</h2>
-                        <table className="form-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                          <tbody>
-                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Cash on Delivery (COD)</th>
-                              <td style={{ padding: '10px 0' }}>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={localSettings.codActive !== false}
-                                    onChange={e => setLocalSettings({ ...localSettings, codActive: e.target.checked })}
-                                  />
-                                  <span>Enable Cash on Delivery option for storefront checkouts</span>
-                                </label>
-                              </td>
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Gateway</th>
-                              <td style={{ padding: '10px 0' }}>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={localSettings.paystackActive !== false}
-                                    onChange={e => setLocalSettings({ ...localSettings, paystackActive: e.target.checked })}
-                                  />
-                                  <span>Enable secure online payments using Paystack (M-Pesa / Cards)</span>
-                                </label>
-                              </td>
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Demo / Sandbox Mode</th>
-                              <td style={{ padding: '10px 0' }}>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={localSettings.demoMode}
-                                    onChange={e => setLocalSettings({ ...localSettings, demoMode: e.target.checked })}
-                                  />
-                                  <span>Enable sandbox mock payments (Doesn't charge real money)</span>
-                                </label>
-                              </td>
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Mode</th>
-                              <td style={{ padding: '10px 0', display: 'flex', gap: '20px' }}>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name="paystackMode" 
-                                    value="test" 
-                                    checked={localSettings.paystackMode === 'test' || !localSettings.paystackMode}
-                                    onChange={() => setLocalSettings({ ...localSettings, paystackMode: 'test' })}
-                                  />
-                                  <span>Test Environment</span>
-                                </label>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                                  <input 
-                                    type="radio" 
-                                    name="paystackMode" 
-                                    value="live" 
-                                    checked={localSettings.paystackMode === 'live'}
-                                    onChange={() => setLocalSettings({ ...localSettings, paystackMode: 'live' })}
-                                  />
-                                  <span>Live Environment</span>
-                                </label>
-                              </td>
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Public Key</th>
-                              <td style={{ padding: '10px 0' }}>
-                                <input 
-                                  type="text" 
-                                  placeholder="pk_test_..."
-                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                                  value={localSettings.paystackPublicKey || ''}
-                                  onChange={e => setLocalSettings({ ...localSettings, paystackPublicKey: e.target.value })}
-                                />
-                              </td>
-                            </tr>
-                            <tr>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Paystack Secret Key</th>
-                              <td style={{ padding: '10px 0' }}>
-                                <input 
-                                  type="password" 
-                                  placeholder="sk_test_..."
-                                  style={{ width: '350px', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
-                                  value={localSettings.paystackSecretKey || ''}
-                                  onChange={e => setLocalSettings({ ...localSettings, paystackSecretKey: e.target.value })}
-                                />
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
-                        <button type="submit" className="wp-button-primary">Save Payment Settings</button>
-                      </form>
-                    )}
+                     {/* SUB-TAB: Payment Options */}
+                     {settingsSubTab === 'payment' && (
+                       <form onSubmit={handleSaveSettingsSubmit}>
+                         <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>Store Payment Gateways</h2>
+                         
+                         {/* CASH ON DELIVERY CONTAINER */}
+                         <div style={{ background: '#ffffff', border: '1px solid #c3c4c7', padding: '20px', marginBottom: '24px', position: 'relative' }}>
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                             <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1d2327' }}>Cash on Delivery (COD)</h3>
+                             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                               <input 
+                                 type="checkbox" 
+                                 checked={localSettings.codActive !== false}
+                                 onChange={e => setLocalSettings({ ...localSettings, codActive: e.target.checked })}
+                                 style={{ margin: 0 }}
+                               />
+                               <span style={{ fontSize: '13px', fontWeight: 600 }}>Active</span>
+                             </label>
+                           </div>
+                           <p style={{ margin: 0, fontSize: '13px', color: '#646970', lineHeight: 1.5 }}>
+                             Allows customers to place orders without online payment. Orders will be marked as "Pending" payment status upon checkout, and can be paid for in cash/M-Pesa during physical delivery.
+                           </p>
+                         </div>
+
+                         {/* PAYSTACK CONTAINER */}
+                         <div style={{ background: '#ffffff', border: '1px solid #c3c4c7', padding: '20px', marginBottom: '24px' }}>
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #f0f1f1', paddingBottom: '10px' }}>
+                             <div>
+                               <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1d2327' }}>Paystack Payment Gateway</h3>
+                               <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#646970' }}>Process secure online payments in Kenya via M-Pesa, Card, and Bank transfers.</p>
+                             </div>
+                             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                               <input 
+                                 type="checkbox" 
+                                 checked={localSettings.paystackActive !== false}
+                                 onChange={e => setLocalSettings({ ...localSettings, paystackActive: e.target.checked })}
+                                 style={{ margin: 0 }}
+                               />
+                               <span style={{ fontSize: '13px', fontWeight: 600 }}>Active</span>
+                             </label>
+                           </div>
+
+                           {localSettings.paystackActive !== false && (
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '15px' }}>
+                               
+                               {/* MODE SELECTOR */}
+                               <div style={{ background: '#fafafa', padding: '12px 16px', borderLeft: '4px solid #2271b1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                                 <div>
+                                   <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', color: '#1d2327' }}>Paystack Operation Mode</label>
+                                   <span style={{ fontSize: '12px', color: '#646970' }}>Select whether to process live commercial transactions or test mock payments.</span>
+                                 </div>
+                                 <div style={{ display: 'flex', gap: '20px' }}>
+                                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                                     <input 
+                                       type="radio" 
+                                       name="paystackMode" 
+                                       value="test" 
+                                       checked={localSettings.paystackMode === 'test' || !localSettings.paystackMode}
+                                       onChange={() => setLocalSettings({ ...localSettings, paystackMode: 'test' })}
+                                     />
+                                     <span style={{ color: (localSettings.paystackMode === 'test' || !localSettings.paystackMode) ? '#d54e21' : 'inherit' }}>Test Mode</span>
+                                   </label>
+                                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                                     <input 
+                                       type="radio" 
+                                       name="paystackMode" 
+                                       value="live" 
+                                       checked={localSettings.paystackMode === 'live'}
+                                       onChange={() => setLocalSettings({ ...localSettings, paystackMode: 'live' })}
+                                     />
+                                     <span style={{ color: localSettings.paystackMode === 'live' ? '#46b450' : 'inherit' }}>Live Mode</span>
+                                   </label>
+                                 </div>
+                                </div>
+
+                               {/* DEMO MODE TOGGLE */}
+                               <div style={{ borderBottom: '1px solid #f0f1f1', paddingBottom: '15px' }}>
+                                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                   <input 
+                                     type="checkbox" 
+                                     checked={localSettings.demoMode}
+                                     onChange={e => setLocalSettings({ ...localSettings, demoMode: e.target.checked })}
+                                   />
+                                   <span style={{ fontSize: '13px', fontWeight: 600 }}>Enable local Sandbox/Demo Mock Mode</span>
+                                 </label>
+                                 <p style={{ margin: '4px 0 0 24px', fontSize: '12px', color: '#646970' }}>
+                                   If enabled, checkouts bypass calling the Paystack popup and instantly succeed with a mock payment reference (useful for developer testing without credentials).
+                                 </p>
+                               </div>
+
+                               {/* CREDENTIALS GRID */}
+                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                                 
+                                 {/* TEST CREDENTIALS */}
+                                 <div style={{ 
+                                   border: '1px solid #c3c4c7', 
+                                   padding: '16px', 
+                                   background: (localSettings.paystackMode === 'test' || !localSettings.paystackMode) ? '#fffdf6' : '#fafafa',
+                                   borderColor: (localSettings.paystackMode === 'test' || !localSettings.paystackMode) ? '#dba617' : '#c3c4c7',
+                                   opacity: (localSettings.paystackMode === 'test' || !localSettings.paystackMode) ? 1 : 0.65,
+                                   transition: 'all 0.2s ease'
+                                 }}>
+                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                     <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>Test Credentials</h4>
+                                     {(localSettings.paystackMode === 'test' || !localSettings.paystackMode) && (
+                                       <span style={{ fontSize: '10px', background: '#dba617', color: '#fff', padding: '2px 6px', fontWeight: 'bold' }}>ACTIVE</span>
+                                     )}
+                                   </div>
+                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                     <div>
+                                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Test Public Key</label>
+                                       <input 
+                                         type="text" 
+                                         placeholder="pk_test_..."
+                                         style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '12px', boxSizing: 'border-box' }}
+                                         value={localSettings.paystackTestPublicKey || ''}
+                                         onChange={e => setLocalSettings({ ...localSettings, paystackTestPublicKey: e.target.value })}
+                                       />
+                                     </div>
+                                     <div>
+                                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Test Secret Key</label>
+                                       <input 
+                                         type="password" 
+                                         placeholder="sk_test_..."
+                                         style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '12px', boxSizing: 'border-box' }}
+                                         value={localSettings.paystackTestSecretKey || ''}
+                                         onChange={e => setLocalSettings({ ...localSettings, paystackTestSecretKey: e.target.value })}
+                                       />
+                                     </div>
+                                   </div>
+                                 </div>
+
+                                 {/* LIVE CREDENTIALS */}
+                                 <div style={{ 
+                                   border: '1px solid #c3c4c7', 
+                                   padding: '16px', 
+                                   background: localSettings.paystackMode === 'live' ? '#f6fff6' : '#fafafa',
+                                   borderColor: localSettings.paystackMode === 'live' ? '#46b450' : '#c3c4c7',
+                                   opacity: localSettings.paystackMode === 'live' ? 1 : 0.65,
+                                   transition: 'all 0.2s ease'
+                                 }}>
+                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                     <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>Live Credentials</h4>
+                                     {localSettings.paystackMode === 'live' && (
+                                       <span style={{ fontSize: '10px', background: '#46b450', color: '#fff', padding: '2px 6px', fontWeight: 'bold' }}>ACTIVE</span>
+                                     )}
+                                   </div>
+                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                     <div>
+                                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Live Public Key</label>
+                                       <input 
+                                         type="text" 
+                                         placeholder="pk_live_..."
+                                         style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '12px', boxSizing: 'border-box' }}
+                                         value={localSettings.paystackLivePublicKey || ''}
+                                         onChange={e => setLocalSettings({ ...localSettings, paystackLivePublicKey: e.target.value })}
+                                       />
+                                     </div>
+                                     <div>
+                                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Live Secret Key</label>
+                                       <input 
+                                         type="password" 
+                                         placeholder="sk_live_..."
+                                         style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', fontSize: '12px', boxSizing: 'border-box' }}
+                                         value={localSettings.paystackLiveSecretKey || ''}
+                                         onChange={e => setLocalSettings({ ...localSettings, paystackLiveSecretKey: e.target.value })}
+                                       />
+                                     </div>
+                                   </div>
+                                 </div>
+
+                               </div>
+
+                             </div>
+                           )}
+                         </div>
+
+                         <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                         <button type="submit" className="wp-button-primary" disabled={isLoading}>
+                           {isLoading ? 'Saving...' : 'Save Payment Settings'}
+                         </button>
+                       </form>
+                     )}
 
                     {/* SUB-TAB: Roles & Permissions (RBAC) */}
                     {settingsSubTab === 'rbac' && (

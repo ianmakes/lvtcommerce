@@ -154,6 +154,10 @@ export interface ShopSettings {
   paystackActive?: boolean;
   paystackSecretKey?: string;
   paystackMode?: 'live' | 'test';
+  paystackLivePublicKey?: string;
+  paystackLiveSecretKey?: string;
+  paystackTestPublicKey?: string;
+  paystackTestSecretKey?: string;
   codActive?: boolean;
   rolesConfig?: Record<string, Record<string, boolean>>;
   shopPageDefaultView?: 'grid' | 'list';

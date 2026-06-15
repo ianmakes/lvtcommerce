@@ -427,15 +427,49 @@ export async function initDb(): Promise<void> {
   }
 }
 
+export function migrateSettings(data: ShopSettings): ShopSettings {
+  if (!data) return data;
+  
+  // Clone data to avoid side-effects
+  const migrated = { ...data };
+  
+  // Auto-migrate legacy keys if the explicit mode keys are not yet configured
+  if (migrated.paystackPublicKey) {
+    if (migrated.paystackPublicKey.startsWith('pk_live_') && !migrated.paystackLivePublicKey) {
+      migrated.paystackLivePublicKey = migrated.paystackPublicKey;
+    } else if (migrated.paystackPublicKey.startsWith('pk_test_') && !migrated.paystackTestPublicKey) {
+      migrated.paystackTestPublicKey = migrated.paystackPublicKey;
+    }
+  }
+  if (migrated.paystackSecretKey) {
+    if (migrated.paystackSecretKey.startsWith('sk_live_') && !migrated.paystackLiveSecretKey) {
+      migrated.paystackLiveSecretKey = migrated.paystackSecretKey;
+    } else if (migrated.paystackSecretKey.startsWith('sk_test_') && !migrated.paystackTestSecretKey) {
+      migrated.paystackTestSecretKey = migrated.paystackSecretKey;
+    }
+  }
+
+  // Fallback default mode if not set
+  if (!migrated.paystackMode) {
+    if (migrated.paystackPublicKey?.startsWith('pk_live_')) {
+      migrated.paystackMode = 'live';
+    } else {
+      migrated.paystackMode = 'test';
+    }
+  }
+
+  return migrated;
+}
+
 // Settings GET/SET
 export async function getSettings(): Promise<ShopSettings> {
   await initDb();
   const settingsRef = doc(db, "settings", "general");
   const settingsSnap = await getDoc(settingsRef);
   if (settingsSnap.exists()) {
-    return settingsSnap.data() as ShopSettings;
+    return migrateSettings(settingsSnap.data() as ShopSettings);
   }
-  return DEFAULT_SETTINGS;
+  return migrateSettings(DEFAULT_SETTINGS);
 }
 
 export async function saveSettings(settings: ShopSettings): Promise<void> {
