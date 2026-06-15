@@ -872,7 +872,7 @@ function App() {
                     return homepageFeatured.map(prod => (
                     <div 
                       key={prod.id} 
-                      className="prod-card" 
+                      className={`prod-card ${prod.isFeatured ? 'is-featured' : ''}`} 
                       onClick={() => {
                         navigate(`/product/${prod.id}`);
                       }}
@@ -885,7 +885,14 @@ function App() {
                         <img src={prod.image} alt={prod.name} className="prod-img" />
                       </div>
                       <div className="prod-card-metadata">
-                        <span className="prod-card-category">{(prod.categories && prod.categories.length > 0) ? prod.categories[0] : prod.category}</span>
+                        <span className="prod-card-category">
+                          {(prod.categories && prod.categories.length > 0) ? prod.categories[0] : prod.category}
+                          {prod.isFeatured && (
+                            <span style={{ marginLeft: '8px', color: '#dba617', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              ★ Featured
+                            </span>
+                          )}
+                        </span>
                         <h4 className="prod-card-title">{prod.name}</h4>
                         <div className="prod-card-price-row">
                           {prod.id === 'prod-magnify' ? (

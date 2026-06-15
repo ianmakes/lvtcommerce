@@ -569,6 +569,26 @@ a {
   line-height: 1.4;
 }
 
+/* Subtle highlight for featured product card */
+.prod-card.is-featured .prod-img-container {
+  box-shadow: 0 0 0 1.5px rgba(219, 166, 23, 0.35);
+  transition: box-shadow var(--transition-fast) ease-in-out;
+}
+
+.prod-card.is-featured:hover .prod-img-container {
+  box-shadow: 0 0 0 2px rgba(219, 166, 23, 0.75), 0 4px 16px rgba(219, 166, 23, 0.12);
+}
+
+.prod-card.list-view.is-featured {
+  border-color: rgba(219, 166, 23, 0.35) !important;
+  background-color: rgba(219, 166, 23, 0.01) !important;
+}
+
+.prod-card.list-view.is-featured:hover {
+  border-color: rgba(219, 166, 23, 0.75) !important;
+  box-shadow: 0 4px 16px rgba(219, 166, 23, 0.12) !important;
+}
+
 .prod-card-price-row {
   font-size: 16px;
   font-weight: 500;
