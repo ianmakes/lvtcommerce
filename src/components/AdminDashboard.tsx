@@ -12,9 +12,14 @@ import {
   getAllUsers, deleteBuyerProfile, saveBuyerProfile
 } from '../db';
 import { useLocation, navigate } from '../Router';
-import { auth, firebaseConfig } from '../firebase';
-import { signOut, createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import { auth, db, firebaseConfig } from '../firebase';
+import { 
+  signOut, createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail,
+  multiFactor, TotpMultiFactorGenerator, reauthenticateWithCredential, EmailAuthProvider
+} from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
@@ -94,6 +99,151 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
   
   const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage'>('general');
+
+  // 2FA state variables
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+  const [mfaEnrollmentOpen, setMfaEnrollmentOpen] = useState(false);
+  const [mfaModalStep, setMfaModalStep] = useState<'password' | 'scan' | 'recovery' | 'verify'>('password');
+  const [mfaPassword, setMfaPassword] = useState('');
+  const [totpSecret, setTotpSecret] = useState<any>(null);
+  const [totpQrUrl, setTotpQrUrl] = useState('');
+  const [generatedCodes, setGeneratedCodes] = useState<string[]>([]);
+  const [downloadedCodes, setDownloadedCodes] = useState(false);
+  const [totpVerificationCode, setTotpVerificationCode] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaError, setMfaError] = useState('');
+
+  useEffect(() => {
+    if (auth.currentUser) {
+      setIs2FAEnabled(auth.currentUser.multiFactor.enrolledFactors.length > 0);
+    }
+  }, []);
+
+  const generateRecoveryCodes = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const codes: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      let code = '';
+      for (let j = 0; j < 8; j++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      codes.push(code);
+    }
+    return codes;
+  };
+
+  const hashRecoveryCode = async (code: string) => {
+    const msgBuffer = new TextEncoder().encode(code);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const handleDownloadRecoveryCodes = () => {
+    const content = `GoldenCare Market Admin MFA Recovery Codes\n=========================================\n\nSave these codes securely. Each code is ONE-TIME use.\n\n${generatedCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `goldencare_mfa_recovery_codes_${currentUserUid}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setDownloadedCodes(true);
+  };
+
+  const handleVerifyPasswordStep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        throw new Error("No authenticated user found.");
+      }
+      const credential = EmailAuthProvider.credential(user.email, mfaPassword);
+      await reauthenticateWithCredential(user, credential);
+
+      const session = await user.multiFactor.getSession();
+      const secret = await TotpMultiFactorGenerator.generateSecret(session);
+      setTotpSecret(secret);
+      
+      const qrUrl = secret.generateQrCodeUrl(user.email, settings.shopName || "GoldenCare Market");
+      setTotpQrUrl(qrUrl);
+
+      const codes = generateRecoveryCodes();
+      setGeneratedCodes(codes);
+      setDownloadedCodes(false);
+
+      setMfaModalStep('scan');
+    } catch (err: any) {
+      console.error("Re-authentication failed:", err);
+      setMfaError(err.message || "Incorrect password. Please try again.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleVerifyTotpStep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      const user = auth.currentUser;
+      if (!user || !totpSecret) {
+        throw new Error("Enrollment session expired. Please restart.");
+      }
+
+      const assertion = TotpMultiFactorGenerator.assertionForEnrollment(totpSecret, totpVerificationCode);
+      await user.multiFactor.enroll(assertion, "Authenticator App");
+
+      const hashedCodes = await Promise.all(generatedCodes.map(c => hashRecoveryCode(c)));
+      const secRef = doc(db, "users", user.uid, "security", "recovery");
+      await setDoc(secRef, {
+        recoveryCodes: hashedCodes,
+        totpSecretKey: totpSecret.secretKey
+      });
+
+      setIs2FAEnabled(true);
+      setMfaEnrollmentOpen(false);
+      showToast("Two-Factor Authentication enrolled successfully!", "success");
+    } catch (err: any) {
+      console.error("Verification failed:", err);
+      setMfaError("Invalid verification code. Please check your app and try again.");
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleToggle2FA = async () => {
+    if (is2FAEnabled) {
+      if (confirm("Are you sure you want to disable Two-Factor Authentication? Recovery codes will also be deleted.")) {
+        try {
+          const user = auth.currentUser;
+          if (user) {
+            const factors = user.multiFactor.enrolledFactors;
+            for (const f of factors) {
+              await user.multiFactor.unenroll(f);
+            }
+            const secRef = doc(db, "users", user.uid, "security", "recovery");
+            await deleteDoc(secRef);
+            setIs2FAEnabled(false);
+            showToast("Two-Factor Authentication disabled.", "success");
+          }
+        } catch (err) {
+          console.error("Unenroll failed:", err);
+          alert("Failed to disable 2FA. You may need to refresh or log in again.");
+        }
+      }
+    } else {
+      setMfaModalStep('password');
+      setMfaPassword('');
+      setTotpVerificationCode('');
+      setMfaError('');
+      setMfaEnrollmentOpen(true);
+    }
+  };
 
   // Users list state
   const [usersList, setUsersList] = useState<BuyerProfile[]>([]);
@@ -2112,17 +2262,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 />
                               </td>
                             </tr>
-                            <tr>
-                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>2FA Authentication</th>
+                            <tr style={{ borderBottom: '1px solid #f0f1f1' }}>
+                              <th style={{ width: '200px', textAlign: 'left', padding: '15px 10px 15px 0', fontWeight: 600 }}>Two-Factor Authentication</th>
                               <td style={{ padding: '10px 0' }}>
-                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={localSettings.enable2FA || false}
-                                    onChange={e => setLocalSettings({ ...localSettings, enable2FA: e.target.checked })}
-                                  />
-                                  <span>Enable Two-Factor Authentication (2FA) <span style={{ fontSize: '10px', backgroundColor: '#111', color: '#fff', padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Coming Soon</span></span>
-                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={handleToggle2FA}
+                                    className={`wp-button-${is2FAEnabled ? 'secondary' : 'primary'}`}
+                                    style={{
+                                      minHeight: '32px',
+                                      height: '32px',
+                                      padding: '0 16px',
+                                      fontSize: '12px',
+                                      borderRadius: '4px',
+                                      backgroundColor: is2FAEnabled ? '#d30005' : '#111',
+                                      color: '#fff',
+                                      border: 'none',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {is2FAEnabled ? 'Disable 2FA' : 'Enable 2FA'}
+                                  </button>
+                                  <span style={{ fontSize: '13px', color: '#646970' }}>
+                                    {is2FAEnabled ? 'Active (TOTP Authenticator Protected)' : 'Inactive'}
+                                  </span>
+                                </div>
                               </td>
                             </tr>
                           </tbody>
@@ -5038,6 +5203,196 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               >
                 Insert Selected URL
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2FA Enrollment Modal */}
+      {mfaEnrollmentOpen && (
+        <div className="modal-overlay" style={{ zIndex: 3500 }}>
+          <div className="modal-content" style={{ maxWidth: '500px', borderRadius: '4px', border: '1px solid #c3c4c7', padding: '0', overflow: 'hidden' }}>
+            <div style={{ padding: '15px 20px', borderBottom: '1px solid #c3c4c7', background: '#f6f7f7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, textTransform: 'uppercase' }}>
+                Set up Two-Factor Authentication
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => {
+                  if (mfaModalStep === 'recovery' && !downloadedCodes) {
+                    alert("Please download or save your recovery codes first.");
+                    return;
+                  }
+                  setMfaEnrollmentOpen(false);
+                }} 
+                style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#646970' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              {mfaError && (
+                <div style={{ backgroundColor: '#fcf0f1', borderLeft: '4px solid #d30005', padding: '12px', marginBottom: '16px', fontSize: '13px', color: '#d30005' }}>
+                  {mfaError}
+                </div>
+              )}
+
+              {/* STEP 1: Re-authenticate */}
+              {mfaModalStep === 'password' && (
+                <form onSubmit={handleVerifyPasswordStep}>
+                  <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 16px' }}>
+                    To enable 2FA, please verify your identity by entering your administrator password.
+                  </p>
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontWeight: 600, fontSize: '12px', marginBottom: '8px' }}>
+                      Password:
+                    </label>
+                    <input 
+                      type="password" 
+                      style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                      value={mfaPassword}
+                      onChange={e => setMfaPassword(e.target.value)}
+                      required
+                      placeholder="Enter password"
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                    <button 
+                      type="button" 
+                      className="wp-button-secondary"
+                      onClick={() => setMfaEnrollmentOpen(false)}
+                      disabled={mfaLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="wp-button-primary"
+                      disabled={mfaLoading || !mfaPassword}
+                    >
+                      {mfaLoading ? 'Verifying...' : 'Next'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* STEP 2: Scan QR */}
+              {mfaModalStep === 'scan' && (
+                <div>
+                  <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 16px' }}>
+                    Scan this QR code with your authenticator app (e.g. Google Authenticator or Microsoft Authenticator).
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0', padding: '16px', background: '#fff', border: '1px solid #c3c4c7', borderRadius: '4px' }}>
+                    {totpQrUrl && <QRCodeSVG value={totpQrUrl} size={200} />}
+                  </div>
+                  <div style={{ backgroundColor: '#f0f0f1', padding: '12px', borderRadius: '4px', marginBottom: '20px', fontSize: '12px', wordBreak: 'break-all' }}>
+                    <strong>Manual entry key:</strong> <code style={{ userSelect: 'all', display: 'block', marginTop: '4px', background: '#fff', padding: '4px 6px', border: '1px solid #c3c4c7' }}>{totpSecret?.secretKey}</code>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      type="button" 
+                      className="wp-button-primary"
+                      onClick={() => setMfaModalStep('recovery')}
+                    >
+                      Next: Recovery Codes &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Recovery Codes */}
+              {mfaModalStep === 'recovery' && (
+                <div>
+                  <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 16px' }}>
+                    These recovery codes allow you to access your account if you lose your device. Each code can be used <strong>only once</strong>. Keep them safe.
+                  </p>
+                  <div style={{ 
+                    maxHeight: '160px', 
+                    overflowY: 'auto', 
+                    border: '1px solid #c3c4c7', 
+                    background: '#f6f7f7', 
+                    padding: '12px', 
+                    marginBottom: '16px',
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '6px'
+                  }}>
+                    {generatedCodes.map((c, i) => (
+                      <div key={c}>{i + 1}. <strong>{c}</strong></div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <button
+                      type="button"
+                      className="wp-button-secondary"
+                      onClick={handleDownloadRecoveryCodes}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+                    >
+                      Download Codes (.txt)
+                    </button>
+                    {downloadedCodes ? (
+                      <span style={{ fontSize: '12px', color: 'green', fontWeight: 600 }}>✓ Downloaded</span>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#d30005', fontWeight: 600 }}>⚠ Download required</span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      type="button" 
+                      className="wp-button-primary"
+                      onClick={() => setMfaModalStep('verify')}
+                      disabled={!downloadedCodes}
+                    >
+                      Next: Verify Authenticator &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: Verify Code */}
+              {mfaModalStep === 'verify' && (
+                <form onSubmit={handleVerifyTotpStep}>
+                  <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 16px' }}>
+                    Enter the 6-digit verification code from your authenticator app to complete the setup.
+                  </p>
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontWeight: 600, fontSize: '12px', marginBottom: '8px' }}>
+                      Verification Code:
+                    </label>
+                    <input 
+                      type="text" 
+                      maxLength={6}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', letterSpacing: '2px', textAlign: 'center', fontWeight: 'bold' }}
+                      value={totpVerificationCode}
+                      onChange={e => setTotpVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="123456"
+                      required
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                    <button 
+                      type="button" 
+                      className="wp-button-secondary"
+                      onClick={() => setMfaModalStep('recovery')}
+                      disabled={mfaLoading}
+                    >
+                      &larr; Back
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="wp-button-primary"
+                      disabled={mfaLoading || totpVerificationCode.length !== 6}
+                    >
+                      {mfaLoading ? 'Verifying...' : 'Verify & Enable 2FA'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>
