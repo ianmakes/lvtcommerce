@@ -493,10 +493,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="pdp-action-buttons">
               <button
                 type="button"
-                className="btn btn-primary btn-full"
+                className="btn btn-primary"
                 onClick={handleAddToCartClick}
                 disabled={isOutOfStock}
                 style={{ opacity: isOutOfStock ? 0.5 : 1 }}
@@ -507,7 +507,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
               <button
                 type="button"
-                className="btn btn-secondary btn-full"
+                className="btn btn-secondary"
                 onClick={handleBuyNowClick}
                 disabled={isOutOfStock}
                 style={{ opacity: isOutOfStock ? 0.5 : 1 }}
@@ -517,17 +517,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
               <button
                 type="button"
-                className="btn btn-full"
+                className="btn btn-wishlist"
                 onClick={(e) => onToggleWishlist(product.id, e)}
                 style={{
-                  backgroundColor: 'transparent',
-                  border: '1px solid var(--color-hairline)',
                   color: isWishlisted ? 'var(--color-sale)' : 'var(--color-ink)',
-                  gap: '8px',
                 }}
+                aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
               >
                 <Heart size={18} fill={isWishlisted ? 'var(--color-sale)' : 'none'} />
-                <span>{isWishlisted ? 'Saved to Wishlist' : 'Add to Wishlist'}</span>
               </button>
             </div>
           </div>
