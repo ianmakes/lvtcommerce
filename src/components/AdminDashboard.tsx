@@ -4582,7 +4582,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </li>
               </ul>
 
-              {inventorySubTab === 'status' ? (
+              {inventorySubTab === 'status' && (
                 <div className="wp-postbox" style={{ padding: '16px', background: '#fff' }}>
                   <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -4676,7 +4676,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </tbody>
                   </table>
                 </div>
-              ) : (
+              )}
+
+              {inventorySubTab === 'logs' && (
                 <div className="wp-postbox" style={{ padding: '16px', background: '#fff' }}>
                   <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -4757,6 +4759,160 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       )}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* inventorySubTab === 'suppliers' view */}
+              {inventorySubTab === 'suppliers' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px', alignItems: 'start' }}>
+                  {/* Left Panel: Form */}
+                  <div className="wp-postbox" style={{ margin: 0 }}>
+                    <h2 className="wp-postbox-title">
+                      {editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
+                    </h2>
+                    <form onSubmit={handleSaveSupplier} className="wp-postbox-inside" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Supplier Name *</label>
+                        <input 
+                          type="text" 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }} 
+                          value={supName}
+                          onChange={e => setSupName(e.target.value)}
+                          placeholder="e.g. Acme MedSupply Ltd"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Contact Person</label>
+                        <input 
+                          type="text" 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }} 
+                          value={supContact}
+                          onChange={e => setSupContact(e.target.value)}
+                          placeholder="e.g. John Doe"
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Email</label>
+                        <input 
+                          type="email" 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }} 
+                          value={supEmail}
+                          onChange={e => setSupEmail(e.target.value)}
+                          placeholder="e.g. contact@acme.com"
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Phone</label>
+                        <input 
+                          type="text" 
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }} 
+                          value={supPhone}
+                          onChange={e => setSupPhone(e.target.value)}
+                          placeholder="e.g. +254 712 345678"
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Address</label>
+                        <textarea 
+                          rows={3}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', resize: 'vertical', borderRadius: 0 }} 
+                          value={supAddress}
+                          onChange={e => setSupAddress(e.target.value)}
+                          placeholder="Supplier street address or warehouse location..."
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <button type="submit" className="wp-button-primary" style={{ padding: '6px 12px', borderRadius: 0 }} disabled={isLoading}>
+                          {editingSupplier ? 'Update Supplier' : 'Add Supplier'}
+                        </button>
+                        {editingSupplier && (
+                          <button 
+                            type="button" 
+                            className="wp-button-secondary" 
+                            style={{ padding: '6px 12px', borderRadius: 0 }}
+                            onClick={() => {
+                              setEditingSupplier(null);
+                              setSupName('');
+                              setSupContact('');
+                              setSupEmail('');
+                              setSupPhone('');
+                              setSupAddress('');
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Right Panel: Suppliers Table */}
+                  <div className="wp-postbox" style={{ margin: 0, padding: '16px', background: '#fff' }}>
+                    <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '10px', textAlign: 'left' }}>Supplier Name</th>
+                          <th style={{ padding: '10px', textAlign: 'left', width: '220px' }}>Contact Details</th>
+                          <th style={{ padding: '10px', textAlign: 'left' }}>Address</th>
+                          <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Created</th>
+                          <th style={{ padding: '10px', textAlign: 'right', width: '120px' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {suppliers.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                              No suppliers added yet. Fill out the form on the left to add your first supplier.
+                            </td>
+                          </tr>
+                        ) : (
+                          suppliers.map(s => (
+                            <tr key={s.id}>
+                              <td style={{ padding: '10px', verticalAlign: 'top', fontWeight: 600, fontSize: '13px' }}>
+                                {s.name}
+                              </td>
+                              <td style={{ padding: '10px', verticalAlign: 'top', fontSize: '12px', lineHeight: '1.5' }}>
+                                {s.contactPerson && <div><strong>Person:</strong> {s.contactPerson}</div>}
+                                {s.email && <div><strong>Email:</strong> {s.email}</div>}
+                                {s.phone && <div><strong>Phone:</strong> {s.phone}</div>}
+                                {!s.contactPerson && !s.email && !s.phone && <span style={{ color: '#a7aaad', fontStyle: 'italic' }}>No details provided</span>}
+                              </td>
+                              <td style={{ padding: '10px', verticalAlign: 'top', fontSize: '12px' }}>
+                                {s.address || <span style={{ color: '#a7aaad', fontStyle: 'italic' }}>—</span>}
+                              </td>
+                              <td style={{ padding: '10px', verticalAlign: 'top', fontSize: '12px' }}>
+                                {new Date(s.createdAt).toLocaleDateString()}
+                              </td>
+                              <td style={{ padding: '10px', verticalAlign: 'top', textAlign: 'right' }}>
+                                <button
+                                  type="button"
+                                  className="wp-button-secondary"
+                                  style={{ minHeight: '26px', padding: '0 8px', fontSize: '11px', marginRight: '6px', borderRadius: 0 }}
+                                  onClick={() => handleEditSupplierClick(s)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="wp-button-secondary"
+                                  style={{ minHeight: '26px', padding: '0 8px', fontSize: '11px', color: '#b32d2e', borderColor: '#ffe3e3', borderRadius: 0 }}
+                                  onClick={() => handleDeleteSupplierClick(s.id, s.name)}
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
