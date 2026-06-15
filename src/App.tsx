@@ -18,6 +18,7 @@ import { TermsPage } from './components/TermsPage';
 import { BuyerAuth } from './components/BuyerAuth';
 import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
+import { HomePage } from './components/HomePage';
 import { useLocation, navigate, Link } from './Router';
 import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon } from 'lucide-react';
 
@@ -86,8 +87,15 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('featured');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
   const wishlistSyncRef = useRef(false);
   const accountTab = 'overview';
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 767);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Coupon states
   const [promoCode, setPromoCode] = useState('');
@@ -671,7 +679,7 @@ function App() {
 
   // Derive currentView from path for Navbar tab activation and UI highlights
   let derivedView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account' | 'about' | 'policy' | 'terms' | 'auth' = 'landing';
-  if (path === '/') derivedView = 'landing';
+  if (path === '/') derivedView = isMobile ? 'store' : 'landing';
   else if (path === '/shop') derivedView = 'store';
   else if (path.startsWith('/product/')) derivedView = 'product-details';
   else if (path === '/checkout') derivedView = 'checkout';
@@ -707,265 +715,33 @@ function App() {
       <main style={{ flexGrow: 1 }}>
         
         {/* VIEW G: Landing Page */}
-        {path === '/' && (
-          <div>
-            {/* Nike Campaign Hero Slider */}
-            <section className="campaign-hero-slider">
-              {isAppLoading ? (
-                <div className="campaign-slide active skeleton-pulse" style={{ height: '70vh', backgroundColor: '#e5e5e5' }} />
-              ) : slides.length > 0 ? (
-                slides.map((slide, idx) => (
-                  <div
-                    key={slide.id}
-                    className={`campaign-slide ${idx === activeSlide ? 'active' : ''}`}
-                    style={{
-                      backgroundImage: slide.mediaType !== 'video' ? `linear-gradient(to bottom, rgba(17,17,17,0.1) 0%, rgba(17,17,17,0.4) 100%), url(${slide.image})` : 'linear-gradient(to bottom, rgba(17,17,17,0.3) 0%, rgba(17,17,17,0.6) 100%)'
-                    }}
-                  >
-                    {slide.mediaType === 'video' && slide.videoUrl ? (
-                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', overflow: 'hidden', zIndex: 0 }}>
-                        {getVideoEmbedUrl(slide.videoUrl) ? (
-                          <iframe
-                            src={getVideoEmbedUrl(slide.videoUrl) || ''}
-                            style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: '120%', transform: 'translate(-50%, -50%)', border: 'none', pointerEvents: 'none' }}
-                            allow="autoplay; fullscreen"
-                            title="slide video"
-                          />
-                        ) : (
-                          <video src={slide.videoUrl} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        )}
-                      </div>
-                    ) : null}
-                    <div className="campaign-hero-inner" style={{ width: '100%' }}>
-                      <div className="campaign-hero-content">
-                        <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, display: 'block', marginBottom: '12px' }}>
-                          GoldenCare GC System &bull; Est. 2026
-                        </span>
-                        <h1 className="font-display-campaign" style={{ color: '#ffffff' }}>
-                          {slide.title}
-                        </h1>
-                        <p className="font-body-md" style={{ color: 'rgba(255,255,255,0.9)', margin: '0 0 32px', maxWidth: '600px' }}>
-                          {slide.description}
-                        </p>
-                        <div style={{ display: 'flex', gap: '16px' }}>
-                          {slide.buttonText && (
-                            <button 
-                              className="btn btn-outline-on-image" 
-                              onClick={() => {
-                                if (slide.buttonLink.startsWith('http')) {
-                                  window.open(slide.buttonLink, '_blank');
-                                } else {
-                                  navigate(slide.buttonLink);
-                                }
-                              }}
-                            >
-                              {slide.buttonText}
-                            </button>
-                          )}
-                          <button 
-                            className="btn" 
-                            onClick={() => {
-                              const visionEl = document.getElementById('brand-vision');
-                              if (visionEl) visionEl.scrollIntoView({ behavior: 'smooth' });
-                            }}
-                            style={{ backgroundColor: 'transparent', color: '#ffffff', borderColor: '#ffffff', padding: '12px 24px', height: '44px', minHeight: '44px' }}
-                          >
-                            Our Philosophy
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#ffffff' }}>
-                  <span style={{ fontSize: '14px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600 }}>Loading gallery...</span>
-                </div>
-              )}
-
-              {/* Slider Controls */}
-              {slides.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    className="slider-arrow prev"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveSlide(prev => (prev - 1 + slides.length) % slides.length);
-                    }}
-                    aria-label="Previous slide"
-                  >
-                    ‹
-                  </button>
-                  <button
-                    type="button"
-                    className="slider-arrow next"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveSlide(prev => (prev + 1) % slides.length);
-                    }}
-                    aria-label="Next slide"
-                  >
-                    ›
-                  </button>
-                  <div className="slider-dots">
-                    {slides.map((_, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        className={`slider-dot ${idx === activeSlide ? 'active' : ''}`}
-                        onClick={() => setActiveSlide(idx)}
-                        aria-label={`Go to slide ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </section>
-
-            {/* Brand Vision / Philosophy (Rhythm section spacing) */}
-            <section id="brand-vision" className="section-block" style={{ padding: '48px 0', backgroundColor: '#FFFFFF', borderBottom: '1px solid var(--color-hairline-soft)' }}>
-              <div className="container">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px' }}>
-                  <div>
-                    <h3 className="font-heading-md" style={{ borderBottom: '1px solid var(--color-ink)', paddingBottom: '12px', marginBottom: '20px', textTransform: 'uppercase' }}>
-                      01. Material Focus
-                    </h3>
-                    <p className="font-body-md">
-                      We craft tools using structural 3K carbon fiber, medical-grade AeroGel insulation, and aerospace aluminum. Built to perform, finished to inspire.
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-heading-md" style={{ borderBottom: '1px solid var(--color-ink)', paddingBottom: '12px', marginBottom: '20px', textTransform: 'uppercase' }}>
-                      02. Invisible Utility
-                    </h3>
-                    <p className="font-body-md">
-                      Integrated Bluetooth connectivity, touch-capacitive LEDs, and smart alarm alerts are built directly into clean, minimalist silhouettes.
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-heading-md" style={{ borderBottom: '1px solid var(--color-ink)', paddingBottom: '12px', marginBottom: '20px', textTransform: 'uppercase' }}>
-                      03. Modern Dignity
-                    </h3>
-                    <p className="font-body-md">
-                      Supporting active routines with premium, high-design objects that seamlessly integrate into a modern home or professional workspace.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Featured Products */}
-            <section className="section-block" style={{ padding: '48px 0', backgroundColor: 'var(--color-canvas)' }}>
-              <div className="container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', borderBottom: '1px solid var(--color-hairline)', paddingBottom: '16px' }}>
-                  <h2 className="font-heading-xl">Featured Systems</h2>
-                  <button onClick={() => navigate('/shop')} style={{ background: 'none', border: 'none', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer', fontSize: '15px', color: 'var(--color-ink)' }}>
-                    View All Products &rarr;
-                  </button>
-                </div>
-
-                <div className="product-grid">
-                  {(() => {
-                    const featuredProducts = products.filter(p => p.isFeatured);
-                    const homepageFeatured = featuredProducts.length > 0 ? featuredProducts : products.slice(0, 3);
-                    return homepageFeatured.map(prod => (
-                    <div 
-                      key={prod.id} 
-                      className={`prod-card ${prod.isFeatured ? 'is-featured' : ''}`} 
-                      onClick={() => {
-                        navigate(`/product/${prod.id}`);
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <div className="prod-img-container">
-                        {prod.badge && (
-                          <span className="badge-promo">{prod.badge}</span>
-                        )}
-                        <img src={prod.image} alt={prod.name} className="prod-img" />
-                      </div>
-                      <div className="prod-card-metadata">
-                        <span className="prod-card-category">
-                          {(prod.categories && prod.categories.length > 0) ? prod.categories[0] : prod.category}
-                          {prod.isFeatured && (
-                            <span style={{ marginLeft: '8px', color: '#dba617', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              ★ Featured
-                            </span>
-                          )}
-                        </span>
-                        <h4 className="prod-card-title">{prod.name}</h4>
-                        <div className="prod-card-price-row">
-                          {prod.id === 'prod-magnify' ? (
-                            <>
-                              <span className="price-sale">KSh {prod.basePrice.toLocaleString()}</span>
-                              <span className="price-original">KSh {(10000).toLocaleString()}</span>
-                            </>
-                          ) : (
-                            <span className="price-regular">KSh {prod.basePrice.toLocaleString()}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    ));
-                  })()}
-                </div>
-              </div>
-            </section>
-
-            {/* Testimonials */}
-            <section className="section-block" style={{ padding: '80px 0', backgroundColor: 'var(--color-ink)', color: 'var(--color-canvas)', textAlign: 'center' }}>
-              <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <h2 className="font-heading-xl" style={{ color: 'var(--color-canvas)' }}>Design Critics</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '40px' }}>
-                  <div>
-                    <p className="font-heading-lg" style={{ fontStyle: 'italic', color: '#D1D5DB', marginBottom: '12px', fontWeight: 400 }}>
-                      "A masterclass in modern functional design. GoldenCare treats support objects as serious design projects."
-                    </p>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-canvas)', textTransform: 'uppercase', letterSpacing: '1px' }}>— Design Today</span>
-                  </div>
-                  <div>
-                    <p className="font-heading-lg" style={{ fontStyle: 'italic', color: '#D1D5DB', marginBottom: '12px', fontWeight: 400 }}>
-                      "Stark, minimalist wellness items you actually want to display in your living room. An absolute triumph."
-                    </p>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-canvas)', textTransform: 'uppercase', letterSpacing: '1px' }}>— Grid Magazine</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Newsletter */}
-            <section className="section-block" style={{ padding: '60px 0', backgroundColor: 'var(--color-canvas)', textAlign: 'center' }}>
-              <div className="container" style={{ maxWidth: '560px' }}>
-                <h3 className="font-heading-lg" style={{ marginBottom: '12px', textTransform: 'uppercase' }}>Join the Newsletter</h3>
-                <p className="font-body-md" style={{ color: 'var(--text-mute)', marginBottom: '24px' }}>
-                  Subscribe to receive design releases, structural upgrades, and exclusive pre-order discounts.
-                </p>
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleShowToast("Subscribed successfully!", "success");
-                    (e.target as HTMLFormElement).reset();
-                  }}
-                  style={{ display: 'flex', gap: '10px' }}
-                >
-                  <input 
-                    type="email" 
-                    placeholder="Enter email address" 
-                    className="form-input" 
-                    style={{ flexGrow: 1, minHeight: '48px', padding: '10px 16px' }}
-                    required 
-                  />
-                  <button type="submit" className="btn btn-primary" style={{ minHeight: '48px', padding: '0 28px' }}>
-                    Subscribe
-                  </button>
-                </form>
-              </div>
-            </section>
-          </div>
+        {path === '/' && !isMobile && (
+          <HomePage
+            products={products}
+            slides={slides}
+            activeSlide={activeSlide}
+            setActiveSlide={setActiveSlide}
+            categories={categories}
+            dbCategories={dbCategories}
+            navigate={navigate}
+            onAddToCart={(product, quantity) => {
+              const item: CartItem = {
+                id: `${product.id}-base`,
+                product,
+                selectedVariant: null,
+                quantity,
+              };
+              handleAddToCart(item);
+            }}
+            isWishlisted={(id) => wishlist.includes(id)}
+            onToggleWishlist={(product) => handleToggleWishlist(product.id)}
+            onQuickView={(product) => setQuickViewProduct(product)}
+            handleShowToast={handleShowToast}
+          />
         )}
 
         {/* VIEW A: Storefront */}
-        {path === '/shop' && (
+        {(path === '/shop' || (path === '/' && isMobile)) && (
           <div>
 
             {/* Grid Container */}
