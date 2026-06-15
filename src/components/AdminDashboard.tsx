@@ -999,7 +999,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setEditingProduct(prod);
     setProdName(prod.name);
     setProdDesc(prod.description);
-    setProdCats(prod.categories || [prod.category]);
+    const validCats = (prod.categories || [prod.category]).filter(catName => 
+      categories.some(c => c.name === catName)
+    );
+    setProdCats(validCats);
     setProdPrice(prod.basePrice);
     setProdImg(prod.image);
     setProdGallery(prod.images || []);

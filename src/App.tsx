@@ -652,7 +652,7 @@ function App() {
   };
 
   // Filter and Sort products
-  const categories = ['All', ...Array.from(new Set(products.flatMap(p => p.categories && p.categories.length > 0 ? p.categories : [p.category])))];
+  const categories = ['All', ...dbCategories.map(c => c.name)];
 
   const filteredProducts = products
     .filter(p => {
