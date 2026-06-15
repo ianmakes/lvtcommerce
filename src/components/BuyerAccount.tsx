@@ -584,7 +584,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '32px' }}>
+              <div className="responsive-grid-main">
                 {/* Column 1: Recent Order */}
                 <div>
                   <h4 className="font-heading-xs" style={{ textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.5px' }}>Recent Order</h4>

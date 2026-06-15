@@ -457,7 +457,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: '48px', alignItems: 'start' }}>
+      <div className="responsive-grid-main">
         
         {/* LEFT COLUMN: Shipping details + Billing details + Payment method */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>

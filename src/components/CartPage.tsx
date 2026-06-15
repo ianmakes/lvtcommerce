@@ -79,7 +79,7 @@ export const CartPage: React.FC<CartPageProps> = ({
   };
 
   return (
-    <div className="container" style={{ padding: '48px 0 80px', color: 'var(--color-ink)' }}>
+    <div className="container" style={{ paddingTop: '48px', paddingBottom: '100px', color: 'var(--color-ink)' }}>
       <h1 className="font-heading-xl" style={{ textTransform: 'uppercase', marginBottom: '32px', borderBottom: '2px solid var(--color-ink)', paddingBottom: '16px' }}>
         Your Shopping Bag
       </h1>
@@ -96,7 +96,7 @@ export const CartPage: React.FC<CartPageProps> = ({
           </Link>
         </div>
       ) : (
-        <div className="cart-page-layout" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '48px', alignItems: 'start' }}>
+        <div className="cart-page-layout responsive-grid-main">
           
           {/* Left Column: Cart Items list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -140,7 +140,7 @@ export const CartPage: React.FC<CartPageProps> = ({
                     <img 
                       src={item.product.image} 
                       alt={item.product.name} 
-                      style={{ width: '120px', height: '120px', objectFit: 'cover', border: '1px solid var(--color-hairline-soft)', backgroundColor: 'var(--color-soft-cloud)' }} 
+                      className="cart-page-item-img" style={{ objectFit: 'cover', border: '1px solid var(--color-hairline-soft)', backgroundColor: 'var(--color-soft-cloud)' }} 
                     />
                     
                     <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>

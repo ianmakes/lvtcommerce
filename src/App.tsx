@@ -19,7 +19,7 @@ import { BuyerAuth } from './components/BuyerAuth';
 import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
-import { LayoutGrid, List, ChevronRight } from 'lucide-react';
+import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User } from 'lucide-react';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
 import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist } from './db';
@@ -1314,6 +1314,50 @@ function App() {
             </div>
           </div>
         </footer>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      {!isDashboardRoute && (
+        <nav className="mobile-bottom-nav" aria-label="Mobile bottom navigation">
+          <button
+            type="button"
+            className={`mobile-bottom-nav-item ${derivedView === 'landing' ? 'active' : ''}`}
+            onClick={() => navigate('/')}
+          >
+            <Home size={22} />
+            <span className="mobile-bottom-nav-label">Home</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-bottom-nav-item ${derivedView === 'store' || derivedView === 'product-details' ? 'active' : ''}`}
+            onClick={() => navigate('/shop')}
+          >
+            <Store size={22} />
+            <span className="mobile-bottom-nav-label">Shop</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-bottom-nav-item ${path === '/cart' || derivedView === 'checkout' ? 'active' : ''}`}
+            onClick={() => navigate('/cart')}
+            style={{ position: 'relative' }}
+          >
+            <ShoppingCart size={22} />
+            {cart.reduce((acc, item) => acc + item.quantity, 0) > 0 && (
+              <span className="mobile-bottom-nav-badge">
+                {cart.reduce((acc, item) => acc + item.quantity, 0)}
+              </span>
+            )}
+            <span className="mobile-bottom-nav-label">Cart</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-bottom-nav-item ${derivedView === 'account' || derivedView === 'auth' ? 'active' : ''}`}
+            onClick={() => navigate(currentUser ? '/account' : '/auth')}
+          >
+            <User size={22} />
+            <span className="mobile-bottom-nav-label">Account</span>
+          </button>
+        </nav>
       )}
 
       {/* Sleek Custom Toast Notifications Overlay */}

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ShoppingCart, ShoppingBag, Search, Heart } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, Search, Heart, Menu, X, Home, Store, Info, User, LogOut, Shield } from 'lucide-react';
 import { ShopSettings, CartItem } from '../types';
 import { Link, navigate } from '../Router';
 
@@ -28,6 +28,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   wishlistCount,
 }) => {
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Close drawer on route change
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [currentView]);
+
+  // Prevent body scroll when drawer is open
+  useEffect(() => {
+    if (drawerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [drawerOpen]);
 
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -35,151 +51,309 @@ export const Navbar: React.FC<NavbarProps> = ({
     navigate('/');
   };
 
+  const handleDrawerNav = (to: string) => {
+    setDrawerOpen(false);
+    onSearchChange('');
+    navigate(to);
+  };
+
   return (
-    <header style={{ width: '100%' }}>
-      {/* 1. Nike Utility Bar */}
-      <div className="utility-bar">
-        <div className="nav-inner-container">
-          <span style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
-            FREE SHIPPING ON ORDERS OVER KSh 30,000
-          </span>
-          <div className="utility-bar-links">
-            <Link to="/shop">Shop</Link>
-            <span className="divider">|</span>
-            <Link to="/about">About</Link>
-            <span className="divider">|</span>
-            {currentUser ? (
-              <>
-                <span style={{ fontWeight: 600, color: 'var(--text-ink)' }}>
-                  Hi, {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email?.split('@')[0])}
-                </span>
-                <span className="divider">|</span>
-                <a href="#" onClick={(e) => { e.preventDefault(); onSignOut(); }} style={{ color: 'var(--color-sale)' }}>Sign Out</a>
-              </>
-            ) : (
-              <Link to="/auth">Sign In</Link>
-            )}
+    <>
+      <header style={{ width: '100%' }}>
+        {/* 1. Nike Utility Bar */}
+        <div className="utility-bar">
+          <div className="nav-inner-container">
+            <span style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
+              FREE SHIPPING ON ORDERS OVER KSh 30,000
+            </span>
+            <div className="utility-bar-links">
+              <Link to="/shop">Shop</Link>
+              <span className="divider">|</span>
+              <Link to="/about">About</Link>
+              <span className="divider">|</span>
+              {currentUser ? (
+                <>
+                  <span style={{ fontWeight: 600, color: 'var(--text-ink)' }}>
+                    Hi, {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email?.split('@')[0])}
+                  </span>
+                  <span className="divider">|</span>
+                  <a href="#" onClick={(e) => { e.preventDefault(); onSignOut(); }} style={{ color: 'var(--color-sale)' }}>Sign Out</a>
+                </>
+              ) : (
+                <Link to="/auth">Sign In</Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* 2. Nike Primary Nav */}
-      <div className="primary-nav">
-        <div className="nav-inner-container">
-          {/* Left: Logo */}
-          <Link to="/" className="logo" onClick={handleLogoClick} aria-label={`${settings.shopName} home`}>
-            <ShoppingBag size={22} strokeWidth={2.5} />
-            <span style={{ fontSize: '18px', fontWeight: 800 }}>{settings.shopName}</span>
-          </Link>
+        {/* 2. Nike Primary Nav */}
+        <div className="primary-nav">
+          <div className="nav-inner-container">
+            {/* Mobile: Hamburger button */}
+            <button
+              type="button"
+              className="mobile-menu-toggle"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              <Menu size={24} />
+            </button>
 
-          {/* Center: Navigation Links */}
-          <nav className="nav-center-links">
-            <Link
-              to="/"
-              className={`nav-center-link ${currentView === 'landing' ? 'active' : ''}`}
-            >
-              Home
+            {/* Left: Logo */}
+            <Link to="/" className="logo" onClick={handleLogoClick} aria-label={`${settings.shopName} home`}>
+              <ShoppingBag size={22} strokeWidth={2.5} />
+              <span style={{ fontSize: '18px', fontWeight: 800 }}>{settings.shopName}</span>
             </Link>
-            <Link
-              to="/shop"
-              className={`nav-center-link ${currentView === 'store' || currentView === 'product-details' ? 'active' : ''}`}
-            >
-              Shop
-            </Link>
-            <Link
-              to="/about"
-              className={`nav-center-link ${currentView === 'about' ? 'active' : ''}`}
-            >
-              About
-            </Link>
-            {currentUser && !isAdminAuthenticated && (
+
+            {/* Center: Navigation Links */}
+            <nav className="nav-center-links">
               <Link
-                to="/account"
-                className={`nav-center-link ${currentView === 'account' ? 'active' : ''}`}
+                to="/"
+                className={`nav-center-link ${currentView === 'landing' ? 'active' : ''}`}
               >
-                My Account
+                Home
               </Link>
-            )}
-            {isAdminAuthenticated && (
               <Link
-                to="/dashboard/home"
-                className={`nav-center-link ${currentView === 'admin' ? 'active' : ''}`}
+                to="/shop"
+                className={`nav-center-link ${currentView === 'store' || currentView === 'product-details' ? 'active' : ''}`}
               >
-                Admin Dashboard
+                Shop
               </Link>
-            )}
-          </nav>
+              <Link
+                to="/about"
+                className={`nav-center-link ${currentView === 'about' ? 'active' : ''}`}
+              >
+                About
+              </Link>
+              {currentUser && !isAdminAuthenticated && (
+                <Link
+                  to="/account"
+                  className={`nav-center-link ${currentView === 'account' ? 'active' : ''}`}
+                >
+                  My Account
+                </Link>
+              )}
+              {isAdminAuthenticated && (
+                <Link
+                  to="/dashboard/home"
+                  className={`nav-center-link ${currentView === 'admin' ? 'active' : ''}`}
+                >
+                  Admin Dashboard
+                </Link>
+              )}
+            </nav>
 
-          {/* Right side: Search, Wishlist, Cart */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Search Pill */}
-            {(currentView === 'store' || currentView === 'product-details') && (
-              <div className="search-pill-container">
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={e => onSearchChange(e.target.value)}
-                  className="search-pill"
-                />
-                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => onSearchChange('')}
-                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', padding: 0 }}
-                    aria-label="Clear search"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            )}
+            {/* Right side: Search, Wishlist, Cart */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Search Pill */}
+              {(currentView === 'store' || currentView === 'product-details') && (
+                <div className="search-pill-container">
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={e => onSearchChange(e.target.value)}
+                    className="search-pill"
+                  />
+                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => onSearchChange('')}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', padding: 0 }}
+                      aria-label="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
 
-            {/* Wishlist Button (Circular Icon Button) */}
-            {currentUser && !isAdminAuthenticated && (
+              {/* Wishlist Button (Circular Icon Button) */}
+              {currentUser && !isAdminAuthenticated && (
+                <button
+                  type="button"
+                  className="btn-icon-circular"
+                  onClick={() => navigate('/account?tab=wishlist')}
+                  title="View Wishlist"
+                >
+                  <Heart size={20} fill={wishlistCount > 0 ? "var(--color-sale)" : "none"} style={{ color: wishlistCount > 0 ? "var(--color-sale)" : "var(--color-ink)" }} />
+                </button>
+              )}
+
+              {/* Cart Bag Icon Button */}
               <button
                 type="button"
                 className="btn-icon-circular"
-                onClick={() => navigate('/account?tab=wishlist')}
-                title="View Wishlist"
+                onClick={() => navigate('/cart')}
+                title={`View Cart (${totalItems})`}
+                style={{ position: 'relative' }}
               >
-                <Heart size={20} fill={wishlistCount > 0 ? "var(--color-sale)" : "none"} style={{ color: wishlistCount > 0 ? "var(--color-sale)" : "var(--color-ink)" }} />
+                <ShoppingCart size={20} />
+                {totalItems > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    backgroundColor: 'var(--color-ink)',
+                    color: 'var(--color-canvas)',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    borderRadius: '50%',
+                    width: '18px',
+                    height: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {totalItems}
+                  </span>
+                )}
               </button>
-            )}
-
-            {/* Cart Bag Icon Button */}
-            <button
-              type="button"
-              className="btn-icon-circular"
-              onClick={() => navigate('/cart')}
-              title={`View Cart (${totalItems})`}
-              style={{ position: 'relative' }}
-            >
-              <ShoppingCart size={20} />
-              {totalItems > 0 && (
-                <span style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-4px',
-                  backgroundColor: 'var(--color-ink)',
-                  color: 'var(--color-canvas)',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  borderRadius: '50%',
-                  width: '18px',
-                  height: '18px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  {totalItems}
-                </span>
-              )}
-            </button>
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Mobile Navigation Drawer */}
+      <div
+        className={`mobile-drawer-overlay ${drawerOpen ? 'open' : ''}`}
+        onClick={() => setDrawerOpen(false)}
+      />
+      <nav className={`mobile-drawer ${drawerOpen ? 'open' : ''}`} aria-label="Mobile navigation">
+        {/* Drawer Header */}
+        <div className="mobile-drawer-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShoppingBag size={18} strokeWidth={2.5} />
+            <span style={{ fontSize: '15px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.3px' }}>{settings.shopName}</span>
+          </div>
+          <button
+            type="button"
+            className="mobile-drawer-close"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Search inside drawer (when on shop/product pages) */}
+        {(currentView === 'store' || currentView === 'product-details') && (
+          <div className="mobile-drawer-search">
+            <div style={{ position: 'relative' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={e => onSearchChange(e.target.value)}
+                className="mobile-drawer-search-input"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Links */}
+        <div className="mobile-drawer-nav">
+          <button
+            type="button"
+            className={`mobile-drawer-link ${currentView === 'landing' ? 'active' : ''}`}
+            onClick={() => handleDrawerNav('/')}
+          >
+            <Home size={18} />
+            <span>Home</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-drawer-link ${currentView === 'store' || currentView === 'product-details' ? 'active' : ''}`}
+            onClick={() => handleDrawerNav('/shop')}
+          >
+            <Store size={18} />
+            <span>Shop</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-drawer-link ${currentView === 'about' ? 'active' : ''}`}
+            onClick={() => handleDrawerNav('/about')}
+          >
+            <Info size={18} />
+            <span>About</span>
+          </button>
+
+          <div className="mobile-drawer-divider" />
+
+          {currentUser && !isAdminAuthenticated && (
+            <button
+              type="button"
+              className={`mobile-drawer-link ${currentView === 'account' ? 'active' : ''}`}
+              onClick={() => handleDrawerNav('/account')}
+            >
+              <User size={18} />
+              <span>My Account</span>
+            </button>
+          )}
+
+          {currentUser && !isAdminAuthenticated && (
+            <button
+              type="button"
+              className="mobile-drawer-link"
+              onClick={() => handleDrawerNav('/account?tab=wishlist')}
+            >
+              <Heart size={18} />
+              <span>Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}</span>
+            </button>
+          )}
+
+          {isAdminAuthenticated && (
+            <button
+              type="button"
+              className={`mobile-drawer-link ${currentView === 'admin' ? 'active' : ''}`}
+              onClick={() => handleDrawerNav('/dashboard/home')}
+            >
+              <Shield size={18} />
+              <span>Admin Dashboard</span>
+            </button>
+          )}
+
+          {!currentUser && (
+            <button
+              type="button"
+              className={`mobile-drawer-link ${currentView === 'auth' ? 'active' : ''}`}
+              onClick={() => handleDrawerNav('/auth')}
+            >
+              <User size={18} />
+              <span>Sign In / Join</span>
+            </button>
+          )}
+
+          {currentUser && (
+            <>
+              <div className="mobile-drawer-divider" />
+              <button
+                type="button"
+                className="mobile-drawer-link"
+                onClick={() => { setDrawerOpen(false); onSignOut(); }}
+                style={{ color: 'var(--color-sale)' }}
+              >
+                <LogOut size={18} />
+                <span>Sign Out</span>
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Drawer Footer */}
+        <div className="mobile-drawer-footer">
+          {currentUser && (
+            <p className="mobile-drawer-footer-text" style={{ marginBottom: '8px', fontWeight: 600, color: 'var(--text-ink)' }}>
+              {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email?.split('@')[0])}
+            </p>
+          )}
+          <p className="mobile-drawer-footer-text">
+            Free shipping on orders over KSh 30,000
+          </p>
+        </div>
+      </nav>
+    </>
   );
 };

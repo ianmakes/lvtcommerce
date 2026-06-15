@@ -305,7 +305,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
       </div>
 
       {/* Main PDP Grid Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '48px', marginBottom: '48px' }}>
+      <div className="responsive-grid-pdp">
         
         {/* Left Side: Main Image + Horizontal Thumbnails Underneath */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

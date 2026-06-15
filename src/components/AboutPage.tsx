@@ -19,7 +19,7 @@ export const AboutPage: React.FC = () => {
             <span style={{ fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--color-canvas)', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
               Our Mission & Legacy
             </span>
-            <h1 className="font-display-campaign" style={{ fontSize: '72px', marginBottom: '8px' }}>
+            <h1 className="font-display-campaign about-hero-title" style={{ marginBottom: '8px' }}>
               ABOUT GOLDENCARE
             </h1>
             <p className="font-body-md" style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '16px', maxWidth: '600px', marginBottom: '0' }}>
@@ -31,7 +31,7 @@ export const AboutPage: React.FC = () => {
 
       {/* Main Content */}
       <section className="container section-block" style={{ paddingBottom: '80px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '80px', marginBottom: '64px' }}>
+        <div className="responsive-grid-main" style={{ marginBottom: '64px' }}>
           <div>
             <h2 className="font-heading-xl" style={{ textTransform: 'uppercase', marginBottom: '24px', borderBottom: '2px solid var(--color-ink)', paddingBottom: '12px' }}>
               Functional Recovery Architecture
