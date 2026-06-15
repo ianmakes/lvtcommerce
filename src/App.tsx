@@ -663,7 +663,10 @@ function App() {
       } else if (sortBy === 'rating') {
         return (b.rating || 0) - (a.rating || 0);
       }
-      return 0; // featured default
+      // 'featured' default: products with isFeatured === true go first
+      const aFeatured = a.isFeatured ? 1 : 0;
+      const bFeatured = b.isFeatured ? 1 : 0;
+      return bFeatured - aFeatured;
     });
 
   // Derive currentView from path for Navbar tab activation and UI highlights
@@ -863,7 +866,10 @@ function App() {
                 </div>
 
                 <div className="product-grid">
-                  {products.slice(0, 3).map(prod => (
+                  {(() => {
+                    const featuredProducts = products.filter(p => p.isFeatured);
+                    const homepageFeatured = featuredProducts.length > 0 ? featuredProducts : products.slice(0, 3);
+                    return homepageFeatured.map(prod => (
                     <div 
                       key={prod.id} 
                       className="prod-card" 
@@ -893,7 +899,8 @@ function App() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </div>
             </section>

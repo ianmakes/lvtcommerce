@@ -30,6 +30,7 @@ export interface Product {
   badge?: string; // e.g. "Best Seller", "Free Shipping"
   taxClassId?: string;
   tags?: string[]; // Product tags
+  isFeatured?: boolean;
 }
 
 export interface ProductReview {
@@ -198,6 +199,25 @@ export interface AuditLog {
   actor: string;
   timestamp: string;
   details?: string;
+}
+
+export interface ProcurementLog {
+  id: string;
+  productId: string;
+  productName: string;
+  variantId: string;
+  variantSku: string;
+  variantLabel: string;
+  type: 'restock' | 'correction';
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  supplierName?: string;
+  procurementInvoice?: string;
+  unitCost?: number;
+  notes: string;
+  date: string;
+  actor: string;
 }
 
 declare global {

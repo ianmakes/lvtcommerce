@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
-  Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail
+  Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail,
+  Boxes
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
   getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
   saveCategory, deleteCategory, saveCoupon, deleteCoupon,
   saveShippingZone, deleteShippingZone, saveTaxClass, deleteTaxClass, getAuditLogs,
-  getAllUsers, deleteBuyerProfile, saveBuyerProfile
+  getAllUsers, deleteBuyerProfile, saveBuyerProfile, getProcurements, addProcurement
 } from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth, db, firebaseConfig } from '../firebase';
@@ -83,7 +84,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const path = useLocation();
 
   // activeTab derived from URL path
-  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' = 'overview';
+  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' = 'overview';
   if (path === '/dashboard/orders') activeTab = 'orders';
   else if (path === '/dashboard/products') activeTab = 'products';
   else if (path === '/dashboard/settings') activeTab = 'settings';
@@ -93,6 +94,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/promos') activeTab = 'promos';
   else if (path === '/dashboard/media') activeTab = 'media';
   else if (path === '/dashboard/slides') activeTab = 'slides';
+  else if (path === '/dashboard/inventory') activeTab = 'inventory';
   
   // Lists from Firestore DB
   const [products, setProducts] = useState<Product[]>([]);
@@ -433,6 +435,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [prodTags, setProdTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [editorTab, setEditorTab] = useState<'general' | 'attributes' | 'variations'>('general');
+  const [prodIsFeatured, setProdIsFeatured] = useState<boolean>(false);
+
+  // Inventory & Procurement State
+  const [procurements, setProcurements] = useState<ProcurementLog[]>([]);
+  const [inventorySubTab, setInventorySubTab] = useState<'status' | 'logs'>('status');
+  const [selectedProcurementVariant, setSelectedProcurementVariant] = useState<{ product: Product; variant: ProductVariant } | null>(null);
+  const [adjType, setAdjType] = useState<'restock' | 'correction'>('restock');
+  const [adjQty, setAdjQty] = useState<number>(0);
+  const [adjSupplier, setAdjSupplier] = useState<string>('');
+  const [adjInvoice, setAdjInvoice] = useState<string>('');
+  const [adjCost, setAdjCost] = useState<number>(0);
+  const [adjNotes, setAdjNotes] = useState<string>('');
 
   // Slide Video State
   const [slideMediaType, setSlideMediaType] = useState<'image' | 'video'>('image');
@@ -450,13 +464,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsAdminLoading(true);
     setIsLoading(true);
     try {
-      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers] = await Promise.all([
+      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements] = await Promise.all([
         getProducts(),
         getOrders(),
         getSettings(),
         getHomeSlides(),
         getMediaFiles(),
-        getAllUsers()
+        getAllUsers(),
+        getProcurements()
       ]);
       setProducts(dbProds);
       setOrders(dbOrders);
@@ -464,6 +479,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setSlides(dbSlides);
       setMediaFiles(dbMedia);
       setUsersList(dbUsers);
+      setProcurements(dbProcurements);
     } catch (e) {
       console.error("Error loading data from Firestore:", e);
     } finally {
@@ -943,6 +959,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       images: prodGallery,
       taxClassId: prodTaxClassId || undefined,
       tags: prodTags.length > 0 ? prodTags : undefined,
+      isFeatured: prodIsFeatured,
       ...(editingProduct ? {
         rating: editingProduct.rating,
         reviewCount: editingProduct.reviewCount,
@@ -978,9 +995,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdVariants(prod.variants || []);
     setProdTaxClassId(prod.taxClassId || '');
     setProdTags(prod.tags || []);
+    setProdIsFeatured(prod.isFeatured || false);
     setNewTagInput('');
     setEditorTab('general');
     setProductModalOpen(true);
+  };
+
+  const handleToggleFeatured = async (prod: Product) => {
+    setIsLoading(true);
+    try {
+      const updatedProduct: Product = { ...prod, isFeatured: !prod.isFeatured };
+      await saveProduct(updatedProduct);
+      await loadAdminData();
+      onRefreshProducts();
+    } catch (err) {
+      console.error("Failed to toggle featured status:", err);
+      alert("Failed to toggle featured status.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteProductClick = async (id: string, name: string) => {
@@ -996,6 +1029,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       } finally {
         setIsLoading(false);
       }
+    }
+  };
+  // Save Stock Adjustment
+  const handleSaveStockAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProcurementVariant) return;
+
+    const { product, variant } = selectedProcurementVariant;
+
+    if (adjQty <= 0) {
+      alert("Quantity must be greater than 0.");
+      return;
+    }
+
+    if (adjType === 'restock') {
+      if (!adjSupplier.trim()) {
+        alert("Supplier Name is required for restocks.");
+        return;
+      }
+      if (!adjInvoice.trim()) {
+        alert("Supplier Invoice/PO # is required for restocks.");
+        return;
+      }
+      if (adjCost <= 0) {
+        alert("Unit Cost is required for restocks and must be greater than 0.");
+        return;
+      }
+    } else {
+      if (!adjNotes.trim()) {
+        alert("Notes are required for manual stock corrections.");
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    try {
+      const prevStock = variant.stock || 0;
+      const quantityChange = adjType === 'restock' ? adjQty : -adjQty;
+      const newStock = Math.max(0, prevStock + quantityChange);
+
+      // Update variant stock in product
+      const updatedVariants = (product.variants || []).map(v => {
+        if (v.id === variant.id) {
+          return { ...v, stock: newStock };
+        }
+        return v;
+      });
+
+      const updatedProduct: Product = {
+        ...product,
+        variants: updatedVariants
+      };
+
+      // Create procurement log
+      const newLog: ProcurementLog = {
+        id: `proc-${Date.now()}`,
+        productId: product.id,
+        productName: product.name,
+        variantId: variant.id,
+        variantSku: variant.sku || 'N/A',
+        variantLabel: Object.entries(variant.options || {}).map(([k, v]) => `${k}: ${v}`).join(', ') || 'Standard',
+        type: adjType,
+        quantity: quantityChange,
+        previousStock: prevStock,
+        newStock: newStock,
+        notes: adjNotes.trim(),
+        date: new Date().toISOString(),
+        actor: auth.currentUser?.email || 'Admin',
+        ...(adjType === 'restock' ? {
+          supplierName: adjSupplier.trim(),
+          procurementInvoice: adjInvoice.trim(),
+          unitCost: Number(adjCost)
+        } : {})
+      };
+
+      await saveProduct(updatedProduct);
+      await addProcurement(newLog);
+
+      setSelectedProcurementVariant(null);
+      setAdjQty(0);
+      setAdjSupplier('');
+      setAdjInvoice('');
+      setAdjCost(0);
+      setAdjNotes('');
+
+      await loadAdminData();
+      onRefreshProducts();
+      alert("Stock adjusted successfully!");
+    } catch (err) {
+      console.error("Failed to save stock adjustment:", err);
+      alert("Failed to adjust stock.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1147,6 +1273,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdVariants([]);
     setProdTaxClassId('');
     setProdTags([]);
+    setProdIsFeatured(false);
     setNewTagInput('');
     setEditorTab('general');
     setProductModalOpen(true);
@@ -1488,14 +1615,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           )}
           
           {hasPermission('manageProducts') && (
-            <button 
-              type="button"
-              className={`wp-admin-menu-item ${activeTab === 'products' ? 'active' : ''}`}
-              onClick={() => navigate('/dashboard/products')}
-            >
-              <PackageCheck size={18} />
-              <span>Products ({products.length})</span>
-            </button>
+            <>
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'products' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/products')}
+              >
+                <PackageCheck size={18} />
+                <span>Products ({products.length})</span>
+              </button>
+
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'inventory' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/inventory')}
+              >
+                <Boxes size={18} />
+                <span>Inventory</span>
+              </button>
+            </>
           )}
 
           {hasPermission('manageUsers') && (
@@ -1830,6 +1968,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <th style={{ width: '40px', paddingLeft: '10px' }}><input type="checkbox" /></th>
                     <th style={{ width: '64px' }}>Image</th>
                     <th>Name</th>
+                    <th style={{ width: '80px', textAlign: 'center' }}>Featured</th>
                     <th style={{ width: '120px' }}>Price</th>
                     <th style={{ width: '150px' }}>Categories</th>
                     <th style={{ width: '180px' }}>Attributes</th>
@@ -1871,6 +2010,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <span className="trash"><a onClick={() => handleDeleteProductClick(p.id, p.name)}>Trash</a> | </span>
                             <span className="view"><a href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer">View</a></span>
                           </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFeatured(p)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                            title={p.isFeatured ? "Unfeature Product" : "Feature Product"}
+                          >
+                            {p.isFeatured ? (
+                              <span style={{ color: '#dba617', fontSize: '20px', lineHeight: 1 }}>★</span>
+                            ) : (
+                              <span style={{ color: '#ccd0d4', fontSize: '20px', lineHeight: 1 }}>☆</span>
+                            )}
+                          </button>
                         </td>
                         <td style={{ fontWeight: 600 }}>KSh {p.basePrice.toLocaleString()}</td>
                         <td>
@@ -3526,11 +3679,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                         )}
                                       </div>
                                       <span>{u.username || u.email.split('@')[0]}</span>
+                                      {u.uid === 'avIScAH5NQMWN2zf6Z3YwEEQw302' && <span style={{ fontSize: '9px', background: '#e1f0fe', border: '1px solid #007cba', color: '#007cba', padding: '1px 6px', fontWeight: 'bold', textTransform: 'uppercase' }}>Super Admin</span>}
                                       {u.isGuest && <span style={{ fontSize: '9px', background: '#f0f0f1', padding: '1px 4px', color: '#646970', fontWeight: 'normal', textTransform: 'uppercase' }}>Guest</span>}
                                     </td>
                                     <td>{u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || '—'}</td>
                                     <td>{u.email}</td>
-                                    <td style={{ fontWeight: 600 }}>{getRoleDisplay(u.role)}</td>
+                                    <td style={{ fontWeight: 600 }}>{u.uid === 'avIScAH5NQMWN2zf6Z3YwEEQw302' ? 'Super Admin' : getRoleDisplay(u.role)}</td>
                                     <td>{u.phone || '—'}</td>
                                     <td style={{ textAlign: 'right' }}>{stats.orderCount}</td>
                                     <td style={{ textAlign: 'right', fontWeight: 600 }}>KSh {stats.spent.toLocaleString()}</td>
@@ -4307,6 +4461,218 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </table>
             </div>
           )}
+
+          {/* TAB 12: Inventory & Procurement */}
+          {activeTab === 'inventory' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                <h1 className="wp-admin-page-title" style={{ margin: 0 }}>Inventory Management</h1>
+              </div>
+
+              {/* Subsubsub links for Inventory */}
+              <ul className="wp-subsubsub" style={{ marginBottom: '20px', display: 'flex', gap: '10px', listStyle: 'none', padding: 0 }}>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => setInventorySubTab('status')}
+                    className={inventorySubTab === 'status' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: inventorySubTab === 'status' ? '#000' : '#2271b1', fontWeight: inventorySubTab === 'status' ? '600' : 'normal', borderBottom: inventorySubTab === 'status' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Stock Levels
+                  </button>
+                </li>
+                <li style={{ color: '#c3c4c7' }}>|</li>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => setInventorySubTab('logs')}
+                    className={inventorySubTab === 'logs' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: inventorySubTab === 'logs' ? '#000' : '#2271b1', fontWeight: inventorySubTab === 'logs' ? '600' : 'normal', borderBottom: inventorySubTab === 'logs' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Procurement &amp; Adjustment Logs
+                  </button>
+                </li>
+              </ul>
+
+              {inventorySubTab === 'status' ? (
+                <div className="wp-postbox" style={{ padding: '16px', background: '#fff' }}>
+                  <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '64px', padding: '10px' }}>Image</th>
+                        <th style={{ padding: '10px', textAlign: 'left' }}>Product</th>
+                        <th style={{ padding: '10px', textAlign: 'left' }}>Variant Options</th>
+                        <th style={{ width: '150px', padding: '10px', textAlign: 'left' }}>SKU</th>
+                        <th style={{ width: '100px', padding: '10px', textAlign: 'left' }}>Stock</th>
+                        <th style={{ width: '120px', padding: '10px', textAlign: 'left' }}>Status</th>
+                        <th style={{ width: '120px', padding: '10px', textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                            No products found in the database.
+                          </td>
+                        </tr>
+                      ) : (
+                        (() => {
+                          const rows: React.ReactNode[] = [];
+                          products.forEach(product => {
+                            if (!product.variants || product.variants.length === 0) {
+                              return;
+                            }
+                            product.variants.forEach(variant => {
+                              rows.push(
+                                <tr key={`${product.id}-${variant.id}`}>
+                                  <td style={{ padding: '10px' }}>
+                                    <img 
+                                      src={variant.image || product.image || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=80'} 
+                                      alt={product.name} 
+                                      style={{ width: '40px', height: '40px', objectFit: 'cover', border: '1px solid #c3c4c7', borderRadius: 0 }} 
+                                    />
+                                  </td>
+                                  <td style={{ padding: '10px', verticalAlign: 'middle' }}>
+                                    <div style={{ fontWeight: 600, fontSize: '13px' }}>{product.name}</div>
+                                    <div style={{ fontSize: '11px', color: '#646970' }}>ID: {product.id}</div>
+                                  </td>
+                                  <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '13px' }}>
+                                    {Object.entries(variant.options || {}).map(([k, v]) => `${k}: ${v}`).join(', ') || 'Standard'}
+                                  </td>
+                                  <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '13px', fontFamily: 'monospace' }}>
+                                    {variant.sku || '—'}
+                                  </td>
+                                  <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '13px', fontWeight: 600 }}>
+                                    {variant.stock}
+                                  </td>
+                                  <td style={{ padding: '10px', verticalAlign: 'middle' }}>
+                                    {variant.stock === 0 ? (
+                                      <span style={{ display: 'inline-block', background: '#fcf0f1', border: '1px solid #d63638', color: '#d63638', padding: '2px 6px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: 0 }}>Out of Stock</span>
+                                    ) : variant.stock < 5 ? (
+                                      <span style={{ display: 'inline-block', background: '#fdf7e7', border: '1px solid #dba617', color: '#dba617', padding: '2px 6px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: 0 }}>Low Stock</span>
+                                    ) : (
+                                      <span style={{ display: 'inline-block', background: '#edfaef', border: '1px solid #00a32a', color: '#00a32a', padding: '2px 6px', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', borderRadius: 0 }}>In Stock</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '10px', verticalAlign: 'middle', textAlign: 'right' }}>
+                                    <button
+                                      type="button"
+                                      className="wp-button-secondary"
+                                      style={{ minHeight: '26px', padding: '0 8px', fontSize: '11px', borderRadius: 0 }}
+                                      onClick={() => {
+                                        setSelectedProcurementVariant({ product, variant });
+                                        setAdjType('restock');
+                                        setAdjQty(0);
+                                        setAdjSupplier('');
+                                        setAdjInvoice('');
+                                        setAdjCost(0);
+                                        setAdjNotes('');
+                                      }}
+                                    >
+                                      Adjust Stock
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            });
+                          });
+                          return rows.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                                No product variants found.
+                              </td>
+                            </tr>
+                          ) : rows;
+                        })()
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="wp-postbox" style={{ padding: '16px', background: '#fff' }}>
+                  <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '140px' }}>Date</th>
+                        <th style={{ padding: '10px', textAlign: 'left' }}>Product / Variant</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>SKU</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '90px' }}>Type</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '80px' }}>Qty</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Supplier</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '100px' }}>Invoice/PO</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '100px' }}>Unit Cost</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '100px' }}>Total Cost</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '100px' }}>User</th>
+                        <th style={{ padding: '10px', textAlign: 'left', width: '150px' }}>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {procurements.length === 0 ? (
+                        <tr>
+                          <td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                            No procurement or adjustment logs found.
+                          </td>
+                        </tr>
+                      ) : (
+                        procurements.map(log => (
+                          <tr key={log.id}>
+                            <td style={{ padding: '10px', fontSize: '12px', verticalAlign: 'middle' }}>
+                              {new Date(log.date).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle' }}>
+                              <div style={{ fontWeight: 600, fontSize: '13px' }}>{log.productName}</div>
+                              <div style={{ fontSize: '11px', color: '#646970' }}>{log.variantLabel}</div>
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '12px', fontFamily: 'monospace' }}>
+                              {log.variantSku}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle' }}>
+                              <span 
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '2px 6px',
+                                  fontSize: '10px',
+                                  fontWeight: 'bold',
+                                  background: log.type === 'restock' ? '#edfaef' : '#fcf0f1',
+                                  border: log.type === 'restock' ? '1px solid #00a32a' : '1px solid #d63638',
+                                  color: log.type === 'restock' ? '#00a32a' : '#d63638',
+                                  textTransform: 'uppercase',
+                                  borderRadius: 0
+                                }}
+                              >
+                                {log.type}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontWeight: 'bold', color: log.quantity >= 0 ? '#00a32a' : '#d63638' }}>
+                              {log.quantity >= 0 ? `+${log.quantity}` : log.quantity}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '13px' }}>
+                              {log.supplierName || '—'}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '13px' }}>
+                              {log.procurementInvoice || '—'}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '13px' }}>
+                              {log.unitCost ? `KSh ${log.unitCost.toLocaleString()}` : '—'}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '13px', fontWeight: 600 }}>
+                              {log.unitCost && log.quantity > 0 ? `KSh ${(log.quantity * log.unitCost).toLocaleString()}` : '—'}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '12px', color: '#646970' }}>
+                              {log.actor.split('@')[0]}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'middle', fontSize: '12px', color: '#646970' }}>
+                              {log.notes || '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
           </>
           )}
 
@@ -4389,6 +4755,152 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Stock Adjustment */}
+      {selectedProcurementVariant && (
+        <div className="modal-overlay" onClick={() => setSelectedProcurementVariant(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', padding: 0, border: '1px solid #c3c4c7', borderRadius: 0 }}>
+            <div style={{ borderBottom: '1px solid #c3c4c7', padding: '12px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f6f7f7' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>Adjust Stock Level</h3>
+              <button className="modal-close" onClick={() => setSelectedProcurementVariant(null)} style={{ position: 'static', padding: 0 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStockAdjustment} style={{ padding: '20px' }}>
+              {/* Product Variant Details */}
+              <div style={{ marginBottom: '16px', padding: '12px', background: '#f6f7f7', border: '1px solid #dcdcde' }}>
+                <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{selectedProcurementVariant.product.name}</div>
+                <div style={{ fontSize: '12px', color: '#646970' }}>
+                  <strong>Options:</strong> {Object.entries(selectedProcurementVariant.variant.options || {}).map(([k, v]) => `${k}: ${v}`).join(', ') || 'Standard'}<br/>
+                  <strong>SKU:</strong> {selectedProcurementVariant.variant.sku || 'N/A'} | <strong>Current Stock:</strong> {selectedProcurementVariant.variant.stock}
+                </div>
+              </div>
+
+              {/* Adjustment Type */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '8px' }}>Adjustment Type</label>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                    <input 
+                      type="radio" 
+                      name="adjType" 
+                      value="restock"
+                      checked={adjType === 'restock'}
+                      onChange={() => setAdjType('restock')}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <span>Restock / Procurement (Addition)</span>
+                  </label>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                    <input 
+                      type="radio" 
+                      name="adjType" 
+                      value="correction"
+                      checked={adjType === 'correction'}
+                      onChange={() => setAdjType('correction')}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <span>Manual Correction (Deduction)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Quantity */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Quantity</label>
+                <input 
+                  type="number"
+                  min={1}
+                  required
+                  value={adjQty || ''}
+                  onChange={e => setAdjQty(Math.max(1, parseInt(e.target.value) || 0))}
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }}
+                  placeholder="e.g. 10"
+                />
+              </div>
+
+              {/* Restock Specific Fields */}
+              {adjType === 'restock' && (
+                <>
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Supplier Name</label>
+                    <input 
+                      type="text"
+                      required
+                      value={adjSupplier}
+                      onChange={e => setAdjSupplier(e.target.value)}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }}
+                      placeholder="e.g. Acme MedSupply Ltd"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Supplier Invoice / PO #</label>
+                    <input 
+                      type="text"
+                      required
+                      value={adjInvoice}
+                      onChange={e => setAdjInvoice(e.target.value)}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }}
+                      placeholder="e.g. PO-99882"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Unit Cost (KSh)</label>
+                    <input 
+                      type="number"
+                      min={0.01}
+                      step="any"
+                      required
+                      value={adjCost || ''}
+                      onChange={e => setAdjCost(Math.max(0, parseFloat(e.target.value) || 0))}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }}
+                      placeholder="e.g. 4500"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Notes */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>
+                  {adjType === 'correction' ? 'Reason for Adjustment (Required)' : 'Notes / Remarks (Optional)'}
+                </label>
+                <textarea 
+                  rows={3}
+                  required={adjType === 'correction'}
+                  value={adjNotes}
+                  onChange={e => setAdjNotes(e.target.value)}
+                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', resize: 'vertical', borderRadius: 0 }}
+                  placeholder={adjType === 'correction' ? "Reason for correction (e.g. Damaged inventory, shipping discrepancy)..." : "Additional remarks..."}
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #c3c4c7', paddingTop: '15px' }}>
+                <button 
+                  type="button" 
+                  className="wp-button-secondary" 
+                  onClick={() => setSelectedProcurementVariant(null)}
+                  style={{ borderRadius: 0 }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="wp-button-primary" 
+                  disabled={isLoading}
+                  style={{ borderRadius: 0 }}
+                >
+                  {isLoading ? 'Applying...' : 'Apply Adjustment'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -4489,6 +5001,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               <option key={tc.id} value={tc.id}>{tc.name}</option>
                             ))}
                           </select>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '15px' }}>
+                          <label style={{ width: '160px', fontWeight: 600 }}>Featured Product:</label>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={prodIsFeatured}
+                              onChange={e => setProdIsFeatured(e.target.checked)}
+                              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                            />
+                            <span>Highlight this product on homepage and top of shop page</span>
+                          </label>
                         </div>
                       </div>
                     )}

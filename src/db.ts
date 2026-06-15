@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog } from './types';
+import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, ProcurementLog } from './types';
 
 // Helper to clean undefined properties recursively before saving to Firestore
 function cleanObject<T extends object>(obj: T): T {
@@ -49,6 +49,7 @@ const SEED_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewCount: 3,
     badge: "New Release",
+    isFeatured: true,
     images: [
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample.jpg",
@@ -86,6 +87,7 @@ const SEED_PRODUCTS: Product[] = [
     rating: 4.5,
     reviewCount: 2,
     badge: "Popular",
+    isFeatured: true,
     images: [
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-5.jpg",
       "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample-2.jpg"
@@ -727,3 +729,19 @@ export async function saveWishlist(uid: string, productIds: string[]): Promise<v
   const wishlistRef = doc(db, "wishlists", uid);
   await setDoc(wishlistRef, { items: productIds, updatedAt: new Date().toISOString() });
 }
+
+// ---- Procurement / Inventory Log Helpers ----
+
+export async function getProcurements(): Promise<ProcurementLog[]> {
+  await initDb();
+  const col = collection(db, "procurements");
+  const snapshot = await getDocs(col);
+  const list = snapshot.docs.map(doc => doc.data() as ProcurementLog);
+  return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export async function addProcurement(log: ProcurementLog): Promise<void> {
+  await setDoc(doc(db, "procurements", log.id), cleanObject(log));
+  await addAuditLog(`Recorded stock adjustment for ${log.productName} (${log.variantSku}): ${log.quantity >= 0 ? '+' : ''}${log.quantity}`, log.actor);
+}
+
