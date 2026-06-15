@@ -353,19 +353,44 @@ async function deliverEmail({
   try {
     if (settings.emailProvider === 'resend' && settings.resendApiKey) {
       const fromAddress = settings.emailFromAddress || 'onboarding@resend.dev';
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${settings.resendApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: fromAddress,
-          to,
-          subject,
-          html
-        })
-      });
+      
+      let response;
+      try {
+        response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            apiKey: settings.resendApiKey,
+            from: fromAddress,
+            to,
+            subject,
+            html
+          })
+        });
+
+        // Check if response is HTML or 404 (local dev fallback)
+        const contentType = response.headers.get('content-type') || '';
+        if (response.status === 404 || !contentType.includes('application/json')) {
+          throw new Error('Serverless function not found or returned non-JSON. Falling back to direct API.');
+        }
+      } catch (proxyError) {
+        console.warn("Proxy dispatch failed, falling back to direct Resend API:", proxyError);
+        response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${settings.resendApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: fromAddress,
+            to,
+            subject,
+            html
+          })
+        });
+      }
 
       if (!response.ok) {
         const errText = await response.text();
