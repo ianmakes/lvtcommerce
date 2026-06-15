@@ -115,7 +115,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   useEffect(() => {
     if (auth.currentUser) {
-      setIs2FAEnabled(auth.currentUser.multiFactor.enrolledFactors.length > 0);
+      setIs2FAEnabled(multiFactor(auth.currentUser).enrolledFactors.length > 0);
     }
   }, []);
 
@@ -165,7 +165,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const credential = EmailAuthProvider.credential(user.email, mfaPassword);
       await reauthenticateWithCredential(user, credential);
 
-      const session = await user.multiFactor.getSession();
+      const session = await multiFactor(user).getSession();
       const secret = await TotpMultiFactorGenerator.generateSecret(session);
       setTotpSecret(secret);
       
@@ -196,7 +196,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
 
       const assertion = TotpMultiFactorGenerator.assertionForEnrollment(totpSecret, totpVerificationCode);
-      await user.multiFactor.enroll(assertion, "Authenticator App");
+      await multiFactor(user).enroll(assertion, "Authenticator App");
 
       const hashedCodes = await Promise.all(generatedCodes.map(c => hashRecoveryCode(c)));
       const secRef = doc(db, "users", user.uid, "security", "recovery");
@@ -222,9 +222,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         try {
           const user = auth.currentUser;
           if (user) {
-            const factors = user.multiFactor.enrolledFactors;
+            const factors = multiFactor(user).enrolledFactors;
             for (const f of factors) {
-              await user.multiFactor.unenroll(f);
+              await multiFactor(user).unenroll(f);
             }
             const secRef = doc(db, "users", user.uid, "security", "recovery");
             await deleteDoc(secRef);
