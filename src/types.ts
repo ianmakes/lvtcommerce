@@ -220,6 +220,16 @@ export interface ProcurementLog {
   actor: string;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  createdAt: string;
+}
+
 declare global {
   interface Window {
     showToast?: (message: string, type?: 'success' | 'warning') => void;

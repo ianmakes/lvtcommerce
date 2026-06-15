@@ -4,13 +4,14 @@ import {
   Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail,
   Boxes
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
   getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
   saveCategory, deleteCategory, saveCoupon, deleteCoupon,
   saveShippingZone, deleteShippingZone, saveTaxClass, deleteTaxClass, getAuditLogs,
-  getAllUsers, deleteBuyerProfile, saveBuyerProfile, getProcurements, addProcurement
+  getAllUsers, deleteBuyerProfile, saveBuyerProfile, getProcurements, addProcurement,
+  getSuppliers, saveSupplier, deleteSupplier
 } from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth, db, firebaseConfig } from '../firebase';
@@ -439,7 +440,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Inventory & Procurement State
   const [procurements, setProcurements] = useState<ProcurementLog[]>([]);
-  const [inventorySubTab, setInventorySubTab] = useState<'status' | 'logs'>('status');
+  const [inventorySubTab, setInventorySubTab] = useState<'status' | 'logs' | 'suppliers'>('status');
   const [selectedProcurementVariant, setSelectedProcurementVariant] = useState<{ product: Product; variant: ProductVariant } | null>(null);
   const [adjType, setAdjType] = useState<'restock' | 'correction'>('restock');
   const [adjQty, setAdjQty] = useState<number>(0);
@@ -447,6 +448,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [adjInvoice, setAdjInvoice] = useState<string>('');
   const [adjCost, setAdjCost] = useState<number>(0);
   const [adjNotes, setAdjNotes] = useState<string>('');
+
+  // Suppliers Management State
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [supName, setSupName] = useState('');
+  const [supContact, setSupContact] = useState('');
+  const [supEmail, setSupEmail] = useState('');
+  const [supPhone, setSupPhone] = useState('');
+  const [supAddress, setSupAddress] = useState('');
 
   // Slide Video State
   const [slideMediaType, setSlideMediaType] = useState<'image' | 'video'>('image');
@@ -464,14 +474,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsAdminLoading(true);
     setIsLoading(true);
     try {
-      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements] = await Promise.all([
+      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements, dbSuppliers] = await Promise.all([
         getProducts(),
         getOrders(),
         getSettings(),
         getHomeSlides(),
         getMediaFiles(),
         getAllUsers(),
-        getProcurements()
+        getProcurements(),
+        getSuppliers()
       ]);
       setProducts(dbProds);
       setOrders(dbOrders);
@@ -480,6 +491,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setMediaFiles(dbMedia);
       setUsersList(dbUsers);
       setProcurements(dbProcurements);
+      setSuppliers(dbSuppliers);
     } catch (e) {
       console.error("Error loading data from Firestore:", e);
     } finally {
@@ -1122,6 +1134,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       alert("Failed to adjust stock.");
     } finally {
       setIsLoading(false);
+    }
+  };
+  // Save Supplier Action
+  const handleSaveSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supName.trim()) {
+      alert("Supplier Name is required.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const supplierId = editingSupplier ? editingSupplier.id : `sup-${Date.now()}`;
+      const newSupplier: Supplier = {
+        id: supplierId,
+        name: supName.trim(),
+        contactPerson: supContact.trim() || undefined,
+        email: supEmail.trim() || undefined,
+        phone: supPhone.trim() || undefined,
+        address: supAddress.trim() || undefined,
+        createdAt: editingSupplier ? editingSupplier.createdAt : new Date().toISOString()
+      };
+
+      await saveSupplier(newSupplier);
+      
+      // Reset form states
+      setEditingSupplier(null);
+      setSupName('');
+      setSupContact('');
+      setSupEmail('');
+      setSupPhone('');
+      setSupAddress('');
+
+      await loadAdminData();
+      alert("Supplier saved successfully!");
+    } catch (err) {
+      console.error("Failed to save supplier:", err);
+      alert("Failed to save supplier.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditSupplierClick = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setSupName(supplier.name);
+    setSupContact(supplier.contactPerson || '');
+    setSupEmail(supplier.email || '');
+    setSupPhone(supplier.phone || '');
+    setSupAddress(supplier.address || '');
+  };
+
+  const handleDeleteSupplierClick = async (id: string, name: string) => {
+    if (confirm(`Are you sure you want to delete supplier "${name}"?`)) {
+      setIsLoading(true);
+      try {
+        await deleteSupplier(id);
+        await loadAdminData();
+        alert("Supplier deleted successfully!");
+      } catch (err) {
+        console.error("Failed to delete supplier:", err);
+        alert("Failed to delete supplier.");
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -4492,6 +4569,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     Procurement &amp; Adjustment Logs
                   </button>
                 </li>
+                <li style={{ color: '#c3c4c7' }}>|</li>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => setInventorySubTab('suppliers')}
+                    className={inventorySubTab === 'suppliers' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: inventorySubTab === 'suppliers' ? '#000' : '#2271b1', fontWeight: inventorySubTab === 'suppliers' ? '600' : 'normal', borderBottom: inventorySubTab === 'suppliers' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Suppliers
+                  </button>
+                </li>
               </ul>
 
               {inventorySubTab === 'status' ? (
@@ -4828,14 +4916,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <>
                   <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1d2327', marginBottom: '6px' }}>Supplier Name</label>
-                    <input 
-                      type="text"
-                      required
-                      value={adjSupplier}
-                      onChange={e => setAdjSupplier(e.target.value)}
-                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0 }}
-                      placeholder="e.g. Acme MedSupply Ltd"
-                    />
+                    {suppliers.length === 0 ? (
+                      <div style={{ color: '#d63638', fontSize: '12px', marginTop: '4px', border: '1px solid #d63638', padding: '8px', background: '#fcf0f1' }}>
+                        No suppliers found in the database. Please add a supplier under <strong>Inventory &gt; Suppliers</strong> first.
+                      </div>
+                    ) : (
+                      <select
+                        required
+                        value={adjSupplier}
+                        onChange={e => setAdjSupplier(e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', borderRadius: 0, background: '#fff', height: '32px' }}
+                      >
+                        <option value="">-- Select a Supplier --</option>
+                        {suppliers.map(s => (
+                          <option key={s.id} value={s.name}>{s.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div style={{ marginBottom: '16px' }}>

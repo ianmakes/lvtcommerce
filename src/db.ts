@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, ProcurementLog } from './types';
+import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, ProcurementLog, Supplier } from './types';
 
 // Helper to clean undefined properties recursively before saving to Firestore
 function cleanObject<T extends object>(obj: T): T {
@@ -743,5 +743,25 @@ export async function getProcurements(): Promise<ProcurementLog[]> {
 export async function addProcurement(log: ProcurementLog): Promise<void> {
   await setDoc(doc(db, "procurements", log.id), cleanObject(log));
   await addAuditLog(`Recorded stock adjustment for ${log.productName} (${log.variantSku}): ${log.quantity >= 0 ? '+' : ''}${log.quantity}`, log.actor);
+}
+
+// ---- Supplier Database Helpers ----
+
+export async function getSuppliers(): Promise<Supplier[]> {
+  await initDb();
+  const col = collection(db, "suppliers");
+  const snapshot = await getDocs(col);
+  const list = snapshot.docs.map(doc => doc.data() as Supplier);
+  return list.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function saveSupplier(supplier: Supplier): Promise<void> {
+  await setDoc(doc(db, "suppliers", supplier.id), cleanObject(supplier));
+  await addAuditLog(`Saved Supplier: ${supplier.name}`, 'Admin');
+}
+
+export async function deleteSupplier(id: string): Promise<void> {
+  await deleteDoc(doc(db, "suppliers", id));
+  await addAuditLog(`Deleted Supplier ID: ${id}`, 'Admin');
 }
 

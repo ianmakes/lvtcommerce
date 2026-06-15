@@ -19,7 +19,7 @@ import { BuyerAuth } from './components/BuyerAuth';
 import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { useLocation, navigate, Link } from './Router';
-import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User } from 'lucide-react';
+import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon } from 'lucide-react';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
 import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist } from './db';
@@ -1354,7 +1354,7 @@ function App() {
             className={`mobile-bottom-nav-item ${derivedView === 'account' || derivedView === 'auth' ? 'active' : ''}`}
             onClick={() => navigate(currentUser ? '/account' : '/auth')}
           >
-            <User size={22} />
+            <UserIcon size={22} />
             <span className="mobile-bottom-nav-label">Account</span>
           </button>
         </nav>
