@@ -5629,6 +5629,179 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
             </div>
           )}
+
+          {/* TAB: Reviews Moderation */}
+          {activeTab === 'reviews' && (
+            <div>
+              <h1 className="wp-admin-page-title" style={{ margin: '0 0 20px' }}>Reviews Moderation</h1>
+
+              {/* Subsubsub links for Filters */}
+              <ul className="wp-subsubsub" style={{ marginBottom: '20px', display: 'flex', gap: '10px', listStyle: 'none', padding: 0 }}>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => setReviewsFilter('all')}
+                    className={reviewsFilter === 'all' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'all' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'all' ? '600' : 'normal', borderBottom: reviewsFilter === 'all' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    All ({adminReviews.length})
+                  </button>
+                </li>
+                <li style={{ color: '#c3c4c7' }}>|</li>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => setReviewsFilter('pending')}
+                    className={reviewsFilter === 'pending' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'pending' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'pending' ? '600' : 'normal', borderBottom: reviewsFilter === 'pending' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Pending Approval ({adminReviews.filter(r => r.approved === false).length})
+                  </button>
+                </li>
+                <li style={{ color: '#c3c4c7' }}>|</li>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => setReviewsFilter('approved')}
+                    className={reviewsFilter === 'approved' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'approved' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'approved' ? '600' : 'normal', borderBottom: reviewsFilter === 'approved' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Approved ({adminReviews.filter(r => r.approved === true).length})
+                  </button>
+                </li>
+              </ul>
+
+              {/* Reviews List Table */}
+              <div className="wp-postbox" style={{ padding: '16px', background: '#fff' }}>
+                <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #c3c4c7' }}>
+                      <th style={{ padding: '10px', textAlign: 'left', width: '150px' }}>Author</th>
+                      <th style={{ padding: '10px', textAlign: 'left', width: '250px' }}>Review</th>
+                      <th style={{ padding: '10px', textAlign: 'left', width: '180px' }}>Submitted on Product</th>
+                      <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Rating</th>
+                      <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Status</th>
+                      <th style={{ padding: '10px', textAlign: 'right', width: '220px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminReviews
+                      .filter(r => {
+                        if (reviewsFilter === 'pending') return r.approved === false;
+                        if (reviewsFilter === 'approved') return r.approved === true;
+                        return true;
+                      })
+                      .length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#646970', fontStyle: 'italic' }}>
+                            No reviews found matching the selected filter.
+                          </td>
+                        </tr>
+                      ) : (
+                        adminReviews
+                          .filter(r => {
+                            if (reviewsFilter === 'pending') return r.approved === false;
+                            if (reviewsFilter === 'approved') return r.approved === true;
+                            return true;
+                          })
+                          .map(rev => {
+                            const relatedProd = products.find(p => p.id === rev.productId);
+                            return (
+                              <tr key={rev.id} style={{ borderBottom: '1px solid #f0f0f1' }}>
+                                <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                                  <div style={{ fontWeight: 600 }}>{rev.buyerName}</div>
+                                  <div style={{ fontSize: '11px', color: '#646970' }}>{rev.buyerEmail || 'No Email Provided'}</div>
+                                </td>
+                                <td style={{ padding: '10px', verticalAlign: 'top', fontSize: '13px', color: '#3c434a' }}>
+                                  <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{rev.comment}</p>
+                                  <span style={{ fontSize: '11px', color: '#646970', display: 'block', marginTop: '4px' }}>
+                                    Submitted: {new Date(rev.createdAt).toLocaleString()}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                                  {relatedProd ? (
+                                    <a href={`/product/${relatedProd.id}`} target="_blank" rel="noreferrer" style={{ color: '#2271b1', textDecoration: 'none', fontWeight: 500 }}>
+                                      {relatedProd.name}
+                                    </a>
+                                  ) : (
+                                    <span style={{ color: '#646970', fontStyle: 'italic' }}>Unknown Product ({rev.productId})</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                                  <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 600, marginRight: '4px' }}>{rev.rating}</span>
+                                    <div style={{ display: 'flex', color: '#dba617' }}>
+                                      {[1, 2, 3, 4, 5].map(star => (
+                                        <span key={star} style={{ fontSize: '14px' }}>
+                                          {star <= rev.rating ? '★' : '☆'}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                                  {rev.approved === true ? (
+                                    <span style={{ backgroundColor: '#edfaef', color: '#135e23', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                                      Approved
+                                    </span>
+                                  ) : (
+                                    <span style={{ backgroundColor: '#fcf0f1', color: '#d30005', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                                      Pending Approval
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '10px', verticalAlign: 'top', textAlign: 'right' }}>
+                                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                    {rev.approved === true ? (
+                                      <button
+                                        type="button"
+                                        className="wp-button-secondary"
+                                        onClick={() => handleApproveReview(rev.id, false)}
+                                        style={{ fontSize: '12px', padding: '4px 8px' }}
+                                      >
+                                        Unapprove
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="wp-button-primary"
+                                        onClick={() => handleApproveReview(rev.id, true)}
+                                        style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#135e23', borderColor: '#135e23' }}
+                                      >
+                                        Approve
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteReview(rev.id)}
+                                      style={{
+                                        fontSize: '12px',
+                                        padding: '4px 8px',
+                                        backgroundColor: '#fff',
+                                        color: '#d30005',
+                                        border: '1px solid #d30005',
+                                        cursor: 'pointer'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#fcf0f1';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = '#fff';
+                                      }}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           </>
           )}
 
@@ -5866,179 +6039,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* TAB: Reviews Moderation */}
-      {activeTab === 'reviews' && (
-        <div>
-          <h1 className="wp-admin-page-title" style={{ margin: '0 0 20px' }}>Reviews Moderation</h1>
-
-          {/* Subsubsub links for Filters */}
-          <ul className="wp-subsubsub" style={{ marginBottom: '20px', display: 'flex', gap: '10px', listStyle: 'none', padding: 0 }}>
-            <li>
-              <button 
-                type="button" 
-                onClick={() => setReviewsFilter('all')}
-                className={reviewsFilter === 'all' ? 'current' : ''}
-                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'all' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'all' ? '600' : 'normal', borderBottom: reviewsFilter === 'all' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
-              >
-                All ({adminReviews.length})
-              </button>
-            </li>
-            <li style={{ color: '#c3c4c7' }}>|</li>
-            <li>
-              <button 
-                type="button" 
-                onClick={() => setReviewsFilter('pending')}
-                className={reviewsFilter === 'pending' ? 'current' : ''}
-                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'pending' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'pending' ? '600' : 'normal', borderBottom: reviewsFilter === 'pending' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
-              >
-                Pending Approval ({adminReviews.filter(r => r.approved === false).length})
-              </button>
-            </li>
-            <li style={{ color: '#c3c4c7' }}>|</li>
-            <li>
-              <button 
-                type="button" 
-                onClick={() => setReviewsFilter('approved')}
-                className={reviewsFilter === 'approved' ? 'current' : ''}
-                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'approved' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'approved' ? '600' : 'normal', borderBottom: reviewsFilter === 'approved' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
-              >
-                Approved ({adminReviews.filter(r => r.approved === true).length})
-              </button>
-            </li>
-          </ul>
-
-          {/* Reviews List Table */}
-          <div className="wp-postbox" style={{ padding: '16px', background: '#fff' }}>
-            <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #c3c4c7' }}>
-                  <th style={{ padding: '10px', textAlign: 'left', width: '150px' }}>Author</th>
-                  <th style={{ padding: '10px', textAlign: 'left', width: '250px' }}>Review</th>
-                  <th style={{ padding: '10px', textAlign: 'left', width: '180px' }}>Submitted on Product</th>
-                  <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Rating</th>
-                  <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Status</th>
-                  <th style={{ padding: '10px', textAlign: 'right', width: '220px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adminReviews
-                  .filter(r => {
-                    if (reviewsFilter === 'pending') return r.approved === false;
-                    if (reviewsFilter === 'approved') return r.approved === true;
-                    return true;
-                  })
-                  .length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#646970', fontStyle: 'italic' }}>
-                        No reviews found matching the selected filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    adminReviews
-                      .filter(r => {
-                        if (reviewsFilter === 'pending') return r.approved === false;
-                        if (reviewsFilter === 'approved') return r.approved === true;
-                        return true;
-                      })
-                      .map(rev => {
-                        const relatedProd = products.find(p => p.id === rev.productId);
-                        return (
-                          <tr key={rev.id} style={{ borderBottom: '1px solid #f0f0f1' }}>
-                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
-                              <div style={{ fontWeight: 600 }}>{rev.buyerName}</div>
-                              <div style={{ fontSize: '11px', color: '#646970' }}>{rev.buyerEmail || 'No Email Provided'}</div>
-                            </td>
-                            <td style={{ padding: '10px', verticalAlign: 'top', fontSize: '13px', color: '#3c434a' }}>
-                              <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{rev.comment}</p>
-                              <span style={{ fontSize: '11px', color: '#646970', display: 'block', marginTop: '4px' }}>
-                                Submitted: {new Date(rev.createdAt).toLocaleString()}
-                              </span>
-                            </td>
-                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
-                              {relatedProd ? (
-                                <a href={`/product/${relatedProd.id}`} target="_blank" rel="noreferrer" style={{ color: '#2271b1', textDecoration: 'none', fontWeight: 500 }}>
-                                  {relatedProd.name}
-                                </a>
-                              ) : (
-                                <span style={{ color: '#646970', fontStyle: 'italic' }}>Unknown Product ({rev.productId})</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
-                              <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
-                                <span style={{ fontWeight: 600, marginRight: '4px' }}>{rev.rating}</span>
-                                <div style={{ display: 'flex', color: '#dba617' }}>
-                                  {[1, 2, 3, 4, 5].map(star => (
-                                    <span key={star} style={{ fontSize: '14px' }}>
-                                      {star <= rev.rating ? '★' : '☆'}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
-                              {rev.approved === true ? (
-                                <span style={{ backgroundColor: '#edfaef', color: '#135e23', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
-                                  Approved
-                                </span>
-                              ) : (
-                                <span style={{ backgroundColor: '#fcf0f1', color: '#d30005', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
-                                  Pending Approval
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ padding: '10px', verticalAlign: 'top', textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                {rev.approved === true ? (
-                                  <button
-                                    type="button"
-                                    className="wp-button-secondary"
-                                    onClick={() => handleApproveReview(rev.id, false)}
-                                    style={{ fontSize: '12px', padding: '4px 8px' }}
-                                  >
-                                    Unapprove
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="wp-button-primary"
-                                    onClick={() => handleApproveReview(rev.id, true)}
-                                    style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#135e23', borderColor: '#135e23' }}
-                                  >
-                                    Approve
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteReview(rev.id)}
-                                  style={{
-                                    fontSize: '12px',
-                                    padding: '4px 8px',
-                                    backgroundColor: '#fff',
-                                    color: '#d30005',
-                                    border: '1px solid #d30005',
-                                    cursor: 'pointer'
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#fcf0f1';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#fff';
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                  )}
-              </tbody>
-            </table>
           </div>
         </div>
       )}
