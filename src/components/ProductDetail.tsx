@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Product, ProductVariant, CartItem, ProductReview } from '../types';
-import { getProductReviews, addProductReview } from '../db';
+import { getProductReviews, addProductReview, checkIfUserPurchasedProduct } from '../db';
 import { Link } from '../Router';
 
 interface ProductDetailProps {
@@ -64,6 +64,8 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   // Reviews State
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
+  const [hasPurchased, setHasPurchased] = useState<boolean>(false);
+  const [checkingPurchase, setCheckingPurchase] = useState<boolean>(true);
 
   // New Review Form State
   const [formName, setFormName] = useState(currentUser?.displayName || '');
@@ -104,6 +106,27 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
     loadReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
+
+  useEffect(() => {
+    const verifyPurchase = async () => {
+      if (currentUser?.email) {
+        try {
+          setCheckingPurchase(true);
+          const purchased = await checkIfUserPurchasedProduct(currentUser.email, product.id);
+          setHasPurchased(purchased);
+        } catch (err) {
+          console.error("Error checking purchase history:", err);
+          setHasPurchased(false);
+        } finally {
+          setCheckingPurchase(false);
+        }
+      } else {
+        setHasPurchased(false);
+        setCheckingPurchase(false);
+      }
+    };
+    verifyPurchase();
+  }, [product.id, currentUser]);
 
   // Initialize options with the first available option for each attribute
   useEffect(() => {
@@ -239,12 +262,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
       buyerName: formName.trim(),
       rating: formRating,
       comment: formComment.trim(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      buyerEmail: currentUser?.email || undefined,
+      approved: false
     };
 
     try {
       await addProductReview(newReview);
-      setReviewSuccess("Thank you! Your review has been submitted successfully.");
+      setReviewSuccess("Thank you! Your review has been submitted and is pending moderator approval.");
       setFormComment('');
       setFormRating(5);
       setErrorMsg('');
@@ -282,6 +307,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
   // Concentric circle swatch helper
   const getColorHex = (colorName: string) => {
+    const colorAttribute = product.attributes?.find(attr => attr.name.toLowerCase() === 'color');
+    const customHex = colorAttribute?.colorValues?.[colorName];
+    if (customHex) return customHex;
     switch (colorName.toLowerCase()) {
       case 'stealth black': return '#111111';
       case 'matte carbon': return '#4b4b4d';
@@ -307,40 +335,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
       {/* Main PDP Grid Layout */}
       <div className="responsive-grid-pdp">
         
-        {/* Left Side: Main Image + Horizontal Thumbnails Underneath */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Large Main 1:1 Image */}
-          <div 
-            className="prod-img-container" 
-            onClick={() => setIsLightboxOpen(true)}
-            style={{ aspectRatio: '1 / 1', height: 'auto', border: '1px solid var(--color-hairline-soft)', width: '100%', cursor: 'zoom-in' }}
-          >
-            {product.badge && (
-              <span className="badge-promo">{product.badge}</span>
-            )}
-            {isVideoUrl(activeImage) ? (
-              getVideoEmbedUrl(activeImage) ? (
-                <iframe
-                  src={getVideoEmbedUrl(activeImage) || ''}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  allow="autoplay; fullscreen"
-                  title="product video"
-                />
-              ) : (
-                <video src={activeImage} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              )
-            ) : (
-              <img 
-                src={activeImage || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
-                alt={product.name} 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            )}
-          </div>
-
-          {/* Horizontal thumbnails under the main image */}
+        {/* Left Side: Main Image + Thumbnails */}
+        <div className="pdp-gallery-container">
           {galleryImages.length > 1 && (
-            <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '4px 0' }}>
+            <div className="pdp-thumbnails-strip">
               {galleryImages.map((imgUrl, index) => {
                 const isCurrent = imgUrl === activeImage;
                 const isVideo = isVideoUrl(imgUrl);
@@ -382,6 +380,36 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               })}
             </div>
           )}
+
+          <div className="pdp-main-image-wrapper">
+            <div 
+              className="prod-img-container" 
+              onClick={() => setIsLightboxOpen(true)}
+              style={{ aspectRatio: '1 / 1', height: 'auto', border: '1px solid var(--color-hairline-soft)', width: '100%', cursor: 'zoom-in' }}
+            >
+              {product.badge && (
+                <span className="badge-promo">{product.badge}</span>
+              )}
+              {isVideoUrl(activeImage) ? (
+                getVideoEmbedUrl(activeImage) ? (
+                  <iframe
+                    src={getVideoEmbedUrl(activeImage) || ''}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    allow="autoplay; fullscreen"
+                    title="product video"
+                  />
+                ) : (
+                  <video src={activeImage} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )
+              ) : (
+                <img 
+                  src={activeImage || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
+                  alt={product.name} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Right Side: Product Details & Purchase Form */}
@@ -400,7 +428,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               KSh {activePrice.toLocaleString()}
             </span>
             <p className="font-body-md" style={{ color: 'var(--text-charcoal)', lineHeight: 1.6 }}>
-              {product.description}
+              {product.shortDescription || product.description}
             </p>
           </div>
 
@@ -540,7 +568,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               </div>
               {detailsOpen && (
                 <div className="pdp-disclosure-content">
-                  <p style={{ marginBottom: '12px' }}>{product.description}</p>
+                  <p style={{ marginBottom: '12px', whiteSpace: 'pre-line' }}>{product.longDescription || product.description}</p>
                   {product.specifications && (
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '16px' }}>
                       <tbody>
@@ -600,7 +628,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                   {/* Review Submit form */}
                   <div style={{ backgroundColor: 'var(--color-soft-cloud)', padding: '20px', marginBottom: '24px' }}>
                     <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>Write a Review</h4>
-                    {currentUser ? (
+                    {!currentUser ? (
+                      <span className="font-caption-sm" style={{ color: 'var(--color-sale)', fontWeight: 600 }}>Please sign in to write a review.</span>
+                    ) : checkingPurchase ? (
+                      <span className="font-caption-sm" style={{ color: 'var(--text-mute)' }}>Verifying purchase status...</span>
+                    ) : !hasPurchased ? (
+                      <div style={{ padding: '8px 12px', border: '1px dashed var(--color-sale)', backgroundColor: '#fffdfd', color: 'var(--color-sale)', fontSize: '13px', fontWeight: 500 }}>
+                        Only verified buyers who have purchased this product can leave a review.
+                      </div>
+                    ) : (
                       <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {reviewSuccess && (
                           <div style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '13px' }}>
@@ -655,8 +691,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
                           Submit Review
                         </button>
                       </form>
-                    ) : (
-                      <span className="font-caption-sm" style={{ color: 'var(--color-sale)', fontWeight: 600 }}>Please sign in to write a review.</span>
                     )}
                   </div>
 

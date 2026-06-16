@@ -26,8 +26,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const formattedPrice = product.basePrice.toLocaleString();
   const hasVariants = product.variants && product.variants.length > 0;
 
+  // Extract color options if they exist
+  const colorAttribute = product.attributes?.find(attr => attr.name.toLowerCase() === 'color');
+  const colors = colorAttribute ? colorAttribute.options : [];
+
   // Color hex mapper for product attributes
   const getColorHex = (colorName: string) => {
+    const customHex = colorAttribute?.colorValues?.[colorName];
+    if (customHex) return customHex;
     switch (colorName.toLowerCase()) {
       case 'stealth black': return '#111111';
       case 'matte carbon': return '#4b4b4d';
@@ -36,10 +42,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       default: return '#f5f5f5';
     }
   };
-
-  // Extract color options if they exist
-  const colorAttribute = product.attributes?.find(attr => attr.name.toLowerCase() === 'color');
-  const colors = colorAttribute ? colorAttribute.options : [];
 
   // Simulated Sale logic
   const isOnSale = product.id === 'prod-magnify';

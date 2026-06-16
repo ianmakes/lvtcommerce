@@ -175,7 +175,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "Patrick Njoroge",
     rating: 5,
     comment: "This staff has been a game-changer. The carbon fiber is incredibly light and the cork grip looks beautiful and feels premium.",
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   },
   {
     id: "rev-2",
@@ -183,7 +185,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "Grace Kemunto",
     rating: 4,
     comment: "Beautiful matte finish and highly adjustable. Love the twist-lock design.",
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   },
   {
     id: "rev-3",
@@ -191,7 +195,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "Samuel Githinji",
     rating: 5,
     comment: "Excellent design! Very sleek tech-wellness item, highly support active hiking.",
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   },
   {
     id: "rev-4",
@@ -199,7 +205,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "Jane Atieno",
     rating: 5,
     comment: "Never forget reminders now! The OLED digital face looks great on my desk, and the USB-C recharge means no battery waste.",
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   },
   {
     id: "rev-5",
@@ -207,7 +215,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "David Ochieng",
     rating: 4,
     comment: "Excellent modular pods. Perfect for travel and daily capsules.",
-    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   },
   {
     id: "rev-6",
@@ -215,7 +225,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "Mary Muthoni",
     rating: 5,
     comment: "The AeroGel lining works perfectly. Relieves muscle tension instantly. Clean, modern look.",
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   },
   {
     id: "rev-7",
@@ -223,7 +235,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "Joseph Mwangi",
     rating: 4,
     comment: "Heats up very quickly. The digital safety timer works perfectly.",
-    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   },
   {
     id: "rev-8",
@@ -231,7 +245,9 @@ const SEED_REVIEWS: ProductReview[] = [
     buyerName: "Esther Wanjiku",
     rating: 4,
     comment: "Touch dimming LEDs provide perfect brightness. Borderless clean glass design.",
-    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    approved: true,
+    buyerEmail: "buyer@lvtcommerce.com"
   }
 ];
 
@@ -262,7 +278,8 @@ const SEED_ORDERS: Order[] = [
     paymentStatus: "Paid",
     paymentReference: "T629817290123",
     orderStatus: "Delivered",
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    buyerEmail: "buyer@lvtcommerce.com"
   }
 ];
 
@@ -582,7 +599,7 @@ export async function getProductReviews(productId: string): Promise<ProductRevie
   const reviewsSnapshot = await getDocs(reviewsCol);
   const reviewsList = reviewsSnapshot.docs
     .map(doc => doc.data() as ProductReview)
-    .filter(r => r.productId === productId);
+    .filter(r => r.productId === productId && r.approved !== false);
   
   // Sort reviews by date descending
   return reviewsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -590,21 +607,84 @@ export async function getProductReviews(productId: string): Promise<ProductRevie
 
 export async function addProductReview(review: ProductReview): Promise<void> {
   const reviewRef = doc(db, "reviews", review.id);
-  await setDoc(reviewRef, cleanObject(review));
+  const reviewData = { ...review, approved: false }; // Default new reviews to pending approval
+  await setDoc(reviewRef, cleanObject(reviewData));
+  
+  // Note: Product ratings and review counts are recalculated ONLY upon administrator approval
+}
 
-  // Recalculate and update average product rating and review count in Firestore
-  const reviews = await getProductReviews(review.productId);
-  const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
-  const averageRating = reviews.length > 0 ? parseFloat((totalRating / reviews.length).toFixed(1)) : 0;
+export async function getAllReviews(): Promise<ProductReview[]> {
+  await initDb();
+  const reviewsCol = collection(db, "reviews");
+  const reviewsSnapshot = await getDocs(reviewsCol);
+  const reviewsList = reviewsSnapshot.docs.map(doc => doc.data() as ProductReview);
+  return reviewsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
 
-  const productRef = doc(db, "products", review.productId);
-  const productSnap = await getDoc(productRef);
-  if (productSnap.exists()) {
-    const product = productSnap.data() as Product;
-    product.rating = averageRating;
-    product.reviewCount = reviews.length;
-    await setDoc(productRef, cleanObject(product));
+export async function approveReview(reviewId: string, approved: boolean): Promise<void> {
+  const reviewRef = doc(db, "reviews", reviewId);
+  const reviewSnap = await getDoc(reviewRef);
+  if (reviewSnap.exists()) {
+    const review = reviewSnap.data() as ProductReview;
+    review.approved = approved;
+    await setDoc(reviewRef, cleanObject(review));
+
+    // Recalculate average rating for product using only approved reviews
+    const reviewsCol = collection(db, "reviews");
+    const reviewsSnapshot = await getDocs(reviewsCol);
+    const productReviews = reviewsSnapshot.docs
+      .map(doc => doc.data() as ProductReview)
+      .filter(r => r.productId === review.productId && r.approved === true);
+
+    const totalRating = productReviews.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = productReviews.length > 0 ? parseFloat((totalRating / productReviews.length).toFixed(1)) : 0;
+
+    const productRef = doc(db, "products", review.productId);
+    const productSnap = await getDoc(productRef);
+    if (productSnap.exists()) {
+      const product = productSnap.data() as Product;
+      product.rating = averageRating;
+      product.reviewCount = productReviews.length;
+      await setDoc(productRef, cleanObject(product));
+    }
   }
+}
+
+export async function deleteProductReview(reviewId: string): Promise<void> {
+  const reviewRef = doc(db, "reviews", reviewId);
+  const reviewSnap = await getDoc(reviewRef);
+  if (reviewSnap.exists()) {
+    const review = reviewSnap.data() as ProductReview;
+    await deleteDoc(reviewRef);
+
+    // Recalculate average rating for product using only approved reviews
+    const reviewsCol = collection(db, "reviews");
+    const reviewsSnapshot = await getDocs(reviewsCol);
+    const productReviews = reviewsSnapshot.docs
+      .map(doc => doc.data() as ProductReview)
+      .filter(r => r.productId === review.productId && r.approved === true);
+
+    const totalRating = productReviews.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = productReviews.length > 0 ? parseFloat((totalRating / productReviews.length).toFixed(1)) : 0;
+
+    const productRef = doc(db, "products", review.productId);
+    const productSnap = await getDoc(productRef);
+    if (productSnap.exists()) {
+      const product = productSnap.data() as Product;
+      product.rating = averageRating;
+      product.reviewCount = productReviews.length;
+      await setDoc(productRef, cleanObject(product));
+    }
+  }
+}
+
+export async function checkIfUserPurchasedProduct(email: string, productId: string): Promise<boolean> {
+  await initDb();
+  const orders = await getOrders();
+  return orders.some(o => 
+    o.buyerEmail?.toLowerCase() === email.toLowerCase() && 
+    o.items.some(item => item.productId === productId)
+  );
 }
 
 // Slides GET/SAVE/DELETE

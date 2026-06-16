@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
   Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail,
-  Boxes, Send
+  Boxes, Send, MessageSquare
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier, ProductReview } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
   getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
   saveCategory, deleteCategory, saveCoupon, deleteCoupon,
   saveShippingZone, deleteShippingZone, saveTaxClass, deleteTaxClass, getAuditLogs,
   getAllUsers, deleteBuyerProfile, saveBuyerProfile, getProcurements, addProcurement,
-  getSuppliers, saveSupplier, deleteSupplier
+  getSuppliers, saveSupplier, deleteSupplier,
+  getAllReviews, approveReview, deleteProductReview
 } from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth, db, firebaseConfig } from '../firebase';
@@ -86,7 +87,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const path = useLocation();
 
   // activeTab derived from URL path
-  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' = 'overview';
+  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' | 'reviews' = 'overview';
   if (path === '/dashboard/orders') activeTab = 'orders';
   else if (path === '/dashboard/products') activeTab = 'products';
   else if (path.startsWith('/dashboard/settings')) activeTab = 'settings';
@@ -97,6 +98,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/media') activeTab = 'media';
   else if (path === '/dashboard/slides') activeTab = 'slides';
   else if (path === '/dashboard/inventory') activeTab = 'inventory';
+  else if (path === '/dashboard/reviews') activeTab = 'reviews';
 
   // Derive settingsSubTab from URL path
   let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' = 'general';
@@ -444,6 +446,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Product Form Fields
   const [prodName, setProdName] = useState('');
   const [prodDesc, setProdDesc] = useState('');
+  const [prodShortDesc, setProdShortDesc] = useState('');
+  const [prodLongDesc, setProdLongDesc] = useState('');
   const [prodCats, setProdCats] = useState<string[]>([]);
   const [prodPrice, setProdPrice] = useState(0);
   const [prodImg, setProdImg] = useState('');
@@ -454,6 +458,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newTagInput, setNewTagInput] = useState('');
   const [editorTab, setEditorTab] = useState<'general' | 'attributes' | 'variations'>('general');
   const [prodIsFeatured, setProdIsFeatured] = useState<boolean>(false);
+
+  // Predefined Colors List
+  const PREDEFINED_COLORS = [
+    { name: 'Stealth Black', hex: '#111111' },
+    { name: 'Matte Carbon', hex: '#4b4b4d' },
+    { name: 'Cyber Silver', hex: '#cacacb' },
+    { name: 'Sapphire Blue', hex: '#0f52ba' },
+    { name: 'Emerald Green', hex: '#50c878' },
+    { name: 'Ruby Red', hex: '#e0115f' },
+    { name: 'Golden Gold', hex: '#ffd700' },
+    { name: 'Pearl White', hex: '#fbf9f5' }
+  ];
+
+  // Color attribute configuration states
+  const [isColorVariation, setIsColorVariation] = useState(false);
+  const [selectedColors, setSelectedColors] = useState<Array<{ name: string; hex: string }>>([]);
+  const [customColorName, setCustomColorName] = useState('');
+  const [customColorHex, setCustomColorHex] = useState('#111111');
+
+  // Reviews Moderation State
+  const [adminReviews, setAdminReviews] = useState<ProductReview[]>([]);
+  const [reviewsFilter, setReviewsFilter] = useState<'all' | 'pending' | 'approved'>('all');
 
   // Inventory & Procurement State
   const [procurements, setProcurements] = useState<ProcurementLog[]>([]);
@@ -486,12 +512,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [newAttrName, setNewAttrName] = useState('');
   const [newAttrOptions, setNewAttrOptions] = useState('');
 
+  const togglePredefinedColor = (color: { name: string; hex: string }) => {
+    setSelectedColors(prev => {
+      const exists = prev.some(c => c.name.toLowerCase() === color.name.toLowerCase());
+      if (exists) {
+        return prev.filter(c => c.name.toLowerCase() !== color.name.toLowerCase());
+      } else {
+        return [...prev, color];
+      }
+    });
+  };
+
+  const handleAddCustomColor = () => {
+    if (!customColorName.trim()) {
+      alert("Please enter a custom color name.");
+      return;
+    }
+    const color = { name: customColorName.trim(), hex: customColorHex };
+    setSelectedColors(prev => {
+      const exists = prev.some(c => c.name.toLowerCase() === color.name.toLowerCase());
+      if (exists) {
+        alert("A color with this name already exists.");
+        return prev;
+      }
+      return [...prev, color];
+    });
+    setCustomColorName('');
+  };
+
   // Load Admin Data from Firestore
   const loadAdminData = async () => {
     setIsAdminLoading(true);
     setIsLoading(true);
     try {
-      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements, dbSuppliers] = await Promise.all([
+      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements, dbSuppliers, dbReviews] = await Promise.all([
         getProducts(),
         getOrders(),
         getSettings(),
@@ -499,7 +553,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         getMediaFiles(),
         getAllUsers(),
         getProcurements(),
-        getSuppliers()
+        getSuppliers(),
+        getAllReviews()
       ]);
       setProducts(dbProds);
       setOrders(dbOrders);
@@ -509,6 +564,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setUsersList(dbUsers);
       setProcurements(dbProcurements);
       setSuppliers(dbSuppliers);
+      setAdminReviews(dbReviews);
     } catch (e) {
       console.error("Error loading data from Firestore:", e);
     } finally {
@@ -521,6 +577,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAdminData();
   }, [path]);
+
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
 
   // Helper to check permissions (RBAC)
   const hasPermission = (permission: string): boolean => {
@@ -979,6 +1039,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       id: editingProduct ? editingProduct.id : `prod-${Date.now()}`,
       name: prodName.trim(),
       description: prodDesc.trim(),
+      shortDescription: prodShortDesc.trim() || undefined,
+      longDescription: prodLongDesc.trim() || undefined,
       category: prodCats[0], // Primary category for backward compat
       categories: prodCats,
       image: prodImg.trim() || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
@@ -1012,10 +1074,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleApproveReview = async (reviewId: string, approved: boolean) => {
+    setIsLoading(true);
+    try {
+      await approveReview(reviewId, approved);
+      const dbReviews = await getAllReviews();
+      setAdminReviews(dbReviews);
+      alert("Review status updated successfully.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update review status.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!window.confirm("Are you sure you want to delete this review permanently?")) return;
+    setIsLoading(true);
+    try {
+      await deleteProductReview(reviewId);
+      const dbReviews = await getAllReviews();
+      setAdminReviews(dbReviews);
+      alert("Review deleted permanently.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete review.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEditProductClick = (prod: Product) => {
     setEditingProduct(prod);
     setProdName(prod.name);
     setProdDesc(prod.description);
+    setProdShortDesc(prod.shortDescription || '');
+    setProdLongDesc(prod.longDescription || '');
     const validCats = (prod.categories || [prod.category]).filter(catName => 
       categories.some(c => c.name === catName)
     );
@@ -1362,6 +1457,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setEditingProduct(null);
     setProdName('');
     setProdDesc('');
+    setProdShortDesc('');
+    setProdLongDesc('');
     setProdCats([]);
     setProdPrice(10000);
     setProdImg('');
@@ -1892,7 +1989,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onClick={() => navigate('/dashboard/slides')}
               >
                 <Sliders size={18} />
-                <span>Hero Slides</span>
+                <span>Home Slides</span>
+              </button>
+
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'reviews' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/reviews')}
+              >
+                <MessageSquare size={18} />
+                <span>Reviews ({adminReviews.length})</span>
               </button>
             </>
           )}
@@ -1912,7 +2018,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Content Panel */}
         <main className="wp-admin-main-content">
           {((activeTab === 'orders' && !hasPermission('manageOrders')) ||
-            (['products', 'categories', 'promos', 'media', 'slides'].includes(activeTab) && !hasPermission('manageProducts')) ||
+            (['products', 'categories', 'promos', 'media', 'slides', 'reviews'].includes(activeTab) && !hasPermission('manageProducts')) ||
             (activeTab === 'customers' && !hasPermission('manageUsers')) ||
             (activeTab === 'reports' && !hasPermission('viewReports')) ||
             (activeTab === 'settings' && !hasPermission('manageSettings'))) ? (
@@ -5764,6 +5870,179 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {/* TAB: Reviews Moderation */}
+      {activeTab === 'reviews' && (
+        <div>
+          <h1 className="wp-admin-page-title" style={{ margin: '0 0 20px' }}>Reviews Moderation</h1>
+
+          {/* Subsubsub links for Filters */}
+          <ul className="wp-subsubsub" style={{ marginBottom: '20px', display: 'flex', gap: '10px', listStyle: 'none', padding: 0 }}>
+            <li>
+              <button 
+                type="button" 
+                onClick={() => setReviewsFilter('all')}
+                className={reviewsFilter === 'all' ? 'current' : ''}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'all' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'all' ? '600' : 'normal', borderBottom: reviewsFilter === 'all' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+              >
+                All ({adminReviews.length})
+              </button>
+            </li>
+            <li style={{ color: '#c3c4c7' }}>|</li>
+            <li>
+              <button 
+                type="button" 
+                onClick={() => setReviewsFilter('pending')}
+                className={reviewsFilter === 'pending' ? 'current' : ''}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'pending' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'pending' ? '600' : 'normal', borderBottom: reviewsFilter === 'pending' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+              >
+                Pending Approval ({adminReviews.filter(r => r.approved === false).length})
+              </button>
+            </li>
+            <li style={{ color: '#c3c4c7' }}>|</li>
+            <li>
+              <button 
+                type="button" 
+                onClick={() => setReviewsFilter('approved')}
+                className={reviewsFilter === 'approved' ? 'current' : ''}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: reviewsFilter === 'approved' ? '#000' : '#2271b1', fontWeight: reviewsFilter === 'approved' ? '600' : 'normal', borderBottom: reviewsFilter === 'approved' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+              >
+                Approved ({adminReviews.filter(r => r.approved === true).length})
+              </button>
+            </li>
+          </ul>
+
+          {/* Reviews List Table */}
+          <div className="wp-postbox" style={{ padding: '16px', background: '#fff' }}>
+            <table className="wp-list-table widefat fixed striped table-view-list posts" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #c3c4c7' }}>
+                  <th style={{ padding: '10px', textAlign: 'left', width: '150px' }}>Author</th>
+                  <th style={{ padding: '10px', textAlign: 'left', width: '250px' }}>Review</th>
+                  <th style={{ padding: '10px', textAlign: 'left', width: '180px' }}>Submitted on Product</th>
+                  <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Rating</th>
+                  <th style={{ padding: '10px', textAlign: 'left', width: '120px' }}>Status</th>
+                  <th style={{ padding: '10px', textAlign: 'right', width: '220px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminReviews
+                  .filter(r => {
+                    if (reviewsFilter === 'pending') return r.approved === false;
+                    if (reviewsFilter === 'approved') return r.approved === true;
+                    return true;
+                  })
+                  .length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#646970', fontStyle: 'italic' }}>
+                        No reviews found matching the selected filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    adminReviews
+                      .filter(r => {
+                        if (reviewsFilter === 'pending') return r.approved === false;
+                        if (reviewsFilter === 'approved') return r.approved === true;
+                        return true;
+                      })
+                      .map(rev => {
+                        const relatedProd = products.find(p => p.id === rev.productId);
+                        return (
+                          <tr key={rev.id} style={{ borderBottom: '1px solid #f0f0f1' }}>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              <div style={{ fontWeight: 600 }}>{rev.buyerName}</div>
+                              <div style={{ fontSize: '11px', color: '#646970' }}>{rev.buyerEmail || 'No Email Provided'}</div>
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'top', fontSize: '13px', color: '#3c434a' }}>
+                              <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{rev.comment}</p>
+                              <span style={{ fontSize: '11px', color: '#646970', display: 'block', marginTop: '4px' }}>
+                                Submitted: {new Date(rev.createdAt).toLocaleString()}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              {relatedProd ? (
+                                <a href={`/product/${relatedProd.id}`} target="_blank" rel="noreferrer" style={{ color: '#2271b1', textDecoration: 'none', fontWeight: 500 }}>
+                                  {relatedProd.name}
+                                </a>
+                              ) : (
+                                <span style={{ color: '#646970', fontStyle: 'italic' }}>Unknown Product ({rev.productId})</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 600, marginRight: '4px' }}>{rev.rating}</span>
+                                <div style={{ display: 'flex', color: '#dba617' }}>
+                                  {[1, 2, 3, 4, 5].map(star => (
+                                    <span key={star} style={{ fontSize: '14px' }}>
+                                      {star <= rev.rating ? '★' : '☆'}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              {rev.approved === true ? (
+                                <span style={{ backgroundColor: '#edfaef', color: '#135e23', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                                  Approved
+                                </span>
+                              ) : (
+                                <span style={{ backgroundColor: '#fcf0f1', color: '#d30005', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                                  Pending Approval
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'top', textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                {rev.approved === true ? (
+                                  <button
+                                    type="button"
+                                    className="wp-button-secondary"
+                                    onClick={() => handleApproveReview(rev.id, false)}
+                                    style={{ fontSize: '12px', padding: '4px 8px' }}
+                                  >
+                                    Unapprove
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="wp-button-primary"
+                                    onClick={() => handleApproveReview(rev.id, true)}
+                                    style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#135e23', borderColor: '#135e23' }}
+                                  >
+                                    Approve
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteReview(rev.id)}
+                                  style={{
+                                    fontSize: '12px',
+                                    padding: '4px 8px',
+                                    backgroundColor: '#fff',
+                                    color: '#d30005',
+                                    border: '1px solid #d30005',
+                                    cursor: 'pointer'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#fcf0f1';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#fff';
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                  )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* MODAL/GUTENBERG SCREEN: Add/Edit Product */}
       {productModalOpen && (
         <div className="modal-overlay" onClick={() => { setProductModalOpen(false); setEditingProduct(null); }}>
@@ -5794,14 +6073,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     required
                   />
 
-                  {/* Description textarea */}
+                  {/* Short Description textarea */}
                   <div className="wp-postbox">
-                    <h2 className="wp-postbox-title">Product Description</h2>
+                    <h2 className="wp-postbox-title">Short Description (Displays near buy box on storefront)</h2>
+                    <div className="wp-postbox-inside" style={{ padding: 0 }}>
+                      <textarea 
+                        value={prodShortDesc}
+                        onChange={e => setProdShortDesc(e.target.value)}
+                        placeholder="A brief summary of the product..."
+                        style={{ width: '100%', border: 'none', padding: '15px', minHeight: '80px', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: '13px', outline: 'none', resize: 'vertical' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description textarea (Legacy fallback) */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Legacy Description (Fallback)</h2>
                     <div className="wp-postbox-inside" style={{ padding: 0 }}>
                       <textarea 
                         value={prodDesc}
                         onChange={e => setProdDesc(e.target.value)}
                         placeholder="Describe the product specifications, materials, and features..."
+                        style={{ width: '100%', border: 'none', padding: '15px', minHeight: '100px', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: '13px', outline: 'none', resize: 'vertical' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Long Description textarea */}
+                  <div className="wp-postbox">
+                    <h2 className="wp-postbox-title">Long Description (Displays in product overview accordion)</h2>
+                    <div className="wp-postbox-inside" style={{ padding: 0 }}>
+                      <textarea 
+                        value={prodLongDesc}
+                        onChange={e => setProdLongDesc(e.target.value)}
+                        placeholder="Detailed long-form description of the product..."
                         style={{ width: '100%', border: 'none', padding: '15px', minHeight: '140px', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: '13px', outline: 'none', resize: 'vertical' }}
                       />
                     </div>
@@ -5900,34 +6205,198 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
 
                         {/* Add Attribute Row */}
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', background: '#fafafa', border: '1px solid #c3c4c7', padding: '12px' }}>
-                          <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Name (e.g. Color)</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#fafafa', border: '1px solid #c3c4c7', padding: '15px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <input 
-                              type="text" 
-                              style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
-                              value={newAttrName}
-                              onChange={e => setNewAttrName(e.target.value)}
-                              placeholder="Color"
+                              type="checkbox" 
+                              id="isColorVarCheckbox"
+                              checked={isColorVariation} 
+                              onChange={e => {
+                                setIsColorVariation(e.target.checked);
+                                if (e.target.checked) {
+                                  setNewAttrName("Color");
+                                } else {
+                                  setNewAttrName("");
+                                }
+                              }} 
                             />
+                            <label htmlFor="isColorVarCheckbox" style={{ fontWeight: 600 }}>Is Color Variation Attribute</label>
                           </div>
-                          <div style={{ flex: 2 }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Options (Comma-separated)</label>
-                            <input 
-                              type="text" 
-                              style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
-                              value={newAttrOptions}
-                              onChange={e => setNewAttrOptions(e.target.value)}
-                              placeholder="Stealth Black, Matte Carbon, Cyber Silver"
-                            />
-                          </div>
-                          <button 
-                            type="button" 
-                            className="wp-button-secondary"
-                            onClick={handleAddAttribute}
-                          >
-                            Add Option
-                          </button>
+
+                          {isColorVariation ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                              {/* Predefined Colors Grid */}
+                              <div>
+                                <span style={{ display: 'block', fontWeight: 600, marginBottom: '6px' }}>Select Standard Colors:</span>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                  {PREDEFINED_COLORS.map(color => {
+                                    const isSelected = selectedColors.some(c => c.name.toLowerCase() === color.name.toLowerCase());
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={color.name}
+                                        onClick={() => togglePredefinedColor(color)}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '6px',
+                                          padding: '6px 12px',
+                                          border: isSelected ? '2px solid #2271b1' : '1px solid #c3c4c7',
+                                          background: '#ffffff',
+                                          cursor: 'pointer',
+                                          borderRadius: '4px',
+                                          fontWeight: isSelected ? 600 : 'normal'
+                                        }}
+                                      >
+                                        <span style={{ display: 'inline-block', width: '12px', height: '12px', backgroundColor: color.hex, borderRadius: '50%', border: '1px solid #eee' }} />
+                                        {color.name}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Custom Color Picker */}
+                              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', borderTop: '1px solid #eee', paddingTop: '12px' }}>
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Custom Color Name</label>
+                                  <input 
+                                    type="text"
+                                    value={customColorName}
+                                    onChange={e => setCustomColorName(e.target.value)}
+                                    placeholder="e.g. Sunset Orange"
+                                    style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Select Color</label>
+                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                    <input 
+                                      type="color"
+                                      value={customColorHex}
+                                      onChange={e => setCustomColorHex(e.target.value)}
+                                      style={{ padding: 0, width: '36px', height: '32px', border: '1px solid #c3c4c7', cursor: 'pointer' }}
+                                    />
+                                    <input 
+                                      type="text"
+                                      value={customColorHex}
+                                      onChange={e => setCustomColorHex(e.target.value)}
+                                      style={{ width: '80px', padding: '5px 8px', border: '1px solid #c3c4c7', textTransform: 'uppercase' }}
+                                    />
+                                  </div>
+                                </div>
+                                <button 
+                                  type="button" 
+                                  className="wp-button-secondary"
+                                  onClick={handleAddCustomColor}
+                                >
+                                  Add Custom Color
+                                </button>
+                              </div>
+
+                              {/* Current Selected Colors Swatch List */}
+                              {selectedColors.length > 0 && (
+                                <div style={{ borderTop: '1px solid #eee', paddingTop: '12px' }}>
+                                  <span style={{ display: 'block', fontWeight: 600, marginBottom: '6px' }}>Configured Color Swatches ({selectedColors.length}):</span>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {selectedColors.map((color, cIdx) => (
+                                      <span 
+                                        key={cIdx} 
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '6px',
+                                          padding: '4px 10px',
+                                          border: '1px solid #c3c4c7',
+                                          background: '#f6f7f7',
+                                          borderRadius: '12px',
+                                          fontSize: '12px'
+                                        }}
+                                      >
+                                        <span style={{ display: 'inline-block', width: '10px', height: '10px', backgroundColor: color.hex, borderRadius: '50%', border: '1px solid #eee' }} />
+                                        {color.name} ({color.hex})
+                                        <button 
+                                          type="button" 
+                                          onClick={() => setSelectedColors(prev => prev.filter((_, i) => i !== cIdx))}
+                                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#d30005', fontWeight: 'bold', paddingLeft: '4px' }}
+                                        >
+                                          &times;
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Action button to add the Color variation attribute */}
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '5px' }}>
+                                <button 
+                                  type="button" 
+                                  className="wp-button-secondary"
+                                  onClick={() => {
+                                    if (selectedColors.length === 0) {
+                                      alert("Please add at least one color to selection.");
+                                      return;
+                                    }
+                                    const colorValues: Record<string, string> = {};
+                                    const optionsArray: string[] = [];
+                                    selectedColors.forEach(c => {
+                                      optionsArray.push(c.name);
+                                      colorValues[c.name] = c.hex;
+                                    });
+
+                                    const newAttr: Attribute = {
+                                      name: "Color",
+                                      options: optionsArray,
+                                      isColorVariation: true,
+                                      colorValues
+                                    };
+                                    
+                                    const nextAttrs = [...prodAttrs, newAttr];
+                                    setProdAttrs(nextAttrs);
+                                    setSelectedColors([]);
+                                    setIsColorVariation(false);
+                                    setNewAttrName('');
+                                    setProdVariants(generateCartesianVariants(nextAttrs));
+                                  }}
+                                  style={{ backgroundColor: '#2271b1', borderColor: '#2271b1', color: '#fff' }}
+                                >
+                                  Add Color Variation Attribute
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Standard Attribute Row */
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                              <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Name (e.g. Size)</label>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                                  value={newAttrName}
+                                  onChange={e => setNewAttrName(e.target.value)}
+                                  placeholder="Size"
+                                />
+                              </div>
+                              <div style={{ flex: 2 }}>
+                                <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px' }}>Options (Comma-separated)</label>
+                                <input 
+                                  type="text" 
+                                  style={{ width: '100%', padding: '5px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box' }}
+                                  value={newAttrOptions}
+                                  onChange={e => setNewAttrOptions(e.target.value)}
+                                  placeholder="Small, Medium, Large"
+                                />
+                              </div>
+                              <button 
+                                type="button" 
+                                className="wp-button-secondary"
+                                onClick={handleAddAttribute}
+                              >
+                                Add Option
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

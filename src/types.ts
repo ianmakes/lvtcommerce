@@ -1,6 +1,8 @@
 export interface Attribute {
   name: string; // e.g. "Size", "Color"
   options: string[]; // e.g. ["Small", "Medium", "Large"]
+  isColorVariation?: boolean;
+  colorValues?: Record<string, string>; // e.g. { "Stealth Black": "#111111" }
 }
 
 export interface ProductVariant {
@@ -17,6 +19,8 @@ export interface Product {
   id: string;
   name: string;
   description: string;
+  shortDescription?: string;
+  longDescription?: string;
   category: string; // Primary display category
   categories?: string[]; // Multi-category assignment
   image: string; // URL or placeholder base64/name
@@ -40,6 +44,8 @@ export interface ProductReview {
   rating: number; // 1-5
   comment: string;
   createdAt: string;
+  approved?: boolean;
+  buyerEmail?: string;
 }
 
 export interface Category {

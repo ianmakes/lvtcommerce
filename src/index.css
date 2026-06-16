@@ -4141,4 +4141,59 @@ tr:hover .row-actions {
   letter-spacing: 0.5px;
 }
 
+/* ==========================================================================
+   PDP Gallery System (Amazon style layout)
+   ========================================================================== */
+.pdp-gallery-container {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.pdp-thumbnails-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 80px;
+  flex-shrink: 0;
+  max-height: 550px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+}
+
+/* Hide scrollbars for thumbnail strip but keep functionality */
+.pdp-thumbnails-strip::-webkit-scrollbar {
+  display: none;
+}
+.pdp-thumbnails-strip {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.pdp-main-image-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .pdp-gallery-container {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+
+  .pdp-thumbnails-strip {
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-height: none;
+    padding: 0 4px;
+    gap: 12px;
+  }
+}
+
+
 
