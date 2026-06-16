@@ -47,8 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const handleLogoClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    onSearchChange('');
-    navigate('/');
+    window.location.href = '/';
   };
 
   const handleDrawerNav = (to: string) => {
