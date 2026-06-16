@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, ProcurementLog, Supplier } from './types';
+import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, ProcurementLog, Supplier, CustomPage } from './types';
 
 // Helper to clean undefined properties recursively before saving to Firestore
 function cleanObject<T extends object>(obj: T): T {
@@ -33,7 +33,33 @@ const DEFAULT_SETTINGS: ShopSettings = {
   voiceRate: 0.95,
   shippingFee: 1500,
   shippingFreeThreshold: 30000,
-  taxRate: 16
+  taxRate: 16,
+
+  // CMS Homepage defaults
+  cmsBadge1Title: "Delivery Free 24 hrs",
+  cmsBadge1Desc: "Light speed delivery right to your door step",
+  cmsBadge2Title: "Quality assurance",
+  cmsBadge2Desc: "100% genuine products with full warranty support",
+  cmsBadge3Title: "100% Secure Checkout",
+  cmsBadge3Desc: "Your transactions are encrypted and secure",
+
+  cmsPromoBannerTitle: "Celebrate July with Discounts on All Phone Accessories!",
+  cmsPromoBannerBtn1Text: "Shop Recently",
+  cmsPromoBannerBtn1Link: "/shop",
+  cmsPromoBannerBtn2Text: "Shop Popular",
+  cmsPromoBannerBtn2Link: "/shop",
+
+  cmsCard1Title: "GC-01 Carbon Fiber Walking Staff",
+  cmsCard1Badge: "Save Up To 70%",
+  cmsCard1Price: "KSh 15,000",
+  cmsCard1Link: "/product/prod-cane",
+  cmsCard1Image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
+
+  cmsCard2Title: "LED Magnifying Glass 5X",
+  cmsCard2Badge: "Local Alarm Clock",
+  cmsCard2Price: "KSh 3,500",
+  cmsCard2Link: "/product/prod-magnify",
+  cmsCard2Image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample.jpg"
 };
 
 
@@ -477,6 +503,32 @@ export function migrateSettings(data: ShopSettings): ShopSettings {
     }
   }
 
+  // CMS Homepage migrations
+  migrated.cmsBadge1Title = migrated.cmsBadge1Title || "Delivery Free 24 hrs";
+  migrated.cmsBadge1Desc = migrated.cmsBadge1Desc || "Light speed delivery right to your door step";
+  migrated.cmsBadge2Title = migrated.cmsBadge2Title || "Quality assurance";
+  migrated.cmsBadge2Desc = migrated.cmsBadge2Desc || "100% genuine products with full warranty support";
+  migrated.cmsBadge3Title = migrated.cmsBadge3Title || "100% Secure Checkout";
+  migrated.cmsBadge3Desc = migrated.cmsBadge3Desc || "Your transactions are encrypted and secure";
+
+  migrated.cmsPromoBannerTitle = migrated.cmsPromoBannerTitle || "Celebrate July with Discounts on All Phone Accessories!";
+  migrated.cmsPromoBannerBtn1Text = migrated.cmsPromoBannerBtn1Text || "Shop Recently";
+  migrated.cmsPromoBannerBtn1Link = migrated.cmsPromoBannerBtn1Link || "/shop";
+  migrated.cmsPromoBannerBtn2Text = migrated.cmsPromoBannerBtn2Text || "Shop Popular";
+  migrated.cmsPromoBannerBtn2Link = migrated.cmsPromoBannerBtn2Link || "/shop";
+
+  migrated.cmsCard1Title = migrated.cmsCard1Title || "GC-01 Carbon Fiber Walking Staff";
+  migrated.cmsCard1Badge = migrated.cmsCard1Badge || "Save Up To 70%";
+  migrated.cmsCard1Price = migrated.cmsCard1Price || "KSh 15,000";
+  migrated.cmsCard1Link = migrated.cmsCard1Link || "/product/prod-cane";
+  migrated.cmsCard1Image = migrated.cmsCard1Image || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png";
+
+  migrated.cmsCard2Title = migrated.cmsCard2Title || "LED Magnifying Glass 5X";
+  migrated.cmsCard2Badge = migrated.cmsCard2Badge || "Local Alarm Clock";
+  migrated.cmsCard2Price = migrated.cmsCard2Price || "KSh 3,500";
+  migrated.cmsCard2Link = migrated.cmsCard2Link || "/product/prod-magnify";
+  migrated.cmsCard2Image = migrated.cmsCard2Image || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample.jpg";
+
   return migrated;
 }
 
@@ -879,5 +931,39 @@ export async function saveSupplier(supplier: Supplier): Promise<void> {
 export async function deleteSupplier(id: string): Promise<void> {
   await deleteDoc(doc(db, "suppliers", id));
   await addAuditLog(`Deleted Supplier ID: ${id}`, 'Admin');
+}
+
+// ---- Custom HTML Pages CMS CRUD ----
+
+export async function getCustomPages(): Promise<CustomPage[]> {
+  await initDb();
+  const pageCol = collection(db, "custom_pages");
+  const snap = await getDocs(pageCol);
+  const pages = snap.docs.map(d => d.data() as CustomPage);
+  return pages.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getCustomPage(slug: string): Promise<CustomPage | null> {
+  await initDb();
+  const pageRef = doc(db, "custom_pages", slug);
+  const snap = await getDoc(pageRef);
+  if (snap.exists()) {
+    return snap.data() as CustomPage;
+  }
+  return null;
+}
+
+export async function saveCustomPage(page: CustomPage): Promise<void> {
+  await initDb();
+  const pageRef = doc(db, "custom_pages", page.slug);
+  await setDoc(pageRef, cleanObject(page));
+  await addAuditLog(`Saved CMS Custom Page: ${page.title} (/${page.slug})`, 'Admin');
+}
+
+export async function deleteCustomPage(slug: string): Promise<void> {
+  await initDb();
+  const pageRef = doc(db, "custom_pages", slug);
+  await deleteDoc(pageRef);
+  await addAuditLog(`Deleted CMS Custom Page: ${slug}`, 'Admin');
 }
 

@@ -190,6 +190,29 @@ export interface ShopSettings {
   emailTemplateStatusLayout?: string;
   emailTemplateStatusColor?: string;
   emailTemplateStatusIncludeItems?: boolean;
+
+  // CMS Homepage
+  cmsBadge1Title?: string;
+  cmsBadge1Desc?: string;
+  cmsBadge2Title?: string;
+  cmsBadge2Desc?: string;
+  cmsBadge3Title?: string;
+  cmsBadge3Desc?: string;
+  cmsPromoBannerTitle?: string;
+  cmsPromoBannerBtn1Text?: string;
+  cmsPromoBannerBtn1Link?: string;
+  cmsPromoBannerBtn2Text?: string;
+  cmsPromoBannerBtn2Link?: string;
+  cmsCard1Title?: string;
+  cmsCard1Badge?: string;
+  cmsCard1Price?: string;
+  cmsCard1Link?: string;
+  cmsCard1Image?: string;
+  cmsCard2Title?: string;
+  cmsCard2Badge?: string;
+  cmsCard2Price?: string;
+  cmsCard2Link?: string;
+  cmsCard2Image?: string;
 }
 
 export interface HomeSlide {
@@ -202,6 +225,14 @@ export interface HomeSlide {
   order: number;
   mediaType?: 'image' | 'video'; // Support video slides
   videoUrl?: string; // YouTube/Vimeo URL for video slides
+}
+
+export interface CustomPage {
+  slug: string;
+  title: string;
+  html: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface MediaFile {

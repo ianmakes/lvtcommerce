@@ -22,13 +22,78 @@ import { HomePage } from './components/HomePage';
 import { useLocation, navigate, Link } from './Router';
 import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon } from 'lucide-react';
 
-import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass } from './types';
-import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist, migrateSettings } from './db';
+import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass, CustomPage } from './types';
+import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist, migrateSettings, getCustomPage } from './db';
 import { sendOrderEmails } from './utils/emailService';
 
 import './App.css';
 
 const SUPER_ADMIN_UID = "avIScAH5NQMWN2zf6Z3YwEEQw302";
+
+interface CmsCustomPageViewProps {
+  path: string;
+}
+
+function CmsCustomPageView({ path }: CmsCustomPageViewProps) {
+  const slug = path.replace(/^\/(page|p)\//, '');
+  const [page, setPage] = useState<CustomPage | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const loadPage = async () => {
+      try {
+        setLoading(true);
+        const data = await getCustomPage(slug);
+        if (active) {
+          setPage(data);
+        }
+      } catch (err) {
+        console.error("Error loading custom page:", err);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+    loadPage();
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="container" style={{ padding: '60px 40px', minHeight: '50vh', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="skeleton-row-box skeleton-pulse" style={{ height: '36px', width: '300px' }} />
+        <div className="skeleton-row-box skeleton-pulse" style={{ height: '200px', width: '100%' }} />
+      </div>
+    );
+  }
+
+  if (!page) {
+    return (
+      <div className="container" style={{ padding: '80px 40px', textAlign: 'center', minHeight: '50vh' }}>
+        <h1 className="font-heading-xl" style={{ marginBottom: '16px' }}>Page Not Found</h1>
+        <p className="font-body-md" style={{ color: 'var(--text-mute)', marginBottom: '24px' }}>The page you are looking for does not exist or has been moved.</p>
+        <Link to="/" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center' }}>Go to Homepage</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container" style={{ padding: '60px 40px', minHeight: '60vh' }}>
+      <h1 className="font-display-campaign" style={{ fontSize: '48px', marginBottom: '32px', textTransform: 'uppercase', borderBottom: '2px solid var(--color-ink)', paddingBottom: '16px' }}>
+        {page.title}
+      </h1>
+      <div 
+        className="cms-rendered-html"
+        dangerouslySetInnerHTML={{ __html: page.html }} 
+        style={{ fontSize: '16px', lineHeight: 1.8, color: 'var(--text-charcoal)' }}
+      />
+    </div>
+  );
+}
 
 function App() {
   const path = useLocation();
@@ -687,7 +752,7 @@ function App() {
     });
 
   // Derive currentView from path for Navbar tab activation and UI highlights
-  let derivedView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account' | 'about' | 'policy' | 'terms' | 'auth' = 'landing';
+  let derivedView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account' | 'about' | 'policy' | 'terms' | 'auth' | 'custom-page' = 'landing';
   if (path === '/') derivedView = isMobile ? 'store' : 'landing';
   else if (path === '/shop') derivedView = 'store';
   else if (path.startsWith('/product/')) derivedView = 'product-details';
@@ -699,6 +764,7 @@ function App() {
   else if (path === '/policy' || path === '/privacy-policy') derivedView = 'policy';
   else if (path === '/terms' || path === '/terms-of-use' || path === '/terms-of-sale') derivedView = 'terms';
   else if (path === '/auth') derivedView = 'auth';
+  else if (path.startsWith('/page/') || path.startsWith('/p/')) derivedView = 'custom-page';
 
   const isDashboardRoute = path.startsWith('/dashboard');
 
@@ -750,6 +816,7 @@ function App() {
               setSelectedCategory(categoryName);
               navigate('/shop');
             }}
+            settings={settings}
           />
         )}
 
@@ -1041,6 +1108,11 @@ function App() {
         {/* VIEW K: Terms Page */}
         {(path === '/terms' || path === '/terms-of-use' || path === '/terms-of-sale') && (
           <TermsPage />
+        )}
+
+        {/* VIEW: Dynamic CMS Custom Page */}
+        {(path.startsWith('/page/') || path.startsWith('/p/')) && (
+          <CmsCustomPageView path={path} />
         )}
 
         {/* VIEW L: Cart Page */}

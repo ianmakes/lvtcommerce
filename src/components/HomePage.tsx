@@ -7,7 +7,7 @@ import {
   Star, 
   ChevronLeft
 } from 'lucide-react';
-import { Product, HomeSlide, Category } from '../types';
+import { Product, HomeSlide, Category, ShopSettings } from '../types';
 
 interface HomePageProps {
   products: Product[];
@@ -23,6 +23,7 @@ interface HomePageProps {
   onQuickView: (product: Product) => void;
   handleShowToast: (msg: string, type: 'success' | 'warning') => void;
   onSelectCategory: (category: string) => void;
+  settings: ShopSettings;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -36,7 +37,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   onAddToCart,
   onQuickView,
   handleShowToast,
-  onSelectCategory
+  onSelectCategory,
+  settings
 }) => {
   const [selectedTab, setSelectedTab] = useState<string>('All');
 
@@ -193,8 +195,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <Truck size={24} className="badge-icon" />
               </div>
               <div className="badge-text-box">
-                <h4>Delivery Free 24 hrs</h4>
-                <p>Light speed delivery right to your door step</p>
+                <h4>{settings.cmsBadge1Title || "Delivery Free 24 hrs"}</h4>
+                <p>{settings.cmsBadge1Desc || "Light speed delivery right to your door step"}</p>
               </div>
             </div>
             <div className="badge-card">
@@ -202,8 +204,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <ShieldCheck size={24} className="badge-icon" />
               </div>
               <div className="badge-text-box">
-                <h4>Quality assurance</h4>
-                <p>100% genuine products with full warranty support</p>
+                <h4>{settings.cmsBadge2Title || "Quality assurance"}</h4>
+                <p>{settings.cmsBadge2Desc || "100% genuine products with full warranty support"}</p>
               </div>
             </div>
             <div className="badge-card">
@@ -211,8 +213,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <Lock size={24} className="badge-icon" />
               </div>
               <div className="badge-text-box">
-                <h4>100% Secure Checkout</h4>
-                <p>Your transactions are encrypted and secure</p>
+                <h4>{settings.cmsBadge3Title || "100% Secure Checkout"}</h4>
+                <p>{settings.cmsBadge3Desc || "Your transactions are encrypted and secure"}</p>
               </div>
             </div>
           </div>
@@ -296,13 +298,13 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="container">
           <div className="promo-banner-blue">
             <div className="promo-banner-content">
-              <h2 style={{ color: '#ffffff' }}>Celebrate July with Discounts on All Phone Accessories!</h2>
+              <h2 style={{ color: '#ffffff' }}>{settings.cmsPromoBannerTitle || "Celebrate July with Discounts on All Phone Accessories!"}</h2>
               <div className="promo-banner-actions">
-                <button className="btn-red-action" onClick={() => navigate('/shop')}>
-                  Shop Recently &rarr;
+                <button className="btn-red-action" onClick={() => navigate(settings.cmsPromoBannerBtn1Link || '/shop')}>
+                  {settings.cmsPromoBannerBtn1Text || "Shop Recently"} &rarr;
                 </button>
-                <button className="btn-blue-outline" onClick={() => navigate('/shop')}>
-                  Shop Popular &rarr;
+                <button className="btn-blue-outline" onClick={() => navigate(settings.cmsPromoBannerBtn2Link || '/shop')}>
+                  {settings.cmsPromoBannerBtn2Text || "Shop Popular"} &rarr;
                 </button>
               </div>
             </div>
@@ -321,41 +323,53 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="two-banners-grid">
             
             {/* Banner 1 */}
-            <div className="promo-card-box purple-gradient-box" onClick={() => products[0] && navigate(`/product/${products[0].id}`)} style={{ cursor: 'pointer' }}>
+            <div 
+              className="promo-card-box purple-gradient-box" 
+              onClick={() => navigate(settings.cmsCard1Link || (products[0] ? `/product/${products[0].id}` : '/shop'))} 
+              style={{ cursor: 'pointer' }}
+            >
               <div className="promo-card-text">
-                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>Save Up To 70%</span>
-                <h3 style={{ color: '#ffffff' }}>{products[0] ? products[0].name : "Great discounts on accessories"}</h3>
-                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>{products[0] ? `KSh ${products[0].basePrice.toLocaleString()}` : "$120.00"}</p>
+                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>{settings.cmsCard1Badge || "Save Up To 70%"}</span>
+                <h3 style={{ color: '#ffffff' }}>{settings.cmsCard1Title || (products[0] ? products[0].name : "Great discounts on accessories")}</h3>
+                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>
+                  {settings.cmsCard1Price || (products[0] ? `KSh ${products[0].basePrice.toLocaleString()}` : "$120.00")}
+                </p>
                 <button className="btn-red-action-small" onClick={(e) => {
                   e.stopPropagation();
-                  products[0] && navigate(`/product/${products[0].id}`);
+                  navigate(settings.cmsCard1Link || (products[0] ? `/product/${products[0].id}` : '/shop'));
                 }}>
                   Shop Now &rarr;
                 </button>
               </div>
               <div className="promo-card-image-box">
-                {products[0] && (
-                  <img src={products[0].image} alt={products[0].name} className="floating-img" />
+                {(settings.cmsCard1Image || (products[0] && products[0].image)) && (
+                  <img src={settings.cmsCard1Image || products[0]?.image} alt={settings.cmsCard1Title || products[0]?.name || "promo 1"} className="floating-img" />
                 )}
               </div>
             </div>
 
             {/* Banner 2 */}
-            <div className="promo-card-box dark-navy-box" onClick={() => products[1] && navigate(`/product/${products[1].id}`)} style={{ cursor: 'pointer' }}>
+            <div 
+              className="promo-card-box dark-navy-box" 
+              onClick={() => navigate(settings.cmsCard2Link || (products[1] ? `/product/${products[1].id}` : '/shop'))} 
+              style={{ cursor: 'pointer' }}
+            >
               <div className="promo-card-text">
-                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>Local Alarm Clock</span>
-                <h3 style={{ color: '#ffffff' }}>{products[1] ? products[1].name : "Smart alarm for daily routine"}</h3>
-                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>{products[1] ? `KSh ${products[1].basePrice.toLocaleString()}` : ""}</p>
+                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>{settings.cmsCard2Badge || "Local Alarm Clock"}</span>
+                <h3 style={{ color: '#ffffff' }}>{settings.cmsCard2Title || (products[1] ? products[1].name : "Smart alarm for daily routine")}</h3>
+                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>
+                  {settings.cmsCard2Price || (products[1] ? `KSh ${products[1].basePrice.toLocaleString()}` : "")}
+                </p>
                 <button className="btn-red-action-small" onClick={(e) => {
                   e.stopPropagation();
-                  products[1] && navigate(`/product/${products[1].id}`);
+                  navigate(settings.cmsCard2Link || (products[1] ? `/product/${products[1].id}` : '/shop'));
                 }}>
                   Shop Now &rarr;
                 </button>
               </div>
               <div className="promo-card-image-box">
-                {products[1] && (
-                  <img src={products[1].image} alt={products[1].name} className="floating-img" />
+                {(settings.cmsCard2Image || (products[1] && products[1].image)) && (
+                  <img src={settings.cmsCard2Image || products[1]?.image} alt={settings.cmsCard2Title || products[1]?.name || "promo 2"} className="floating-img" />
                 )}
               </div>
             </div>

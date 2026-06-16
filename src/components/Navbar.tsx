@@ -7,7 +7,7 @@ import { Link, navigate } from '../Router';
 interface NavbarProps {
   settings: ShopSettings;
   cart: CartItem[];
-  currentView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account' | 'about' | 'policy' | 'terms' | 'auth';
+  currentView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account' | 'about' | 'policy' | 'terms' | 'auth' | 'custom-page';
   currentUser: FirebaseUser | null;
   isAdminAuthenticated: boolean;
   onSignOut: () => void;
@@ -118,12 +118,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className={`nav-center-link ${currentView === 'store' || currentView === 'product-details' ? 'active' : ''}`}
               >
                 Shop
-              </Link>
-              <Link
-                to="/about"
-                className={`nav-center-link ${currentView === 'about' ? 'active' : ''}`}
-              >
-                About
               </Link>
               {currentUser && !isAdminAuthenticated && (
                 <Link

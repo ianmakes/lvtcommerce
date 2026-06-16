@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, ShoppingBag, Settings, CheckCircle, Truck, Ban, X, Loader2, Image as ImageIcon, PackageCheck,
   Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail,
-  Boxes, Send, MessageSquare
+  Boxes, Send, MessageSquare, Globe
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier, ProductReview } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier, ProductReview, CustomPage } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
   getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
@@ -12,7 +12,8 @@ import {
   saveShippingZone, deleteShippingZone, saveTaxClass, deleteTaxClass, getAuditLogs,
   getAllUsers, deleteBuyerProfile, saveBuyerProfile, getProcurements, addProcurement,
   getSuppliers, saveSupplier, deleteSupplier,
-  getAllReviews, approveReview, deleteProductReview
+  getAllReviews, approveReview, deleteProductReview,
+  getCustomPages, saveCustomPage, deleteCustomPage
 } from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth, db, firebaseConfig } from '../firebase';
@@ -87,7 +88,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const path = useLocation();
 
   // activeTab derived from URL path
-  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' | 'reviews' = 'overview';
+  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' | 'reviews' | 'cms' = 'overview';
   if (path === '/dashboard/orders') activeTab = 'orders';
   else if (path === '/dashboard/products') activeTab = 'products';
   else if (path.startsWith('/dashboard/settings')) activeTab = 'settings';
@@ -99,6 +100,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/slides') activeTab = 'slides';
   else if (path === '/dashboard/inventory') activeTab = 'inventory';
   else if (path === '/dashboard/reviews') activeTab = 'reviews';
+  else if (path.startsWith('/dashboard/cms')) activeTab = 'cms';
 
   // Derive settingsSubTab from URL path
   let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' = 'general';
@@ -110,11 +112,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/settings/shipping') settingsSubTab = 'shipping';
   else if (path === '/dashboard/settings/tax') settingsSubTab = 'tax';
   else if (path === '/dashboard/settings/shoppage') settingsSubTab = 'shoppage';
+
+  // Derive cmsSubTab from URL path
+  let cmsSubTab: 'homepage' | 'pages' = 'homepage';
+  if (path === '/dashboard/cms/pages') cmsSubTab = 'pages';
   
   // Lists from Firestore DB
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
+  
+  // CMS Custom Pages states
+  const [customPages, setCustomPages] = useState<CustomPage[]>([]);
+  const [loadingCustomPages, setLoadingCustomPages] = useState(false);
+  const [isPageEditorOpen, setIsPageEditorOpen] = useState(false);
+  const [editingCustomPage, setEditingCustomPage] = useState<CustomPage | null>(null);
+  const [pageSlug, setPageSlug] = useState('');
+  const [pageTitle, setPageTitle] = useState('');
+  const [pageHtml, setPageHtml] = useState('');
   
   const [selectedTemplateTab, setSelectedTemplateTab] = useState<'order_customer' | 'order_admin' | 'order_status'>('order_customer');
 
@@ -546,7 +561,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsAdminLoading(true);
     setIsLoading(true);
     try {
-      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements, dbSuppliers, dbReviews] = await Promise.all([
+      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements, dbSuppliers, dbReviews, dbPages] = await Promise.all([
         getProducts(),
         getOrders(),
         getSettings(),
@@ -555,7 +570,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         getAllUsers(),
         getProcurements(),
         getSuppliers(),
-        getAllReviews()
+        getAllReviews(),
+        getCustomPages()
       ]);
       setProducts(dbProds);
       setOrders(dbOrders);
@@ -566,6 +582,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setProcurements(dbProcurements);
       setSuppliers(dbSuppliers);
       setAdminReviews(dbReviews);
+      setCustomPages(dbPages);
     } catch (e) {
       console.error("Error loading data from Firestore:", e);
     } finally {
@@ -956,6 +973,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setLocalSettings(prev => ({ ...prev, faviconUrl: url }));
     } else if (mediaModalTarget === 'settings-avatar') {
       setLocalSettings(prev => ({ ...prev, adminAvatarUrl: url }));
+    } else if (mediaModalTarget === 'cms-card1-image') {
+      setLocalSettings(prev => ({ ...prev, cmsCard1Image: url }));
+    } else if (mediaModalTarget === 'cms-card2-image') {
+      setLocalSettings(prev => ({ ...prev, cmsCard2Image: url }));
     }
     setMediaModalOpen(false);
     setMediaModalTarget(null);
@@ -1102,6 +1123,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } catch (err) {
       console.error(err);
       alert("Failed to delete review.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // CMS Content Management Handlers
+  const handleSaveCmsSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await saveSettings(localSettings);
+      onChangeSettings(localSettings);
+      showToast("Homepage CMS settings updated successfully!", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to update CMS settings.", "warning");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveCustomPageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pageSlug.trim()) return;
+    setIsLoading(true);
+    try {
+      const pageData: CustomPage = {
+        slug: pageSlug.trim(),
+        title: pageTitle.trim(),
+        html: pageHtml,
+        createdAt: editingCustomPage?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      await saveCustomPage(pageData);
+      showToast(`Custom page "${pageTitle}" saved successfully!`, 'success');
+      
+      const loadedPages = await getCustomPages();
+      setCustomPages(loadedPages);
+      setIsPageEditorOpen(false);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to save custom page.", "warning");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCustomPage = async (slug: string) => {
+    if (!confirm("Are you sure you want to permanently delete this custom page?")) return;
+    setIsLoading(true);
+    try {
+      await deleteCustomPage(slug);
+      showToast("Custom page deleted.", "success");
+      
+      const loadedPages = await getCustomPages();
+      setCustomPages(loadedPages);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to delete custom page.", "warning");
     } finally {
       setIsLoading(false);
     }
@@ -2021,14 +2101,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           )}
 
           {hasPermission('manageSettings') && (
-            <button 
-              type="button"
-              className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => navigate('/dashboard/settings')}
-            >
-              <Settings size={18} />
-              <span>Settings</span>
-            </button>
+            <>
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'cms' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/cms')}
+              >
+                <Globe size={18} />
+                <span>CMS Content</span>
+              </button>
+
+              <button 
+                type="button"
+                className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/settings')}
+              >
+                <Settings size={18} />
+                <span>Settings</span>
+              </button>
+            </>
           )}
         </aside>
 
@@ -2038,7 +2129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             (['products', 'categories', 'promos', 'media', 'slides', 'reviews'].includes(activeTab) && !hasPermission('manageProducts')) ||
             (activeTab === 'customers' && !hasPermission('manageUsers')) ||
             (activeTab === 'reports' && !hasPermission('viewReports')) ||
-            (activeTab === 'settings' && !hasPermission('manageSettings'))) ? (
+            ((activeTab === 'settings' || activeTab === 'cms') && !hasPermission('manageSettings'))) ? (
             <div style={{ padding: '24px', background: '#fff', border: '1px solid #d30005', marginTop: '20px' }}>
               <h1 style={{ fontSize: '20px', color: '#d30005', fontWeight: 600, margin: '0 0 10px' }}>Access Denied</h1>
               <p style={{ fontSize: '13px', margin: 0 }}>You do not have the required permissions to view this administrative page. Please contact your system administrator.</p>
@@ -5828,6 +5919,397 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           )}
+
+          {/* TAB: CMS Content */}
+          {activeTab === 'cms' && (
+            <div>
+              <h1 className="wp-admin-page-title" style={{ margin: '0 0 20px' }}>Content Management System (CMS)</h1>
+              
+              <ul className="wp-subsubsub" style={{ marginBottom: '20px', display: 'flex', gap: '10px', listStyle: 'none', padding: 0 }}>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => navigate('/dashboard/cms')}
+                    className={cmsSubTab === 'homepage' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: cmsSubTab === 'homepage' ? '#000' : '#2271b1', fontWeight: cmsSubTab === 'homepage' ? '600' : 'normal', borderBottom: cmsSubTab === 'homepage' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Homepage Content
+                  </button>
+                </li>
+                <li style={{ color: '#c3c4c7' }}>|</li>
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => navigate('/dashboard/cms/pages')}
+                    className={cmsSubTab === 'pages' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: cmsSubTab === 'pages' ? '#000' : '#2271b1', fontWeight: cmsSubTab === 'pages' ? '600' : 'normal', borderBottom: cmsSubTab === 'pages' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Custom HTML Pages ({customPages.length})
+                  </button>
+                </li>
+              </ul>
+
+              {cmsSubTab === 'homepage' && (
+                <form onSubmit={handleSaveCmsSettings} className="wp-postbox" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '24px', position: 'relative' }}>
+                  <h2 style={{ fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '12px', margin: '0 0 20px' }}>Edit Homepage Sections</h2>
+                  
+                  {/* Section 1: Feature Badges */}
+                  <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#646970', borderBottom: '1px solid #f0f0f1', paddingBottom: '6px', marginBottom: '16px' }}>1. Top Feature Badges</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 1 Title</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsBadge1Title || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1Title: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 1 Description</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsBadge1Desc || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1Desc: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 2 Title</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsBadge2Title || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2Title: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 2 Description</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsBadge2Desc || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2Desc: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 3 Title</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsBadge3Title || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3Title: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 3 Description</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsBadge3Desc || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3Desc: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section 2: Full-Width Promo Banner */}
+                  <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#646970', borderBottom: '1px solid #f0f0f1', paddingBottom: '6px', marginBottom: '16px' }}>2. Full-Width Promo Banner</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Banner Title Text</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsPromoBannerTitle || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerTitle: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Button 1 Label</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={localSettings.cmsPromoBannerBtn1Text || ''} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1Text: e.target.value }))}
+                          style={{ width: '100%', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Button 1 Link Route</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={localSettings.cmsPromoBannerBtn1Link || ''} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1Link: e.target.value }))}
+                          style={{ width: '100%', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Button 2 Label</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={localSettings.cmsPromoBannerBtn2Text || ''} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2Text: e.target.value }))}
+                          style={{ width: '100%', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Button 2 Link Route</label>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={localSettings.cmsPromoBannerBtn2Link || ''} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2Link: e.target.value }))}
+                          style={{ width: '100%', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 3: Two Promo Cards */}
+                  <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#646970', borderBottom: '1px solid #f0f0f1', paddingBottom: '6px', marginBottom: '16px' }}>3. Double Promo Cards</h3>
+                  
+                  {/* Card 1 */}
+                  <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)', marginBottom: '12px' }}>Promo Card 1 (Left Card)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Title</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard1Title || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Title: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Badge Text</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard1Badge || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Badge: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Price or Detail Tag</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard1Price || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Price: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Button Link Route</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard1Link || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Link: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Image URL</label>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={localSettings.cmsCard1Image || ''} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Image: e.target.value }))}
+                          style={{ flexGrow: 1 }}
+                        />
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary"
+                          onClick={() => {
+                            setMediaModalTarget('cms-card1-image');
+                            setMediaModalOpen(true);
+                          }}
+                        >
+                          Choose from Library
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2 */}
+                  <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)', marginBottom: '12px', marginTop: '24px' }}>Promo Card 2 (Right Card)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Title</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard2Title || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Title: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Badge Text</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard2Badge || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Badge: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Price or Detail Tag</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard2Price || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Price: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Button Link Route</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsCard2Link || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Link: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Image URL</label>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input 
+                          type="text" 
+                          className="form-input" 
+                          value={localSettings.cmsCard2Image || ''} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Image: e.target.value }))}
+                          style={{ flexGrow: 1 }}
+                        />
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary"
+                          onClick={() => {
+                            setMediaModalTarget('cms-card2-image');
+                            setMediaModalOpen(true);
+                          }}
+                        >
+                          Choose from Library
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #c3c4c7', paddingTop: '15px', marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button type="submit" className="btn btn-primary" style={{ minWidth: '150px' }}>Save Homepage CMS</button>
+                  </div>
+                </form>
+              )}
+
+              {cmsSubTab === 'pages' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#646970' }}>Configure static custom pages using HTML templates. Accessible on the front end at <code>/page/:slug</code>.</p>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary btn-small"
+                      onClick={() => {
+                        setEditingCustomPage(null);
+                        setPageTitle('');
+                        setPageSlug('');
+                        setPageHtml('');
+                        setIsPageEditorOpen(true);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Plus size={16} />
+                      Add Custom Page
+                    </button>
+                  </div>
+
+                  <div className="wp-admin-card" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '16px' }}>
+                    <table className="wp-list-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #dcdcde', color: '#2c3338', fontWeight: 600 }}>
+                          <th style={{ padding: '8px 10px' }}>Page Title</th>
+                          <th style={{ padding: '8px 10px' }}>URL Route</th>
+                          <th style={{ padding: '8px 10px' }}>Last Updated</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {customPages.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '24px 10px', textAlign: 'center', color: '#646970', fontStyle: 'italic' }}>
+                              No custom pages created yet. Click "Add Custom Page" to start!
+                            </td>
+                          </tr>
+                        ) : (
+                          customPages.map(page => (
+                            <tr key={page.slug} style={{ borderBottom: '1px solid #f0f0f1' }}>
+                              <td style={{ padding: '12px 10px', fontWeight: 600, color: '#1d2327' }}>{page.title}</td>
+                              <td style={{ padding: '12px 10px' }}>
+                                <a href={`/page/${page.slug}`} target="_blank" rel="noopener noreferrer" style={{ color: '#2271b1', textDecoration: 'none' }}>
+                                  /page/{page.slug}
+                                </a>
+                              </td>
+                              <td style={{ padding: '12px 10px', color: '#646970' }}>{new Date(page.updatedAt || page.createdAt).toLocaleString()}</td>
+                              <td style={{ padding: '12px 10px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-small"
+                                    onClick={() => {
+                                      setEditingCustomPage(page);
+                                      setPageTitle(page.title);
+                                      setPageSlug(page.slug);
+                                      setPageHtml(page.html);
+                                      setIsPageEditorOpen(true);
+                                    }}
+                                    style={{ fontSize: '12px', padding: '3px 8px' }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteCustomPage(page.slug)}
+                                    style={{
+                                      fontSize: '12px',
+                                      padding: '3px 8px',
+                                      backgroundColor: '#fff',
+                                      color: '#d30005',
+                                      border: '1px solid #d30005',
+                                      cursor: 'pointer'
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fcf0f1'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff'; }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           </>
           )}
 
@@ -7378,6 +7860,105 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </form>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* CMS Custom Page Editor Modal */}
+      {isPageEditorOpen && (
+        <div className="modal-overlay" onClick={() => setIsPageEditorOpen(false)} style={{ zIndex: 3500 }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '960px', width: '95%', padding: 0, border: '1px solid #c3c4c7', borderRadius: '0' }}>
+            
+            {/* Header */}
+            <div style={{ borderBottom: '1px solid #c3c4c7', padding: '12px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f6f7f7' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>
+                {editingCustomPage ? `Edit Custom Page — ${editingCustomPage.title}` : 'Add New Custom Page'}
+              </h3>
+              <button className="modal-close" onClick={() => setIsPageEditorOpen(false)} style={{ position: 'static', padding: 0 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCustomPageSubmit} style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Page Title</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. Shipping & Returns"
+                    value={pageTitle}
+                    onChange={e => {
+                      setPageTitle(e.target.value);
+                      if (!editingCustomPage) {
+                        const generatedSlug = e.target.value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/(^-|-$)/g, '');
+                        setPageSlug(generatedSlug);
+                      }
+                    }}
+                    required
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                    URL Route / Page Slug
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. shipping-returns"
+                    value={pageSlug}
+                    onChange={e => setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                    required
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                  />
+                  <span style={{ fontSize: '11px', color: '#646970', marginTop: '4px', display: 'block' }}>
+                    URL Route will be: <code>/page/{pageSlug || 'your-slug'}</code> or <code>/p/{pageSlug || 'your-slug'}</code>
+                  </span>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>HTML Content</label>
+                  <textarea 
+                    value={pageHtml}
+                    onChange={e => setPageHtml(e.target.value)}
+                    placeholder="<div style='max-width: 800px; margin: 0 auto; padding: 40px;'>&#10;  <h1>Title</h1>&#10;  <p>Content...</p>&#10;</div>"
+                    required
+                    style={{ 
+                      width: '100%', 
+                      border: '1px solid #c3c4c7', 
+                      padding: '10px', 
+                      minHeight: '350px', 
+                      boxSizing: 'border-box', 
+                      fontFamily: 'Consolas, Monaco, monospace', 
+                      fontSize: '13px', 
+                      outline: 'none', 
+                      resize: 'vertical',
+                      lineHeight: '1.5',
+                      background: '#fafafa'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ borderTop: '1px solid #c3c4c7', padding: '15px 0 0 0', marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  className="wp-button-secondary" 
+                  onClick={() => setIsPageEditorOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="wp-button-primary" style={{ minWidth: '120px' }}>
+                  {editingCustomPage ? 'Update Page' : 'Publish Page'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
