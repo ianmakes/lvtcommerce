@@ -1,9 +1,16 @@
 import React from 'react';
+import { ShopSettings } from '../types';
 
-export const TermsPage: React.FC = () => {
+interface TermsPageProps {
+  settings: ShopSettings;
+}
+
+export const TermsPage: React.FC<TermsPageProps> = ({ settings }) => {
+  const legalEmail = settings.adminEmail || `legal@${settings.shopName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+
   return (
     <div className="container" style={{ padding: '60px 0 80px', maxWidth: '800px', color: 'var(--color-ink)' }}>
-      <span className="font-caption-md" style={{ textTransform: 'uppercase', fontWeight: 600 }}>GoldenCare Market Legal desk</span>
+      <span className="font-caption-md" style={{ textTransform: 'uppercase', fontWeight: 600 }}>{settings.shopName} Legal Desk</span>
       <h1 className="font-heading-xl" style={{ marginTop: '8px', marginBottom: '32px', textTransform: 'uppercase', borderBottom: '2px solid var(--color-ink)', paddingBottom: '16px' }}>
         Terms & Conditions
       </h1>
@@ -12,7 +19,7 @@ export const TermsPage: React.FC = () => {
         <section>
           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-mute)', display: 'block', marginBottom: '8px' }}>LAST UPDATED: JUNE 10, 2026</span>
           <p className="font-body-md">
-            Welcome to GoldenCare Market. These Terms & Conditions govern your access to and purchase of wellness objects on our storefront systems. By placing an order or registering a shopper account, you agree to these legal conditions in full.
+            Welcome to {settings.shopName}. These Terms & Conditions govern your access to and purchase of wellness objects on our storefront systems. By placing an order or registering a shopper account, you agree to these legal conditions in full.
           </p>
         </section>
 
@@ -46,7 +53,7 @@ export const TermsPage: React.FC = () => {
 
         <section style={{ borderTop: '1px solid var(--color-hairline)', paddingTop: '24px', marginTop: '16px' }}>
           <p className="font-caption-sm" style={{ color: 'var(--text-mute)', margin: 0 }}>
-            If you have legal or compliance questions regarding these terms, please reach out to our legal desk at: <span style={{ fontWeight: 600, color: 'var(--color-ink)' }}>legal@goldencare.com</span>.
+            If you have legal or compliance questions regarding these terms, please reach out to our legal desk at: <span style={{ fontWeight: 600, color: 'var(--color-ink)' }}>{legalEmail}</span>.
           </p>
         </section>
       </div>

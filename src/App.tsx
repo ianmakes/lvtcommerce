@@ -1102,12 +1102,12 @@ function App() {
 
         {/* VIEW J: Policy Page */}
         {(path === '/policy' || path === '/privacy-policy') && (
-          <PolicyPage />
+          <PolicyPage settings={settings} />
         )}
 
         {/* VIEW K: Terms Page */}
         {(path === '/terms' || path === '/terms-of-use' || path === '/terms-of-sale') && (
-          <TermsPage />
+          <TermsPage settings={settings} />
         )}
 
         {/* VIEW: Dynamic CMS Custom Page */}

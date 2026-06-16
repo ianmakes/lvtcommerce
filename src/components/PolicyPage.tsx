@@ -1,9 +1,16 @@
 import React from 'react';
+import { ShopSettings } from '../types';
 
-export const PolicyPage: React.FC = () => {
+interface PolicyPageProps {
+  settings: ShopSettings;
+}
+
+export const PolicyPage: React.FC<PolicyPageProps> = ({ settings }) => {
+  const contactEmail = settings.adminEmail || `privacy@${settings.shopName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+
   return (
     <div className="container" style={{ padding: '60px 0 80px', maxWidth: '800px', color: 'var(--color-ink)' }}>
-      <span className="font-caption-md" style={{ textTransform: 'uppercase', fontWeight: 600 }}>GoldenCare Market Privacy Desk</span>
+      <span className="font-caption-md" style={{ textTransform: 'uppercase', fontWeight: 600 }}>{settings.shopName} Privacy Desk</span>
       <h1 className="font-heading-xl" style={{ marginTop: '8px', marginBottom: '32px', textTransform: 'uppercase', borderBottom: '2px solid var(--color-ink)', paddingBottom: '16px' }}>
         Privacy Policy
       </h1>
@@ -12,7 +19,7 @@ export const PolicyPage: React.FC = () => {
         <section>
           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-mute)', display: 'block', marginBottom: '8px' }}>LAST UPDATED: JUNE 10, 2026</span>
           <p className="font-body-md">
-            At GoldenCare Market, we value your trust and are committed to protecting your personal data. This privacy document outlines how we collect, process, and protect your information when you browse our systems, order support objects, or create buyer profiles.
+            At {settings.shopName}, we value your trust and are committed to protecting your personal data. This privacy document outlines how we collect, process, and protect your information when you browse our systems, order support objects, or create buyer profiles.
           </p>
         </section>
 
@@ -31,7 +38,7 @@ export const PolicyPage: React.FC = () => {
         <section>
           <h2 className="font-heading-md" style={{ textTransform: 'uppercase', marginBottom: '12px' }}>2. Payment Processing Security</h2>
           <p className="font-body-md">
-            All transaction payments are routed securely through our payment gateway, <strong>Paystack</strong>. GoldenCare Market never reads, writes, or stores credit/debit card numbers or M-Pesa PIN codes on our servers. All sensitive financial records are processed directly by Paystack's PCI-DSS compliant secure infrastructure.
+            All transaction payments are routed securely through our payment gateway, <strong>Paystack</strong>. {settings.shopName} never reads, writes, or stores credit/debit card numbers or M-Pesa PIN codes on our servers. All sensitive financial records are processed directly by Paystack's PCI-DSS compliant secure infrastructure.
           </p>
         </section>
 
@@ -44,7 +51,7 @@ export const PolicyPage: React.FC = () => {
 
         <section style={{ borderTop: '1px solid var(--color-hairline)', paddingTop: '24px', marginTop: '16px' }}>
           <p className="font-caption-sm" style={{ color: 'var(--text-mute)', margin: 0 }}>
-            If you have questions regarding this document or wish to delete your account data, please contact our data safety desk at: <span style={{ fontWeight: 600, color: 'var(--color-ink)' }}>privacy@goldencare.com</span>.
+            If you have questions regarding this document or wish to delete your account data, please contact our data safety desk at: <span style={{ fontWeight: 600, color: 'var(--color-ink)' }}>{contactEmail}</span>.
           </p>
         </section>
       </div>
