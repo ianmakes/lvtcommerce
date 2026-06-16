@@ -120,7 +120,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
   // Settle calculations
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const itemsSubtotal = cart.reduce((acc, item) => {
-    const price = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
+    const price = item.selectedVariant 
+      ? item.selectedVariant.price 
+      : (item.product.salePrice && item.product.salePrice > 0 && item.product.salePrice < item.product.basePrice
+          ? item.product.salePrice
+          : item.product.basePrice);
     return acc + price * item.quantity;
   }, 0);
 
@@ -158,7 +162,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
 
   // Calculate tax dynamically based on each item's tax class rate
   const taxAmount = cart.reduce((acc, item) => {
-    const price = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
+    const price = item.selectedVariant 
+      ? item.selectedVariant.price 
+      : (item.product.salePrice && item.product.salePrice > 0 && item.product.salePrice < item.product.basePrice
+          ? item.product.salePrice
+          : item.product.basePrice);
     const itemSubtotal = price * item.quantity;
 
     // Determine tax rate
@@ -201,7 +209,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
       variantDetails: item.selectedVariant 
         ? Object.entries(item.selectedVariant.options).map(([k, v]) => `${k}: ${v}`).join(', ') 
         : 'Standard Option',
-      price: item.selectedVariant ? item.selectedVariant.price : item.product.basePrice,
+      price: item.selectedVariant 
+        ? item.selectedVariant.price 
+        : (item.product.salePrice && item.product.salePrice > 0 && item.product.salePrice < item.product.basePrice
+            ? item.product.salePrice
+            : item.product.basePrice),
       quantity: item.quantity,
       variantId: item.selectedVariant?.id
     }));
@@ -275,7 +287,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
         variantDetails: item.selectedVariant 
           ? Object.entries(item.selectedVariant.options).map(([k, v]) => `${k}: ${v}`).join(', ') 
           : 'Standard Option',
-        price: item.selectedVariant ? item.selectedVariant.price : item.product.basePrice,
+        price: item.selectedVariant 
+          ? item.selectedVariant.price 
+          : (item.product.salePrice && item.product.salePrice > 0 && item.product.salePrice < item.product.basePrice
+              ? item.product.salePrice
+              : item.product.basePrice),
         quantity: item.quantity,
         variantId: item.selectedVariant?.id
       }));
@@ -665,7 +681,11 @@ export const Checkout: React.FC<CheckoutProps> = ({
           
           <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '6px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {cart.map(item => {
-              const price = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
+              const price = item.selectedVariant 
+                ? item.selectedVariant.price 
+                : (item.product.salePrice && item.product.salePrice > 0 && item.product.salePrice < item.product.basePrice
+                    ? item.product.salePrice
+                    : item.product.basePrice);
               const variantDesc = item.selectedVariant 
                 ? Object.entries(item.selectedVariant.options).map(([k, v]) => `${k}: ${v}`).join(', ')
                 : 'Standard';

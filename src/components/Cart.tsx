@@ -41,7 +41,11 @@ export const Cart: React.FC<CartProps> = ({
 
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const totalPrice = cart.reduce((acc, item) => {
-    const price = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
+    const price = item.selectedVariant 
+      ? item.selectedVariant.price 
+      : (item.product.salePrice && item.product.salePrice > 0 && item.product.salePrice < item.product.basePrice
+          ? item.product.salePrice
+          : item.product.basePrice);
     return acc + price * item.quantity;
   }, 0);
 
@@ -142,7 +146,11 @@ export const Cart: React.FC<CartProps> = ({
             </div>
           ) : (
             cart.map(item => {
-              const activePrice = item.selectedVariant ? item.selectedVariant.price : item.product.basePrice;
+              const activePrice = item.selectedVariant 
+                ? item.selectedVariant.price 
+                : (item.product.salePrice && item.product.salePrice > 0 && item.product.salePrice < item.product.basePrice
+                    ? item.product.salePrice
+                    : item.product.basePrice);
               const maxStock = item.selectedVariant ? item.selectedVariant.stock : 999;
               
               const variantDetails = item.selectedVariant

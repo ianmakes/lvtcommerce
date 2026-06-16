@@ -651,7 +651,16 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                             <img src={prod.image} alt={prod.name} style={{ width: '48px', height: '48px', objectFit: 'cover' }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <h5 style={{ margin: 0, fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.name}</h5>
-                              <span style={{ fontSize: '12px', color: 'var(--text-mute)', fontWeight: 600 }}>KSh {prod.basePrice.toLocaleString()}</span>
+                               <span style={{ fontSize: '12px', color: 'var(--text-mute)', fontWeight: 600 }}>
+                                 {prod.salePrice && prod.salePrice > 0 && prod.salePrice < prod.basePrice ? (
+                                   <>
+                                     <span style={{ color: 'var(--color-sale)', marginRight: '6px' }}>KSh {prod.salePrice.toLocaleString()}</span>
+                                     <span style={{ textDecoration: 'line-through', color: 'var(--text-stone)', fontSize: '11px' }}>KSh {prod.basePrice.toLocaleString()}</span>
+                                   </>
+                                 ) : (
+                                   `KSh ${prod.basePrice.toLocaleString()}`
+                                 )}
+                               </span>
                             </div>
                             <button className="btn btn-secondary btn-small" onClick={() => setActiveTab('wishlist')} style={{ padding: '4px 8px', fontSize: '11px' }}>
                               View
@@ -835,9 +844,10 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                   {wishlist.map(prodId => {
                     const prod = products.find(p => p.id === prodId);
                     if (!prod) return null;
+                    const isOnSale = !!(prod.salePrice && prod.salePrice > 0 && prod.salePrice < prod.basePrice);
                     const prodPrice = prod.variants && prod.variants.length > 0
-                      ? `From KSh ${prod.basePrice.toLocaleString()}`
-                      : `KSh ${prod.basePrice.toLocaleString()}`;
+                      ? `From KSh ${(isOnSale ? prod.salePrice! : prod.basePrice).toLocaleString()}`
+                      : `KSh ${(isOnSale ? prod.salePrice! : prod.basePrice).toLocaleString()}`;
 
                     const handleAddWishItemToCart = () => {
                       const hasVars = prod.attributes && prod.attributes.length > 0;

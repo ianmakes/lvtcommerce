@@ -43,9 +43,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  // Simulated Sale logic
-  const isOnSale = product.id === 'prod-magnify';
-  const originalPrice = isOnSale ? 10000 : null;
+  // Sale logic
+  const isOnSale = !!(product.salePrice && product.salePrice > 0 && product.salePrice < product.basePrice);
+  const originalPrice = isOnSale ? product.basePrice : null;
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -156,6 +156,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {(product.categories && product.categories.length > 0) ? product.categories[0] : product.category}
         </span>
         <h3 className="prod-card-title">{product.name}</h3>
+
+        {/* Subtle Review Rating */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-mute)', margin: '4px 0 6px' }}>
+          <div style={{ display: 'flex', color: '#dba617' }}>
+            {[1, 2, 3, 4, 5].map(star => (
+              <span key={star} style={{ fontSize: '12px', lineHeight: 1 }}>
+                {star <= Math.round(product.rating || 0) ? '★' : '☆'}
+              </span>
+            ))}
+          </div>
+          <span style={{ fontSize: '10px', color: 'var(--text-mute)' }}>
+            ({product.reviewCount || 0})
+          </span>
+        </div>
         
         {/* Description excerpt — only shown in list view */}
         {viewMode === 'list' && (
@@ -163,11 +177,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
         <div className="prod-card-price-row">
-          {isOnSale && originalPrice ? (
+          {isOnSale && originalPrice && product.salePrice ? (
             <>
-              <span className="price-sale">KSh {product.basePrice.toLocaleString()}</span>
+              <span className="price-sale" style={{ color: 'var(--color-sale)', fontWeight: 700 }}>KSh {product.salePrice.toLocaleString()}</span>
               <span className="price-original">KSh {originalPrice.toLocaleString()}</span>
-              <span className="price-percent">15% off</span>
+              <span className="price-percent">{Math.round(((product.basePrice - product.salePrice) / product.basePrice) * 100)}% off</span>
             </>
           ) : (
             <span className="price-regular">

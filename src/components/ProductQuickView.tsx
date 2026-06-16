@@ -68,7 +68,11 @@ export const ProductQuickView: React.FC<ProductQuickViewProps> = ({
   const hasVariants = product.attributes && product.attributes.length > 0;
   
   // Pricing logic
-  const activePrice = currentVariant ? currentVariant.price : product.basePrice;
+  const activePrice = currentVariant 
+    ? currentVariant.price 
+    : (product.salePrice && product.salePrice > 0 && product.salePrice < product.basePrice
+        ? product.salePrice
+        : product.basePrice);
   
   // A variant is out of stock if its stock is <= 0.
   // For simple products, we check if they have a variant or if base stock is managed, but since they have no variants list, we default to in-stock unless customized.
@@ -175,9 +179,20 @@ export const ProductQuickView: React.FC<ProductQuickViewProps> = ({
               <h2 className="quickview-title" style={{ margin: '0 0 12px 0', fontSize: '24px', fontWeight: 600, color: 'var(--text-ink)', lineHeight: '1.2' }}>{product.name}</h2>
               
               <div className="quickview-price-row" style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '20px' }}>
-                <span style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-ink)' }}>
-                  KSh {activePrice.toLocaleString()}
-                </span>
+                {!currentVariant && product.salePrice && product.salePrice > 0 && product.salePrice < product.basePrice ? (
+                  <>
+                    <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-sale)' }}>
+                      KSh {product.salePrice.toLocaleString()}
+                    </span>
+                    <span style={{ fontSize: '14px', textDecoration: 'line-through', color: 'var(--text-mute)', marginLeft: '4px' }}>
+                      KSh {product.basePrice.toLocaleString()}
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-ink)' }}>
+                    KSh {activePrice.toLocaleString()}
+                  </span>
+                )}
               </div>
 
               <p style={{ color: 'var(--text-charcoal)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 24px 0' }}>

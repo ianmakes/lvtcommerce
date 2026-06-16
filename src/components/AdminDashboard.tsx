@@ -450,6 +450,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [prodLongDesc, setProdLongDesc] = useState('');
   const [prodCats, setProdCats] = useState<string[]>([]);
   const [prodPrice, setProdPrice] = useState(0);
+  const [prodSalePrice, setProdSalePrice] = useState<number | ''>('');
   const [prodImg, setProdImg] = useState('');
   const [prodGallery, setProdGallery] = useState<string[]>([]);
   const [prodAttrs, setProdAttrs] = useState<Attribute[]>([]);
@@ -1045,6 +1046,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       categories: prodCats,
       image: prodImg.trim() || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
       basePrice: Number(prodPrice),
+      salePrice: prodSalePrice === '' ? undefined : Number(prodSalePrice),
       attributes: prodAttrs,
       variants: prodVariants,
       images: prodGallery,
@@ -1116,6 +1118,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
     setProdCats(validCats);
     setProdPrice(prod.basePrice);
+    setProdSalePrice(prod.salePrice !== undefined ? prod.salePrice : '');
     setProdImg(prod.image);
     setProdGallery(prod.images || []);
     setProdAttrs(prod.attributes || []);
@@ -1461,6 +1464,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProdLongDesc('');
     setProdCats([]);
     setProdPrice(10000);
+    setProdSalePrice('');
     setProdImg('');
     setProdGallery([]);
     setProdAttrs([]);
@@ -1850,6 +1854,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="wp-admin-body" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '4px',
+          background: 'linear-gradient(90deg, #2271b1 0%, #00a0d2 50%, #2271b1 100%)',
+          zIndex: 99999,
+          animation: 'wp-admin-progress 1.5s infinite linear',
+          backgroundSize: '200% 100%'
+        }} />
+      )}
 
       {/* WordPress Admin Bar */}
       <header className="wp-admin-bar">
@@ -2330,7 +2347,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             )}
                           </button>
                         </td>
-                        <td style={{ fontWeight: 600 }}>KSh {p.basePrice.toLocaleString()}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          {p.salePrice && p.salePrice > 0 && p.salePrice < p.basePrice ? (
+                            <div>
+                              <span style={{ color: '#d30005' }}>KSh {p.salePrice.toLocaleString()}</span>
+                              <div style={{ textDecoration: 'line-through', color: '#8c8f94', fontSize: '11px', fontWeight: 'normal' }}>KSh {p.basePrice.toLocaleString()}</div>
+                            </div>
+                          ) : (
+                            `KSh ${p.basePrice.toLocaleString()}`
+                          )}
+                        </td>
                         <td>
                           {(p.categories || [p.category]).join(', ')}
                           {p.tags && p.tags.length > 0 && (
@@ -6151,6 +6177,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             value={prodPrice}
                             onChange={e => setProdPrice(Number(e.target.value))}
                             required
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '15px' }}>
+                          <label style={{ width: '160px', fontWeight: 600 }}>Sale Price (KSh):</label>
+                          <input 
+                            type="number" 
+                            style={{ width: '200px', padding: '5px 8px', border: '1px solid #c3c4c7' }}
+                            value={prodSalePrice}
+                            onChange={e => setProdSalePrice(e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder="Optional"
                           />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '15px' }}>

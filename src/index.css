@@ -4195,5 +4195,113 @@ tr:hover .row-actions {
   }
 }
 
+/* Premium PDP Tabs styling */
+.pdp-tabs-container {
+  margin-top: 56px;
+  margin-bottom: 56px;
+  border-top: 1px solid var(--color-hairline);
+  padding-top: 12px;
+}
 
+.pdp-tabs-header {
+  display: flex;
+  gap: 48px;
+  border-bottom: 1px solid var(--color-hairline-soft);
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
 
+.pdp-tabs-header::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.pdp-tab-btn {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-mute);
+  padding: 18px 0;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  transition: color var(--transition-fast) ease;
+}
+
+.pdp-tab-btn:hover {
+  color: var(--color-ink);
+}
+
+.pdp-tab-btn.active {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.pdp-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-ink);
+}
+
+.pdp-tabs-content {
+  padding: 32px 0;
+}
+
+/* Grids for tabs overview and reviews */
+.pdp-tab-overview-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 64px;
+}
+
+.pdp-tab-reviews-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 64px;
+}
+
+@media (max-width: 768px) {
+  .pdp-tab-overview-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .pdp-tab-reviews-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .pdp-tabs-header {
+    gap: 32px;
+  }
+}
+
+/* Tab content entry animation */
+.pdp-tab-pane {
+  animation: pdpTabFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes pdpTabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Admin top progress bar keyframe animation */
+@keyframes wp-admin-progress {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

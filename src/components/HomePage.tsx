@@ -274,8 +274,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                       <span className="review-count">({prod.reviewCount || 0})</span>
                     </div>
                     <div className="deal-price-box">
-                      <span className="deal-price-new">KSh {prod.basePrice.toLocaleString()}</span>
-                      <span className="deal-price-old">KSh {Math.round(prod.basePrice * 1.2).toLocaleString()}</span>
+                      {prod.salePrice && prod.salePrice > 0 && prod.salePrice < prod.basePrice ? (
+                        <>
+                          <span className="deal-price-new">KSh {prod.salePrice.toLocaleString()}</span>
+                          <span className="deal-price-old">KSh {prod.basePrice.toLocaleString()}</span>
+                        </>
+                      ) : (
+                        <span className="deal-price-new">KSh {prod.basePrice.toLocaleString()}</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -411,8 +417,30 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
                 <div className="explore-metadata">
                   <h4 className="explore-title">{prod.name}</h4>
+
+                  {/* Subtle Review Rating */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-mute)', margin: '4px 0 6px' }}>
+                    <div style={{ display: 'flex', color: '#dba617' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <span key={star} style={{ fontSize: '12px', lineHeight: 1 }}>
+                          {star <= Math.round(prod.rating || 0) ? '★' : '☆'}
+                        </span>
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '10px', color: 'var(--text-mute)' }}>
+                      ({prod.reviewCount || 0})
+                    </span>
+                  </div>
+
                   <div className="explore-price-row">
-                    <span className="explore-price">KSh {prod.basePrice.toLocaleString()}</span>
+                    {prod.salePrice && prod.salePrice > 0 && prod.salePrice < prod.basePrice ? (
+                      <>
+                        <span className="explore-price-sale" style={{ color: 'var(--color-sale)', fontWeight: 700 }}>KSh {prod.salePrice.toLocaleString()}</span>
+                        <span className="explore-price-original" style={{ textDecoration: 'line-through', color: 'var(--text-mute)', fontSize: '13px', marginLeft: '6px' }}>KSh {prod.basePrice.toLocaleString()}</span>
+                      </>
+                    ) : (
+                      <span className="explore-price">KSh {prod.basePrice.toLocaleString()}</span>
+                    )}
                   </div>
                 </div>
               </div>

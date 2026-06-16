@@ -60,6 +60,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [shippingOpen, setShippingOpen] = useState(false);
   const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [pdpActiveTab, setPdpActiveTab] = useState<'overview' | 'reviews' | 'shipping'>('overview');
 
   // Reviews State
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -284,7 +285,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   };
 
   const hasVariants = product.attributes && product.attributes.length > 0;
-  const activePrice = currentVariant ? currentVariant.price : product.basePrice;
+  const activePrice = currentVariant 
+    ? currentVariant.price 
+    : (product.salePrice && product.salePrice > 0 && product.salePrice < product.basePrice
+        ? product.salePrice
+        : product.basePrice);
   const isOutOfStock = hasVariants ? (!currentVariant || currentVariant.stock <= 0) : false;
   const activeStock = currentVariant ? currentVariant.stock : null;
 
@@ -425,7 +430,15 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             )}
             <h1 className="font-heading-xl" style={{ marginTop: '8px', marginBottom: '12px' }}>{product.name}</h1>
             <span className="font-heading-lg" style={{ display: 'block', marginBottom: '24px' }}>
-              KSh {activePrice.toLocaleString()}
+              {!currentVariant && product.salePrice && product.salePrice > 0 && product.salePrice < product.basePrice ? (
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--color-sale)', fontWeight: 700 }}>KSh {product.salePrice.toLocaleString()}</span>
+                  <span style={{ textDecoration: 'line-through', color: 'var(--text-mute)', fontSize: '16px' }}>KSh {product.basePrice.toLocaleString()}</span>
+                  <span style={{ color: 'var(--color-success)', fontSize: '13px', fontWeight: 600 }}>{Math.round(((product.basePrice - product.salePrice) / product.basePrice) * 100)}% OFF</span>
+                </span>
+              ) : (
+                `KSh ${activePrice.toLocaleString()}`
+              )}
             </span>
             <p className="font-body-md" style={{ color: 'var(--text-charcoal)', lineHeight: 1.6 }}>
               {product.shortDescription || product.description}
@@ -557,189 +570,220 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             </div>
           </div>
 
-          {/* Stacked Accordion Disclosure Rows (Nike signature PDP style) */}
-          <div style={{ borderTop: '1px solid var(--color-hairline)', marginTop: '24px' }}>
-            
-            {/* Accordion 1: Product Overview */}
-            <div className="pdp-disclosure-row">
-              <div className="pdp-disclosure-header" onClick={() => setDetailsOpen(!detailsOpen)}>
-                <span>Product Overview</span>
-                {detailsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-              </div>
-              {detailsOpen && (
-                <div className="pdp-disclosure-content">
-                  <p style={{ marginBottom: '12px', whiteSpace: 'pre-line' }}>{product.longDescription || product.description}</p>
-                  {product.specifications && (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '16px' }}>
+        </div>
+
+      </div>
+
+      {/* Tabs Section */}
+      <div className="pdp-tabs-container">
+        <div className="pdp-tabs-header">
+          <button
+            type="button"
+            className={`pdp-tab-btn ${pdpActiveTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setPdpActiveTab('overview')}
+          >
+            Product Overview
+          </button>
+          <button
+            type="button"
+            className={`pdp-tab-btn ${pdpActiveTab === 'reviews' ? 'active' : ''}`}
+            onClick={() => setPdpActiveTab('reviews')}
+          >
+            Reviews ({reviews.length})
+          </button>
+          <button
+            type="button"
+            className={`pdp-tab-btn ${pdpActiveTab === 'shipping' ? 'active' : ''}`}
+            onClick={() => setPdpActiveTab('shipping')}
+          >
+            Shipping & Returns
+          </button>
+        </div>
+
+        <div className="pdp-tabs-content">
+          {pdpActiveTab === 'overview' && (
+            <div className="pdp-tab-pane pdp-tab-fade-in">
+              <div className="pdp-tab-overview-grid">
+                <div>
+                  <h3 className="font-heading-md" style={{ marginBottom: '16px' }}>Description</h3>
+                  <p style={{ whiteSpace: 'pre-line', fontSize: '15px', color: 'var(--text-charcoal)', lineHeight: 1.7 }}>
+                    {product.longDescription || product.description}
+                  </p>
+                </div>
+                {product.specifications && Object.keys(product.specifications).length > 0 && (
+                  <div>
+                    <h3 className="font-heading-md" style={{ marginBottom: '16px' }}>Specifications</h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                       <tbody>
                         {Object.entries(product.specifications).map(([key, val]) => (
                           <tr key={key} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
-                            <td style={{ padding: '8px 0', fontWeight: 600, color: 'var(--text-charcoal)', width: '40%', fontSize: '14px' }}>{key}</td>
-                            <td style={{ padding: '8px 0', color: 'var(--text-ink)', fontSize: '14px' }}>{val}</td>
+                            <td style={{ padding: '12px 0', fontWeight: 600, color: 'var(--text-charcoal)', width: '45%', fontSize: '14px' }}>{key}</td>
+                            <td style={{ padding: '12px 0', color: 'var(--text-ink)', fontSize: '14px' }}>{val}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Accordion 2: Shipping & Delivery */}
-            <div className="pdp-disclosure-row">
-              <div className="pdp-disclosure-header" onClick={() => setShippingOpen(!shippingOpen)}>
-                <span>Shipping & Returns</span>
-                {shippingOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </div>
+                )}
               </div>
-              {shippingOpen && (
-                <div className="pdp-disclosure-content">
-                  <p>Free standard shipping on orders over KSh 30,000. For orders below this threshold, a flat delivery fee of KSh 500 applies nationwide.</p>
-                  <p style={{ marginTop: '10px' }}>Orders are processed and dispatched within 24 to 48 hours. Returns are accepted within 30 days of purchase in original packaging and condition.</p>
-                </div>
-              )}
             </div>
+          )}
 
-            {/* Accordion 3: Reviews */}
-            <div className="pdp-disclosure-row">
-              <div className="pdp-disclosure-header" onClick={() => setReviewsOpen(!reviewsOpen)}>
-                <span>Reviews ({reviews.length})</span>
-                {reviewsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-              </div>
-              {reviewsOpen && (
-                <div className="pdp-disclosure-content">
-                  {/* Reviews Summary */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                    <span style={{ fontSize: '36px', fontWeight: 700, color: 'var(--text-ink)' }}>{product.rating || '0.0'}</span>
+          {pdpActiveTab === 'reviews' && (
+            <div className="pdp-tab-pane pdp-tab-fade-in">
+              <div className="pdp-tab-reviews-grid" style={{ marginTop: '32px' }}>
+                {/* Left Side: Summary & Write Review */}
+                <div>
+                  <h3 className="font-heading-md" style={{ marginBottom: '16px' }}>Customer Ratings</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                    <span style={{ fontSize: '48px', fontWeight: 700, color: 'var(--text-ink)', lineHeight: 1 }}>{product.rating || '0.0'}</span>
                     <div>
-                      <div style={{ display: 'flex', gap: '2px' }}>
+                      <div style={{ display: 'flex', gap: '2px', marginBottom: '4px' }}>
                         {[1, 2, 3, 4, 5].map(starNum => (
                           <Star 
                             key={starNum} 
-                            size={16} 
+                            size={18} 
                             fill={starNum <= Math.round(product.rating || 0) ? 'var(--text-ink)' : 'none'} 
                             style={{ color: 'var(--text-ink)' }} 
                           />
                         ))}
                       </div>
-                      <span className="font-caption-sm">Based on {reviews.length} reviews</span>
+                      <span className="font-caption-sm" style={{ color: 'var(--text-mute)' }}>Based on {reviews.length} reviews</span>
                     </div>
                   </div>
 
                   {/* Review Submit form */}
-                  <div style={{ backgroundColor: 'var(--color-soft-cloud)', padding: '20px', marginBottom: '24px' }}>
-                    <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>Write a Review</h4>
+                  <div style={{ backgroundColor: 'var(--color-soft-cloud)', padding: '24px', borderRadius: 'var(--radius-none)' }}>
+                    <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '16px' }}>Write a Review</h4>
                     {!currentUser ? (
                       <span className="font-caption-sm" style={{ color: 'var(--color-sale)', fontWeight: 600 }}>Please sign in to write a review.</span>
                     ) : checkingPurchase ? (
                       <span className="font-caption-sm" style={{ color: 'var(--text-mute)' }}>Verifying purchase status...</span>
                     ) : !hasPurchased ? (
-                      <div style={{ padding: '8px 12px', border: '1px dashed var(--color-sale)', backgroundColor: '#fffdfd', color: 'var(--color-sale)', fontSize: '13px', fontWeight: 500 }}>
+                      <div style={{ padding: '12px', border: '1px dashed var(--color-sale)', backgroundColor: '#fffdfd', color: 'var(--color-sale)', fontSize: '13px', fontWeight: 500 }}>
                         Only verified buyers who have purchased this product can leave a review.
                       </div>
                     ) : (
-                      <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {reviewSuccess && (
                           <div style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '13px' }}>
                             {reviewSuccess}
                           </div>
                         )}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                          <div>
-                            <label className="form-label">Name</label>
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={formName}
-                              onChange={e => setFormName(e.target.value)}
-                              style={{ minHeight: '40px', padding: '6px 12px', fontSize: '14px' }}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="form-label">Rating</label>
-                            <div style={{ display: 'flex', gap: '4px', height: '40px', alignItems: 'center' }}>
-                              {[1, 2, 3, 4, 5].map(starNum => (
-                                <button
-                                  key={starNum}
-                                  type="button"
-                                  onClick={() => setFormRating(starNum)}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                                >
-                                  <Star 
-                                    size={20} 
-                                    fill={starNum <= formRating ? "var(--text-ink)" : "none"} 
-                                    style={{ color: 'var(--text-ink)' }} 
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
                         <div>
-                          <label className="form-label">Review Details</label>
-                          <textarea
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Name</label>
+                          <input
+                            type="text"
                             className="form-input"
-                            rows={3}
-                            value={formComment}
-                            onChange={e => setFormComment(e.target.value)}
-                            placeholder="Share your experience..."
-                            style={{ minHeight: '64px', padding: '8px 12px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical' }}
+                            value={formName}
+                            onChange={e => setFormName(e.target.value)}
+                            style={{ minHeight: '40px', padding: '6px 12px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
                             required
                           />
                         </div>
-                        <button type="submit" className="btn btn-primary btn-small" style={{ alignSelf: 'flex-start' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Rating</label>
+                          <div style={{ display: 'flex', gap: '6px', height: '32px', alignItems: 'center' }}>
+                            {[1, 2, 3, 4, 5].map(starNum => (
+                              <button
+                                key={starNum}
+                                type="button"
+                                onClick={() => setFormRating(starNum)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                              >
+                                <Star 
+                                  size={24} 
+                                  fill={starNum <= formRating ? "var(--text-ink)" : "none"} 
+                                  style={{ color: 'var(--text-ink)' }} 
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>Review Details</label>
+                          <textarea
+                            className="form-input"
+                            rows={4}
+                            value={formComment}
+                            onChange={e => setFormComment(e.target.value)}
+                            placeholder="Share your experience..."
+                            style={{ minHeight: '80px', padding: '8px 12px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+                            required
+                          />
+                        </div>
+                        <button type="submit" className="btn btn-primary btn-small" style={{ width: '100%' }}>
                           Submit Review
                         </button>
                       </form>
                     )}
                   </div>
+                </div>
 
-                  {/* Reviews List */}
+                {/* Right Side: Reviews List */}
+                <div>
+                  <h3 className="font-heading-md" style={{ marginBottom: '16px' }}>Reviews ({reviews.length})</h3>
                   {loadingReviews ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {[1, 2].map(n => (
-                        <div key={n} style={{ borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                      {[1, 2, 3].map(n => (
+                        <div key={n} style={{ borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '20px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <div className="skeleton-row-box skeleton-pulse" style={{ height: '16px', width: '120px' }} />
+                            <div className="skeleton-row-box skeleton-pulse" style={{ height: '18px', width: '140px' }} />
                             <div className="skeleton-row-box skeleton-pulse" style={{ height: '12px', width: '80px' }} />
                           </div>
-                          <div className="skeleton-row-box skeleton-pulse" style={{ height: '12px', width: '100px', marginBottom: '8px' }} />
+                          <div className="skeleton-row-box skeleton-pulse" style={{ height: '14px', width: '100px', marginBottom: '12px' }} />
                           <div className="skeleton-row-box skeleton-pulse" style={{ height: '14px', width: '100%' }} />
                         </div>
                       ))}
                     </div>
                   ) : reviews.length === 0 ? (
-                    <p className="font-caption-sm" style={{ fontStyle: 'italic' }}>No reviews yet. Be the first to write one!</p>
+                    <p style={{ fontStyle: 'italic', color: 'var(--text-mute)', fontSize: '15px' }}>No reviews yet. Be the first to write one!</p>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                       {reviews.map(rev => (
-                        <div key={rev.id} style={{ borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <span style={{ fontWeight: 600, fontSize: '14px' }}>{rev.buyerName}</span>
-                            <span className="font-caption-sm" style={{ fontSize: '11px' }}>{new Date(rev.createdAt).toLocaleDateString()}</span>
+                        <div key={rev.id} style={{ borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '20px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ fontWeight: 600, fontSize: '15px' }}>{rev.buyerName}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>{new Date(rev.createdAt).toLocaleDateString()}</span>
                           </div>
-                          <div style={{ display: 'flex', gap: '2px', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', gap: '2px', marginBottom: '10px' }}>
                             {[1, 2, 3, 4, 5].map(starNum => (
                               <Star 
                                 key={starNum} 
-                                size={12} 
+                                size={14} 
                                 fill={starNum <= rev.rating ? 'var(--text-ink)' : 'none'} 
                                 style={{ color: 'var(--text-ink)' }} 
                               />
                             ))}
                           </div>
-                          <p style={{ fontSize: '14px', color: 'var(--text-charcoal)', margin: 0 }}>{rev.comment}</p>
+                          <p style={{ fontSize: '15px', color: 'var(--text-charcoal)', margin: 0, lineHeight: 1.6 }}>{rev.comment}</p>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
+          )}
 
-          </div>
+          {pdpActiveTab === 'shipping' && (
+            <div className="pdp-tab-pane pdp-tab-fade-in" style={{ marginTop: '32px' }}>
+              <div style={{ maxWidth: '800px' }}>
+                <h3 className="font-heading-md" style={{ marginBottom: '16px' }}>Shipping & Delivery</h3>
+                <p style={{ fontSize: '15px', color: 'var(--text-charcoal)', lineHeight: 1.7, marginBottom: '16px' }}>
+                  Free standard shipping on orders over KSh 30,000. For orders below this threshold, a flat delivery fee of KSh 500 applies nationwide.
+                </p>
+                <p style={{ fontSize: '15px', color: 'var(--text-charcoal)', lineHeight: 1.7, marginBottom: '24px' }}>
+                  Orders are processed and dispatched within 24 to 48 hours. Delivery timelines are typically 1-3 business days depending on location.
+                </p>
+                <h3 className="font-heading-md" style={{ marginBottom: '16px' }}>Returns & Exchanges</h3>
+                <p style={{ fontSize: '15px', color: 'var(--text-charcoal)', lineHeight: 1.7 }}>
+                  Returns are accepted within 30 days of purchase. Items must be returned in their original packaging, unused, and in the same condition that they were received.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-
       </div>
 
       {/* Related Products Section */}

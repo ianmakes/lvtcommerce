@@ -25,6 +25,7 @@ export interface Product {
   categories?: string[]; // Multi-category assignment
   image: string; // URL or placeholder base64/name
   basePrice: number;
+  salePrice?: number;
   attributes: Attribute[];
   variants: ProductVariant[];
   rating?: number;
