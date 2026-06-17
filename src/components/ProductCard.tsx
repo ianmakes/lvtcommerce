@@ -114,18 +114,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Gallery Hover Transition */}
         {(() => {
           const alternateImage = product.images && product.images.length > 0
-            ? product.images.find(img => img !== product.image) || product.images[0]
+            ? product.images.find(img => img !== product.image)
             : null;
+          const hasHoverImage = !!(alternateImage && alternateImage !== product.image);
 
           return (
-            <div className="prod-img-wrapper">
+            <div className={`prod-img-wrapper ${hasHoverImage ? 'has-hover-image' : ''}`}>
               <img 
                 src={product.image || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
                 alt={product.name} 
                 className="prod-img prod-img-primary"
                 loading="lazy"
               />
-              {alternateImage && alternateImage !== product.image && (
+              {hasHoverImage && (
                 <img 
                   src={alternateImage} 
                   alt={`${product.name} alternate`} 
