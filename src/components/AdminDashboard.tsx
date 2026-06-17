@@ -138,6 +138,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   
   const [selectedTemplateTab, setSelectedTemplateTab] = useState<'order_customer' | 'order_admin' | 'order_status'>('order_customer');
 
+  const [productsSubTab, setProductsSubTab] = useState<'all' | 'bulk'>('all');
+  const [bulkRows, setBulkRows] = useState<any[]>([]);
+
   // Test email delivery states
   const [testEmailAddress, setTestEmailAddress] = useState('');
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
@@ -738,6 +741,207 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (productsSubTab === 'bulk' && bulkRows.length === 0) {
+      const rows = products.map(p => ({
+        id: p.id,
+        name: p.name || '',
+        category: p.category || (p.categories && p.categories[0]) || '',
+        basePrice: p.basePrice || 0,
+        salePrice: p.salePrice !== undefined ? p.salePrice : '',
+        isFeatured: !!p.isFeatured,
+        image: p.image || '',
+        tags: p.tags ? p.tags.join(', ') : '',
+        shortDescription: p.shortDescription || '',
+        description: p.description || '',
+        attributes: p.attributes || [],
+        variants: p.variants || [],
+        images: p.images || [],
+        taxClassId: p.taxClassId || '',
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+        specifications: p.specifications,
+        badge: p.badge
+      }));
+      // Append 3 blank rows at the bottom for convenience
+      for (let i = 0; i < 3; i++) {
+        rows.push({
+          id: '',
+          name: '',
+          category: categories.length > 0 ? categories[0].name : '',
+          basePrice: 0,
+          salePrice: '',
+          isFeatured: false,
+          image: '',
+          tags: '',
+          shortDescription: '',
+          description: '',
+          attributes: [],
+          variants: [],
+          images: [],
+          taxClassId: '',
+          rating: 5,
+          reviewCount: 0,
+          specifications: {},
+          badge: ''
+        });
+      }
+      setBulkRows(rows);
+    }
+  }, [productsSubTab, products, categories]);
+
+  const handleResetBulkGrid = () => {
+    if (window.confirm("Are you sure you want to discard all unsaved changes and reload products?")) {
+      const rows = products.map(p => ({
+        id: p.id,
+        name: p.name || '',
+        category: p.category || (p.categories && p.categories[0]) || '',
+        basePrice: p.basePrice || 0,
+        salePrice: p.salePrice !== undefined ? p.salePrice : '',
+        isFeatured: !!p.isFeatured,
+        image: p.image || '',
+        tags: p.tags ? p.tags.join(', ') : '',
+        shortDescription: p.shortDescription || '',
+        description: p.description || '',
+        attributes: p.attributes || [],
+        variants: p.variants || [],
+        images: p.images || [],
+        taxClassId: p.taxClassId || '',
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+        specifications: p.specifications,
+        badge: p.badge
+      }));
+      for (let i = 0; i < 3; i++) {
+        rows.push({
+          id: '',
+          name: '',
+          category: categories.length > 0 ? categories[0].name : '',
+          basePrice: 0,
+          salePrice: '',
+          isFeatured: false,
+          image: '',
+          tags: '',
+          shortDescription: '',
+          description: '',
+          attributes: [],
+          variants: [],
+          images: [],
+          taxClassId: '',
+          rating: 5,
+          reviewCount: 0,
+          specifications: {},
+          badge: ''
+        });
+      }
+      setBulkRows(rows);
+    }
+  };
+
+  const handleBulkRowChange = (index: number, field: string, value: any) => {
+    const updated = [...bulkRows];
+    updated[index] = {
+      ...updated[index],
+      [field]: value
+    };
+    setBulkRows(updated);
+  };
+
+  const addBulkRow = () => {
+    setBulkRows([
+      ...bulkRows,
+      {
+        id: '',
+        name: '',
+        category: categories.length > 0 ? categories[0].name : '',
+        basePrice: 0,
+        salePrice: '',
+        isFeatured: false,
+        image: '',
+        tags: '',
+        shortDescription: '',
+        description: '',
+        attributes: [],
+        variants: [],
+        images: [],
+        taxClassId: '',
+        rating: 5,
+        reviewCount: 0,
+        specifications: {},
+        badge: ''
+      }
+    ]);
+  };
+
+  const deleteBulkRow = (index: number) => {
+    const updated = bulkRows.filter((_, idx) => idx !== index);
+    setBulkRows(updated);
+  };
+
+  const handleSaveBulkProducts = async () => {
+    const activeRows = bulkRows.filter(row => row.name.trim() !== '');
+    if (activeRows.length === 0) {
+      alert("No products to save. Please fill out at least one product name.");
+      return;
+    }
+
+    for (const row of activeRows) {
+      if (!row.category) {
+        alert(`Product "${row.name}" requires a category.`);
+        return;
+      }
+      if (Number(row.basePrice) < 0) {
+        alert(`Product "${row.name}" requires a valid base price.`);
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    let successCount = 0;
+    try {
+      for (const row of activeRows) {
+        const prodId = row.id || `prod-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+        const pTags = row.tags ? row.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t !== '') : [];
+        
+        const newProduct: Product = {
+          id: prodId,
+          name: row.name.trim(),
+          description: row.description.trim(),
+          shortDescription: row.shortDescription.trim() || undefined,
+          category: row.category,
+          categories: [row.category],
+          image: row.image.trim() || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png",
+          basePrice: Number(row.basePrice),
+          salePrice: row.salePrice === '' ? undefined : Number(row.salePrice),
+          attributes: row.attributes || [],
+          variants: row.variants || [],
+          images: row.images || [],
+          taxClassId: row.taxClassId || undefined,
+          tags: pTags.length > 0 ? pTags : undefined,
+          isFeatured: !!row.isFeatured,
+          rating: row.rating !== undefined ? row.rating : 5,
+          reviewCount: row.reviewCount !== undefined ? row.reviewCount : 0,
+          specifications: row.specifications || {},
+          badge: row.badge || undefined
+        };
+
+        await saveProduct(newProduct);
+        successCount++;
+      }
+      
+      alert(`Successfully saved ${successCount} products!`);
+      await loadAdminData();
+      onRefreshProducts();
+      setProductsSubTab('all');
+      setBulkRows([]);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save some products. Please check console for details.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Helper to check permissions (RBAC)
   const hasPermission = (permission: string): boolean => {
@@ -2551,138 +2755,308 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* Subsubsub links */}
               <ul className="wp-subsubsub">
-                <li><a href="#" className="current">All <span className="count">({products.length})</span></a> |</li>
-                <li><a href="#">Published <span className="count">({products.length})</span></a> |</li>
-                <li><a href="#">Trash <span className="count">(0)</span></a></li>
+                <li>
+                  <a 
+                    href="#" 
+                    className={productsSubTab === 'all' ? 'current' : ''} 
+                    onClick={(e) => { e.preventDefault(); setProductsSubTab('all'); }}
+                  >
+                    All <span className="count">({products.length})</span>
+                  </a> |
+                </li>
+                <li>
+                  <a 
+                    href="#" 
+                    className={productsSubTab === 'bulk' ? 'current' : ''} 
+                    onClick={(e) => { e.preventDefault(); setProductsSubTab('bulk'); }}
+                  >
+                    Bulk Entry
+                  </a>
+                </li>
               </ul>
 
-              {/* Bulk action / filter row */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <select style={{ padding: '3px 8px', fontSize: '13px', border: '1px solid #c3c4c7' }}>
-                    <option>Bulk actions</option>
-                    <option>Delete Permanently</option>
-                  </select>
-                  <button className="wp-button-secondary" style={{ padding: '2px 10px', minHeight: '28px', fontSize: '12px' }}>Apply</button>
-                </div>
-                
-                {/* Search */}
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <input 
-                    type="search" 
-                    placeholder="Search Products..." 
-                    style={{ padding: '3px 8px', fontSize: '13px', border: '1px solid #c3c4c7' }} 
-                  />
-                  <button className="wp-button-secondary" style={{ padding: '2px 10px', minHeight: '28px', fontSize: '12px' }}>Search Products</button>
-                </div>
-              </div>
+              {productsSubTab === 'all' ? (
+                <>
+                  {/* Bulk action / filter row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <select style={{ padding: '3px 8px', fontSize: '13px', border: '1px solid #c3c4c7' }}>
+                        <option>Bulk actions</option>
+                        <option>Delete Permanently</option>
+                      </select>
+                      <button className="wp-button-secondary" style={{ padding: '2px 10px', minHeight: '28px', fontSize: '12px' }}>Apply</button>
+                    </div>
+                    
+                    {/* Search */}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input 
+                        type="search" 
+                        placeholder="Search Products..." 
+                        style={{ padding: '3px 8px', fontSize: '13px', border: '1px solid #c3c4c7' }} 
+                      />
+                      <button className="wp-button-secondary" style={{ padding: '2px 10px', minHeight: '28px', fontSize: '12px' }}>Search Products</button>
+                    </div>
+                  </div>
 
-              {/* List Table */}
-              <table className="wp-list-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '40px', paddingLeft: '10px' }}><input type="checkbox" /></th>
-                    <th style={{ width: '64px' }}>Image</th>
-                    <th>Name</th>
-                    <th style={{ width: '80px', textAlign: 'center' }}>Featured</th>
-                    <th style={{ width: '120px' }}>Price</th>
-                    <th style={{ width: '150px' }}>Categories</th>
-                    <th style={{ width: '180px' }}>Attributes</th>
-                    <th style={{ width: '120px' }}>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isAdminLoading ? (
-                    [1, 2, 3].map(n => (
-                      <tr key={n}>
-                        <td style={{ paddingLeft: '10px' }}><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px', width: '20px' }} /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" style={{ width: '40px', height: '40px' }} /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '24px' }} /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
-                        <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                  {/* List Table */}
+                  <table className="wp-list-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '40px', paddingLeft: '10px' }}><input type="checkbox" /></th>
+                        <th style={{ width: '64px' }}>Image</th>
+                        <th>Name</th>
+                        <th style={{ width: '80px', textAlign: 'center' }}>Featured</th>
+                        <th style={{ width: '120px' }}>Price</th>
+                        <th style={{ width: '150px' }}>Categories</th>
+                        <th style={{ width: '180px' }}>Attributes</th>
+                        <th style={{ width: '120px' }}>Date</th>
                       </tr>
-                    ))
-                  ) : products.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
-                        No products found.
-                      </td>
-                    </tr>
-                  ) : (
-                    products.map(p => (
-                      <tr key={p.id}>
-                        <td style={{ paddingLeft: '10px' }}><input type="checkbox" /></td>
-                        <td>
-                          <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'cover', border: '1px solid #dcdcde' }} />
-                        </td>
-                        <td>
-                          <a onClick={() => handleEditProductClick(p)} style={{ fontWeight: 600, color: '#2271b1', cursor: 'pointer', fontSize: '14px', textDecoration: 'none' }}>
-                            {p.name}
-                          </a>
-                          <div className="row-actions">
-                            <span className="edit"><a onClick={() => handleEditProductClick(p)}>Edit</a> | </span>
-                            <span className="trash"><a onClick={() => handleDeleteProductClick(p.id, p.name)}>Trash</a> | </span>
-                            <span className="view"><a href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer">View</a></span>
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleFeatured(p)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                            title={p.isFeatured ? "Unfeature Product" : "Feature Product"}
-                          >
-                            {p.isFeatured ? (
-                              <span style={{ color: '#dba617', fontSize: '20px', lineHeight: 1 }}>★</span>
-                            ) : (
-                              <span style={{ color: '#ccd0d4', fontSize: '20px', lineHeight: 1 }}>☆</span>
-                            )}
-                          </button>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>
-                          {p.salePrice && p.salePrice > 0 && p.salePrice < p.basePrice ? (
-                            <div>
-                              <span style={{ color: '#d30005' }}>KSh {p.salePrice.toLocaleString()}</span>
-                              <div style={{ textDecoration: 'line-through', color: '#8c8f94', fontSize: '11px', fontWeight: 'normal' }}>KSh {p.basePrice.toLocaleString()}</div>
-                            </div>
-                          ) : (
-                            `KSh ${p.basePrice.toLocaleString()}`
-                          )}
-                        </td>
-                        <td>
-                          {(p.categories || [p.category]).join(', ')}
-                          {p.tags && p.tags.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginTop: '4px' }}>
-                              {p.tags.map(t => (
-                                <span key={t} style={{ fontSize: '10px', color: '#646970', background: '#f0f2f5', padding: '1px 5px', border: '1px solid #e0e0e0' }}>{t}</span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          {p.attributes && p.attributes.length > 0 ? (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                              {p.attributes.map(a => (
-                                <span key={a.name} style={{ background: '#f0f2f5', padding: '2px 6px', borderRadius: '3px', fontSize: '11px', border: '1px solid #dcdcde' }}>
-                                  {a.name}: {a.options.length}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span style={{ color: '#a7aaad' }}>—</span>
-                          )}
-                        </td>
-                        <td>
-                          <span style={{ display: 'block', fontSize: '12px' }}>Published</span>
-                          <span style={{ color: '#646970', fontSize: '11px' }}>{new Date().toLocaleDateString()}</span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {isAdminLoading ? (
+                        [1, 2, 3].map(n => (
+                          <tr key={n}>
+                            <td style={{ paddingLeft: '10px' }}><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px', width: '20px' }} /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" style={{ width: '40px', height: '40px' }} /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '24px' }} /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                            <td><div className="skeleton-row-box skeleton-pulse" style={{ height: '20px' }} /></td>
+                          </tr>
+                        ))
+                      ) : products.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#a7aaad' }}>
+                            No products found.
+                          </td>
+                        </tr>
+                      ) : (
+                        products.map(p => (
+                          <tr key={p.id}>
+                            <td style={{ paddingLeft: '10px' }}><input type="checkbox" /></td>
+                            <td>
+                              <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'cover', border: '1px solid #dcdcde' }} />
+                            </td>
+                            <td>
+                              <a onClick={() => handleEditProductClick(p)} style={{ fontWeight: 600, color: '#2271b1', cursor: 'pointer', fontSize: '14px', textDecoration: 'none' }}>
+                                {p.name}
+                              </a>
+                              <div className="row-actions">
+                                <span className="edit"><a onClick={() => handleEditProductClick(p)}>Edit</a> | </span>
+                                <span className="trash"><a onClick={() => handleDeleteProductClick(p.id, p.name)}>Trash</a> | </span>
+                                <span className="view"><a href={`/product/${p.id}`} target="_blank" rel="noopener noreferrer">View</a></span>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFeatured(p)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                title={p.isFeatured ? "Unfeature Product" : "Feature Product"}
+                              >
+                                {p.isFeatured ? (
+                                  <span style={{ color: '#dba617', fontSize: '20px', lineHeight: 1 }}>★</span>
+                                ) : (
+                                  <span style={{ color: '#ccd0d4', fontSize: '20px', lineHeight: 1 }}>☆</span>
+                                )}
+                              </button>
+                            </td>
+                            <td style={{ fontWeight: 600 }}>
+                              {p.salePrice && p.salePrice > 0 && p.salePrice < p.basePrice ? (
+                                <div>
+                                  <span style={{ color: '#d30005' }}>KSh {p.salePrice.toLocaleString()}</span>
+                                  <div style={{ textDecoration: 'line-through', color: '#8c8f94', fontSize: '11px', fontWeight: 'normal' }}>KSh {p.basePrice.toLocaleString()}</div>
+                                </div>
+                              ) : (
+                                `KSh ${p.basePrice.toLocaleString()}`
+                              )}
+                            </td>
+                            <td>
+                              {(p.categories || [p.category]).join(', ')}
+                              {p.tags && p.tags.length > 0 && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginTop: '4px' }}>
+                                  {p.tags.map(t => (
+                                    <span key={t} style={{ fontSize: '10px', color: '#646970', background: '#f0f2f5', padding: '1px 5px', border: '1px solid #e0e0e0' }}>{t}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              {p.attributes && p.attributes.length > 0 ? (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                  {p.attributes.map(a => (
+                                    <span key={a.name} style={{ background: '#f0f2f5', padding: '2px 6px', borderRadius: '3px', fontSize: '11px', border: '1px solid #dcdcde' }}>
+                                      {a.name}: {a.options.length}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span style={{ color: '#a7aaad' }}>—</span>
+                              )}
+                            </td>
+                            <td>
+                              <span style={{ display: 'block', fontSize: '12px' }}>Published</span>
+                              <span style={{ color: '#646970', fontSize: '11px' }}>{new Date().toLocaleDateString()}</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </>
+              ) : (
+                <div className="bulk-entry-container" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '16px', borderRadius: '0px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#646970', maxWidth: '60%' }}>
+                      <strong>Spreadsheet Bulk Editor:</strong> Record or edit product details like a spreadsheet. Changes will only take effect on the store once you click <strong>Save All Changes</strong>. Note: attributes/variants are excluded and must be edited on individual product details pages.
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="wp-button-secondary" type="button" onClick={addBulkRow} style={{ minHeight: '32px' }}>
+                        + Add Row
+                      </button>
+                      <button className="wp-button-secondary" type="button" onClick={handleResetBulkGrid} style={{ minHeight: '32px' }}>
+                        Reset Grid
+                      </button>
+                      <button className="wp-button-primary" type="button" onClick={handleSaveBulkProducts} style={{ minHeight: '32px', backgroundColor: '#2271b1', color: '#fff', borderColor: '#2271b1' }}>
+                        Save All Changes
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ overflowX: 'auto', border: '1px solid #dcdcde', maxHeight: '600px' }}>
+                    <table className="wp-list-table" style={{ margin: 0, tableLayout: 'fixed', width: '100%', minWidth: '1800px', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f6f7f7' }}>
+                          <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px', border: '1px solid #c3c4c7', fontWeight: 600 }}>#</th>
+                          <th style={{ width: '100px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Product ID</th>
+                          <th style={{ width: '250px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Name *</th>
+                          <th style={{ width: '160px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Category *</th>
+                          <th style={{ width: '110px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Base Price *</th>
+                          <th style={{ width: '110px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Sale Price</th>
+                          <th style={{ width: '70px', textAlign: 'center', padding: '8px 4px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Featured</th>
+                          <th style={{ width: '280px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Image URL</th>
+                          <th style={{ width: '180px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Tags (comma-separated)</th>
+                          <th style={{ width: '280px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Short Description</th>
+                          <th style={{ width: '400px', padding: '8px 6px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Description</th>
+                          <th style={{ width: '60px', textAlign: 'center', padding: '8px 4px', border: '1px solid #c3c4c7', fontWeight: 600 }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkRows.map((row, idx) => (
+                          <tr key={idx} style={{ height: '36px' }}>
+                            <td style={{ textAlign: 'center', background: '#f6f7f7', fontSize: '11px', fontWeight: 600, border: '1px solid #c3c4c7', color: '#646970' }}>{idx + 1}</td>
+                            <td style={{ fontSize: '11px', border: '1px solid #c3c4c7', padding: '2px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: row.id ? '#646970' : '#46b450', fontWeight: row.id ? 'normal' : 'bold' }}>
+                              {row.id ? row.id : '[New]'}
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <input 
+                                type="text"
+                                value={row.name}
+                                onChange={(e) => handleBulkRowChange(idx, 'name', e.target.value)}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '6px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent' }}
+                                placeholder="Product Name..."
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <select
+                                value={row.category}
+                                onChange={(e) => handleBulkRowChange(idx, 'category', e.target.value)}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '4px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent', cursor: 'pointer' }}
+                              >
+                                {categories.map(c => (
+                                  <option key={c.id} value={c.name}>{c.name}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <input 
+                                type="number"
+                                value={row.basePrice}
+                                onChange={(e) => handleBulkRowChange(idx, 'basePrice', Number(e.target.value))}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '6px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent' }}
+                                placeholder="0"
+                                min="0"
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <input 
+                                type="number"
+                                value={row.salePrice}
+                                onChange={(e) => handleBulkRowChange(idx, 'salePrice', e.target.value === '' ? '' : Number(e.target.value))}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '6px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent' }}
+                                placeholder="Optional"
+                                min="0"
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0, textAlign: 'center' }}>
+                              <input 
+                                type="checkbox"
+                                checked={row.isFeatured}
+                                onChange={(e) => handleBulkRowChange(idx, 'isFeatured', e.target.checked)}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <input 
+                                type="text"
+                                value={row.image}
+                                onChange={(e) => handleBulkRowChange(idx, 'image', e.target.value)}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '6px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent' }}
+                                placeholder="https://..."
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <input 
+                                type="text"
+                                value={row.tags}
+                                onChange={(e) => handleBulkRowChange(idx, 'tags', e.target.value)}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '6px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent' }}
+                                placeholder="tag1, tag2..."
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <input 
+                                type="text"
+                                value={row.shortDescription}
+                                onChange={(e) => handleBulkRowChange(idx, 'shortDescription', e.target.value)}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '6px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent' }}
+                                placeholder="Brief summary..."
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0 }}>
+                              <input 
+                                type="text"
+                                value={row.description}
+                                onChange={(e) => handleBulkRowChange(idx, 'description', e.target.value)}
+                                style={{ width: '100%', height: '100%', border: 'none', padding: '6px 8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', background: 'transparent' }}
+                                placeholder="Detailed description..."
+                              />
+                            </td>
+                            <td style={{ border: '1px solid #c3c4c7', padding: 0, textAlign: 'center' }}>
+                              <button 
+                                type="button" 
+                                onClick={() => deleteBulkRow(idx)}
+                                style={{ background: 'none', border: 'none', color: '#d63638', cursor: 'pointer', padding: '4px', fontSize: '14px', lineHeight: 1 }}
+                                title="Delete Row"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#646970' }}>Total rows: {bulkRows.length}</span>
+                    <button className="wp-button-secondary" type="button" onClick={addBulkRow} style={{ minHeight: '32px' }}>
+                      + Add Row
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
