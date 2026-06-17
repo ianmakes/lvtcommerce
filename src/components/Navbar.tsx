@@ -30,6 +30,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const getAccountLabel = () => {
+    if (currentUser?.displayName) {
+      const firstName = currentUser.displayName.trim().split(' ')[0];
+      return `${firstName}'s Account`;
+    }
+    return "My Account";
+  };
+
   // Close drawer on route change
   useEffect(() => {
     setDrawerOpen(false);
@@ -154,13 +162,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </Link>
                     <Link to="/account" className="expandable-nav-item" title="My Account">
                       <LayoutDashboard size={20} />
-                      <span className="expandable-nav-label">My Account</span>
+                      <span className="expandable-nav-label">{getAccountLabel()}</span>
                     </Link>
                   </>
                 ) : (
                   <Link to="/account" className="expandable-nav-item" title="My Account">
                     <LayoutDashboard size={20} />
-                    <span className="expandable-nav-label">My Account</span>
+                    <span className="expandable-nav-label">{getAccountLabel()}</span>
                   </Link>
                 )
               ) : (
@@ -293,7 +301,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => handleDrawerNav('/account')}
             >
               <User size={18} />
-              <span>My Account</span>
+              <span>{getAccountLabel()}</span>
             </button>
           )}
 

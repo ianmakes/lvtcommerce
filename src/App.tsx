@@ -155,7 +155,13 @@ function App() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
   const wishlistSyncRef = useRef(false);
-  const accountTab = 'overview';
+  let accountTab: 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security' = 'overview';
+  if (path.startsWith('/account/')) {
+    const sub = path.replace('/account/', '');
+    if (['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(sub)) {
+      accountTab = sub as any;
+    }
+  }
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 767);
@@ -483,7 +489,7 @@ function App() {
       if (isAdminAuthenticated) {
         navigate('/dashboard/home');
       }
-    } else if (path === '/account') {
+    } else if (path === '/account' || path.startsWith('/account/')) {
       if (!currentUser) {
         navigate('/auth');
       }
@@ -776,7 +782,7 @@ function App() {
   else if (path === '/checkout') derivedView = 'checkout';
   else if (path === '/success') derivedView = 'success';
   else if (path.startsWith('/dashboard')) derivedView = 'admin';
-  else if (path === '/account') derivedView = 'account';
+  else if (path === '/account' || path.startsWith('/account/')) derivedView = 'account';
   else if (path === '/about') derivedView = 'about';
   else if (path === '/policy' || path === '/privacy-policy') derivedView = 'policy';
   else if (path === '/terms' || path === '/terms-of-use' || path === '/terms-of-sale') derivedView = 'terms';
@@ -1093,7 +1099,7 @@ function App() {
         )}
 
         {/* VIEW F: Buyer Account settings */}
-        {path === '/account' && currentUser && (
+        {(path === '/account' || path.startsWith('/account/')) && currentUser && (
           <BuyerAccount
             currentUser={currentUser}
             wishlist={wishlist}

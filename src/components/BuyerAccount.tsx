@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification, multiFactor, TotpMultiFactorGenerator, TotpSecret } from 'firebase/auth';
 import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X, Printer, User } from 'lucide-react';
 import { Order, BuyerProfile, Product, CartItem, ShopSettings } from '../types';
-import { getOrders, getBuyerProfile, saveBuyerProfile } from '../db';
+import { getOrders, getBuyerProfile, saveBuyerProfile, subscribeToNewsletter, deleteNewsletterSubscriber, getNewsletterSubscribers } from '../db';
 import { navigate } from '../Router';
 import { db } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -62,28 +62,30 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState('');
 
-  // Sync activeTab when initialTab prop or query parameter changes
+  // Sync activeTab when initialTab prop or URL path changes
   useEffect(() => {
-    const handleUrlTabSync = () => {
+    const syncTab = () => {
+      const pathSegment = window.location.pathname.replace('/account/', '');
+      if (['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(pathSegment)) {
+        setActiveTab(pathSegment as any);
+        return;
+      }
+      
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
       if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(tabParam)) {
-        setActiveTab(tabParam as 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security');
+        setActiveTab(tabParam as any);
+        return;
+      }
+
+      if (initialTab && ['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(initialTab)) {
+        setActiveTab(initialTab as any);
       }
     };
 
-    // Run on initial mount
-    const params = new URLSearchParams(window.location.search);
-    const tabParam = params.get('tab');
-    if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(tabParam)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveTab(tabParam as 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security');
-    } else if (initialTab && ['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(initialTab)) {
-      setActiveTab(initialTab as 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security');
-    }
-
-    window.addEventListener('popstate', handleUrlTabSync);
-    return () => window.removeEventListener('popstate', handleUrlTabSync);
+    syncTab();
+    window.addEventListener('popstate', syncTab);
+    return () => window.removeEventListener('popstate', syncTab);
   }, [initialTab]);
 
   // Load account data (orders and profile settings)
@@ -92,9 +94,13 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     try {
       setIs2FAEnabled(multiFactor(currentUser).enrolledFactors.length > 0);
       let currentPhone = '';
+      // Check newsletter status
+      const subscribers = await getNewsletterSubscribers();
+      const isSubscribed = subscribers.some(s => s.email.toLowerCase() === currentUser.email?.toLowerCase());
+
       const userProfile = await getBuyerProfile(currentUser.uid);
       if (userProfile) {
-        setProfile(userProfile);
+        setProfile({ ...userProfile, notifyNewsletter: isSubscribed });
         currentPhone = userProfile.phone;
       } else {
         const initialProfile: BuyerProfile = {
@@ -111,7 +117,8 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
           lastName: '',
           avatarUrl: '',
           enable2FA: false,
-          role: 'customer'
+          role: 'customer',
+          notifyNewsletter: isSubscribed
         };
         await saveBuyerProfile(initialProfile);
         setProfile(initialProfile);
@@ -347,6 +354,17 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       }
 
       await saveBuyerProfile(profile);
+
+      // Sync newsletter subscription
+      if (profile.notifyNewsletter) {
+        const names = profile.fullName.trim().split(' ');
+        const firstName = names[0] || '';
+        const lastName = names.slice(1).join(' ') || '';
+        await subscribeToNewsletter(firstName, lastName, profile.phone || '', profile.email);
+      } else {
+        await deleteNewsletterSubscriber(profile.email);
+      }
+
       setSuccessMsg("Profile settings updated successfully!");
     } catch (err) {
       console.error(err);
@@ -422,7 +440,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     { id: 'wishlist', label: `Wishlist (${wishlist.length})`, icon: <Heart size={18} /> },
     { id: 'address', label: 'Shipping Address', icon: <MapPin size={18} /> },
     { id: 'profile', label: 'Profile Settings', icon: <User size={18} /> },
-    { id: 'security', label: 'Security Settings', icon: <Lock size={18} /> }
+    { id: 'security', label: 'Security', icon: <Lock size={18} /> }
   ] as const;
 
   return (
@@ -565,7 +583,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
             <button
               key={tab.id}
               className={`admin-nav-item ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => { setActiveTab(tab.id); setSuccessMsg(''); setErrorMsg(''); }}
+              onClick={() => { navigate('/account/' + tab.id); setActiveTab(tab.id); setSuccessMsg(''); setErrorMsg(''); }}
             >
               {tab.icon}
               <span>{tab.label}</span>
@@ -1124,6 +1142,19 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                       <div>
                         <span style={{ fontSize: '14px', fontWeight: 600, display: 'block' }}>Exclusive Health & Mobility Offers</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Send weekly newsletters, recovery guides, and pre-order drops notifications.</span>
+                      </div>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', marginTop: '12px' }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', marginTop: '2px' }}
+                        checked={!!profile.notifyNewsletter}
+                        onChange={e => setProfile({ ...profile, notifyNewsletter: e.target.checked })}
+                      />
+                      <div>
+                        <span style={{ fontSize: '14px', fontWeight: 600, display: 'block' }}>Newsletter Subscription</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Receive standard newsletters, product updates, and weekly articles.</span>
                       </div>
                     </label>
                   </div>

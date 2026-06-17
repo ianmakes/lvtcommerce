@@ -121,6 +121,7 @@ export interface BuyerProfile {
   enable2FA?: boolean;
   role?: string;
   tempPassword?: string;
+  notifyNewsletter?: boolean;
 }
 
 export interface ShopSettings {
