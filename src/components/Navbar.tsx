@@ -152,9 +152,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span className="expandable-nav-label">Admin Panel</span>
                   </Link>
                 ) : (
-                  <Link to="/account" className="expandable-nav-item" title="Dashboard">
+                  <Link to="/account" className="expandable-nav-item" title="My Account">
                     <LayoutDashboard size={20} />
-                    <span className="expandable-nav-label">Dashboard</span>
+                    <span className="expandable-nav-label">My Account</span>
                   </Link>
                 )
               ) : (
@@ -164,47 +164,50 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </Link>
               )}
 
-              {/* Wishlist Button (Circular Icon Button) */}
+              {/* Wishlist Button (Expandable Nav Item) */}
               {currentUser && !isAdminAuthenticated && (
-                <button
-                  type="button"
-                  className="btn-icon-circular"
-                  onClick={() => navigate('/account?tab=wishlist')}
-                  title="View Wishlist"
+                <Link
+                  to="/account?tab=wishlist"
+                  className="expandable-nav-item"
+                  title="Wishlist"
                 >
                   <Heart size={20} fill={wishlistCount > 0 ? "var(--color-sale)" : "none"} style={{ color: wishlistCount > 0 ? "var(--color-sale)" : "var(--color-ink)" }} />
-                </button>
+                  <span className="expandable-nav-label">Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}</span>
+                </Link>
               )}
 
-              {/* Cart Bag Icon Button */}
-              <button
-                type="button"
-                className="btn-icon-circular"
-                onClick={() => navigate('/cart')}
+              {/* Cart Bag Icon Button (Expandable Nav Item) */}
+              <Link
+                to="/cart"
+                className="expandable-nav-item"
                 title={`View Cart (${totalItems})`}
                 style={{ position: 'relative' }}
               >
-                <ShoppingCart size={20} />
-                {totalItems > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    backgroundColor: 'var(--color-ink)',
-                    color: 'var(--color-canvas)',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    borderRadius: '50%',
-                    width: '18px',
-                    height: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {totalItems}
-                  </span>
-                )}
-              </button>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ShoppingCart size={20} />
+                  {totalItems > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '-6px',
+                      right: '-6px',
+                      backgroundColor: 'var(--color-ink)',
+                      color: 'var(--color-canvas)',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      borderRadius: '50%',
+                      width: '14px',
+                      height: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid var(--color-canvas)'
+                    }}>
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
+                <span className="expandable-nav-label">Cart</span>
+              </Link>
             </div>
           </div>
         </div>
