@@ -71,8 +71,159 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     onQuickView(product);
   };
 
+  if (viewMode === 'grid') {
+    const alternateImage = product.images && product.images.length > 0
+      ? product.images.find(img => img !== product.image)
+      : null;
+    const hasHoverImage = !!(alternateImage && alternateImage !== product.image);
+
+    return (
+      <div className="explore-product-card" onClick={handleCardClick} style={{ cursor: 'pointer' }}>
+        <div className="explore-img-container">
+          {product.isFeatured && (
+            <span className="explore-badge" style={{ borderColor: 'var(--home-blue-dark)', color: 'var(--home-blue-dark)' }}>FEATURED</span>
+          )}
+          {product.badge ? (
+            <span className="explore-badge" style={{ left: product.isFeatured ? '90px' : '12px' }}>{product.badge}</span>
+          ) : isOnSale ? (
+            <span className="explore-badge" style={{ left: product.isFeatured ? '90px' : '12px' }}>SALE</span>
+          ) : null}
+          
+          {/* Wishlist Button */}
+          <button
+            type="button"
+            className="btn-icon-circular"
+            onClick={(e) => onToggleWishlist(product.id, e)}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              zIndex: 10,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '34px',
+              height: '34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              transition: 'transform 0.2s ease, background-color 0.2s'
+            }}
+            aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            <Heart 
+              size={18} 
+              fill={isWishlisted ? "var(--color-sale)" : "none"} 
+              style={{ 
+                color: isWishlisted ? "var(--color-sale)" : "var(--color-ink)",
+                transition: 'fill 0.2s'
+              }} 
+            />
+          </button>
+
+          {/* Gallery Hover Transition */}
+          <div className={`prod-img-wrapper ${hasHoverImage ? 'has-hover-image' : ''}`} style={{ width: '100%', height: '100%' }}>
+            <img 
+              src={product.image || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
+              alt={product.name} 
+              className="prod-img prod-img-primary explore-img"
+              loading="lazy"
+            />
+            {hasHoverImage && (
+              <img 
+                src={alternateImage} 
+                alt={`${product.name} alternate`} 
+                className="prod-img prod-img-secondary explore-img"
+                loading="lazy"
+              />
+            )}
+          </div>
+          
+          {/* Action overlays to make it interactive on hover */}
+          <div className="explore-hover-actions">
+            <button 
+              className="btn-quickview"
+              onClick={handleQuickViewClick}
+            >
+              Quick View
+            </button>
+            <button 
+              className="btn-add-cart"
+              onClick={handleAddToCartClick}
+            >
+              {hasVariants ? "Choose Option" : "Add to Cart"}
+            </button>
+          </div>
+        </div>
+
+        <div className="explore-metadata">
+          {/* Color Swatch Dots */}
+          {colors.length > 0 && (
+            <div className="swatch-dots" style={{ marginBottom: '4px' }}>
+              {colors.map((color, idx) => (
+                <span 
+                  key={color} 
+                  className={`swatch-dot ${color.toLowerCase() === 'cyber silver' ? 'has-light-border' : ''} ${idx === 0 ? 'active' : ''}`}
+                  style={{ backgroundColor: getColorHex(color) }}
+                  title={color}
+                />
+              ))}
+            </div>
+          )}
+
+          <span className="prod-card-category" style={{ fontSize: '11px', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {(product.categories && product.categories.length > 0) ? product.categories[0] : product.category}
+          </span>
+          
+          <h4 
+            className="explore-title"
+            onMouseEnter={(e) => {
+              const el = e.currentTarget;
+              if (el.scrollWidth > el.clientWidth) {
+                el.setAttribute('title', product.name);
+              } else {
+                el.removeAttribute('title');
+              }
+            }}
+          >
+            {product.name}
+          </h4>
+
+          {/* Subtle Review Rating */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-mute)', margin: '4px 0 6px' }}>
+            <div style={{ display: 'flex', color: '#dba617' }}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <span key={star} style={{ fontSize: '12px', lineHeight: 1 }}>
+                  {star <= Math.round(product.rating || 0) ? '★' : '☆'}
+                </span>
+              ))}
+            </div>
+            <span style={{ fontSize: '10px', color: 'var(--text-mute)' }}>
+              ({product.reviewCount || 0})
+            </span>
+          </div>
+
+          <div className="explore-price-row">
+            {isOnSale && product.salePrice ? (
+              <>
+                <span className="explore-price-sale" style={{ color: 'var(--color-sale)', fontWeight: 700 }}>KSh {product.salePrice.toLocaleString()}</span>
+                <span className="explore-price-original" style={{ textDecoration: 'line-through', color: 'var(--text-mute)', fontSize: '13px', marginLeft: '6px' }}>KSh {product.basePrice.toLocaleString()}</span>
+              </>
+            ) : (
+              <span className="explore-price">
+                {hasVariants ? `From KSh ${formattedPrice}` : `KSh ${formattedPrice}`}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <article className={`prod-card ${viewMode === 'list' ? 'list-view' : ''} ${product.isFeatured ? 'is-featured' : ''}`} onClick={handleCardClick} style={{ cursor: 'pointer' }}>
+    <article className={`prod-card list-view ${product.isFeatured ? 'is-featured' : ''}`} onClick={handleCardClick} style={{ cursor: 'pointer' }}>
       <div className="prod-img-container">
         {/* Featured Badge */}
         {product.isFeatured && (
@@ -206,9 +357,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
         
         {/* Description excerpt — only shown in list view */}
-        {viewMode === 'list' && (
-          <p className="prod-card-description">{product.description}</p>
-        )}
+        <p className="prod-card-description">{product.description}</p>
 
         <div className="prod-card-price-row">
           {isOnSale && originalPrice && product.salePrice ? (
@@ -225,9 +374,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* View Details link — only shown in list view */}
-        {viewMode === 'list' && (
-          <span className="prod-card-view-link">View Details &rarr;</span>
-        )}
+        <span className="prod-card-view-link">View Details &rarr;</span>
       </div>
     </article>
   );

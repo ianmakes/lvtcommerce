@@ -4580,18 +4580,21 @@ tr:hover .row-actions {
 }
 
 /* On card hover, trigger premium zoom cross-fade swap ONLY if the card has alternate images */
-.has-hover-image:hover .prod-img-primary {
-  opacity: 0;
-  transform: scale(0.95);
+.explore-product-card:hover .has-hover-image .prod-img-primary,
+.prod-card:hover .has-hover-image .prod-img-primary {
+  opacity: 0 !important;
+  transform: scale(0.95) !important;
 }
 
-.has-hover-image:hover .prod-img-secondary {
-  opacity: 1;
-  transform: scale(1);
+.explore-product-card:hover .has-hover-image .prod-img-secondary,
+.prod-card:hover .has-hover-image .prod-img-secondary {
+  opacity: 1 !important;
+  transform: scale(1) !important;
 }
 
 /* Subtle zoom effect even for single-image cards */
+.explore-product-card:not(:has(.has-hover-image)):hover .prod-img-primary,
 .prod-card:not(:has(.has-hover-image)):hover .prod-img-primary {
-  transform: scale(1.03);
+  transform: scale(1.05) !important;
 }
 
