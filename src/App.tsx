@@ -1177,7 +1177,7 @@ function App() {
       </main>
 
       {/* Nike Premium Footer */}
-      {!isDashboardRoute && (
+      {!isDashboardRoute && derivedView !== 'auth' && derivedView !== 'checkout' && derivedView !== 'success' && (
         <footer className="footer">
           <div className="container">
             <div className="footer-columns">

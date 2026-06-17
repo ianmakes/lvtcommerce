@@ -1125,10 +1125,26 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           cursor: pointer;
           transition: all 0.2s ease;
           width: 100%;
+          border-radius: 8px !important;
         }
         .google-btn:hover {
           background: var(--color-soft-cloud);
           border-color: var(--color-ink);
+        }
+        .auth-form-column input,
+        .auth-form-column button {
+          border-radius: 8px !important;
+        }
+        .auth-form-column .form-input {
+          border-radius: 8px !important;
+          border: 1px solid #dcdcdc !important;
+          padding: 12px 16px !important;
+          transition: all 0.2s ease !important;
+        }
+        .auth-form-column .form-input:focus {
+          border-color: var(--color-ink) !important;
+          box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.05) !important;
+          outline: none !important;
         }
         .google-icon {
           width: 18px;
