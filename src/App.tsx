@@ -132,6 +132,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState(false);
+  const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState<string | null>(null);
 
   const isAdminAuthenticated = currentUser !== null && 
     (currentUser.uid === SUPER_ADMIN_UID || 
@@ -396,16 +397,18 @@ function App() {
     };
   }, []);
 
-  // Fetch logged-in user's role
+  // Fetch logged-in user's role and avatar
   useEffect(() => {
     const fetchUserRole = async () => {
       if (!currentUser) {
         setCurrentUserRole(null);
+        setCurrentUserAvatarUrl(null);
         setRoleLoading(false);
         return;
       }
       if (currentUser.uid === SUPER_ADMIN_UID) {
         setCurrentUserRole('admin');
+        setCurrentUserAvatarUrl(null);
         setRoleLoading(false);
         return;
       }
@@ -414,12 +417,15 @@ function App() {
         const profile = await getBuyerProfile(currentUser.uid);
         if (profile) {
           setCurrentUserRole(profile.role || 'customer');
+          setCurrentUserAvatarUrl(profile.avatarUrl || null);
         } else {
           setCurrentUserRole('customer');
+          setCurrentUserAvatarUrl(null);
         }
       } catch (err) {
         console.error("Error fetching user role:", err);
         setCurrentUserRole('customer');
+        setCurrentUserAvatarUrl(null);
       } finally {
         setRoleLoading(false);
       }
@@ -806,6 +812,7 @@ function App() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           wishlistCount={wishlist.length}
+          currentUserAvatarUrl={currentUserAvatarUrl}
         />
       )}
 
@@ -1109,6 +1116,7 @@ function App() {
             onShowToast={handleShowToast}
             initialTab={accountTab}
             settings={settings}
+            onProfileUpdate={setCurrentUserAvatarUrl}
           />
         )}
 

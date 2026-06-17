@@ -14,6 +14,7 @@ interface NavbarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   wishlistCount: number;
+  currentUserAvatarUrl?: string | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -26,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   searchQuery,
   onSearchChange,
   wishlistCount,
+  currentUserAvatarUrl,
 }) => {
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -161,13 +163,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span className="expandable-nav-label">Admin Panel</span>
                     </Link>
                     <Link to="/account" className="expandable-nav-item" title="My Account">
-                      <LayoutDashboard size={20} />
+                      {currentUserAvatarUrl ? (
+                        <img src={currentUserAvatarUrl} alt="Avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <User size={20} />
+                      )}
                       <span className="expandable-nav-label">{getAccountLabel()}</span>
                     </Link>
                   </>
                 ) : (
                   <Link to="/account" className="expandable-nav-item" title="My Account">
-                    <LayoutDashboard size={20} />
+                    {currentUserAvatarUrl ? (
+                      <img src={currentUserAvatarUrl} alt="Avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <User size={20} />
+                    )}
                     <span className="expandable-nav-label">{getAccountLabel()}</span>
                   </Link>
                 )

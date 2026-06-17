@@ -18,6 +18,7 @@ interface BuyerAccountProps {
   onShowToast: (msg: string, type?: 'success' | 'warning') => void;
   initialTab?: string;
   settings: ShopSettings;
+  onProfileUpdate?: (avatarUrl: string | null) => void;
 }
 
 export const BuyerAccount: React.FC<BuyerAccountProps> = ({
@@ -29,6 +30,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   onShowToast,
   initialTab,
   settings,
+  onProfileUpdate,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security'>('overview');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -48,6 +50,13 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Avatar Upload & Crop States
+  const [uploadedImageSrc, setUploadedImageSrc] = useState<string>('');
+  const [cropScale, setCropScale] = useState<number>(1);
+  const [cropX, setCropX] = useState<number>(0);
+  const [cropY, setCropY] = useState<number>(0);
+  const [isCropping, setIsCropping] = useState<boolean>(false);
 
   // 2FA state variables
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -102,6 +111,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       if (userProfile) {
         setProfile({ ...userProfile, notifyNewsletter: isSubscribed });
         currentPhone = userProfile.phone;
+        if (onProfileUpdate) onProfileUpdate(userProfile.avatarUrl || null);
       } else {
         const initialProfile: BuyerProfile = {
           uid: currentUser.uid,
@@ -122,6 +132,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
         };
         await saveBuyerProfile(initialProfile);
         setProfile(initialProfile);
+        if (onProfileUpdate) onProfileUpdate(null);
       }
 
       const allOrders = await getOrders();
@@ -323,6 +334,58 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setUploadedImageSrc(reader.result as string);
+        setCropScale(1);
+        setCropX(0);
+        setCropY(0);
+        setIsCropping(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleApplyCrop = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (ctx && uploadedImageSrc) {
+      const img = new Image();
+      img.src = uploadedImageSrc;
+      img.onload = () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 256, 256);
+        
+        ctx.save();
+        ctx.translate(128, 128);
+        ctx.scale(cropScale, cropScale);
+        ctx.translate(cropX * (256 / 150), cropY * (256 / 150));
+        
+        let drawW = 256;
+        let drawH = 256;
+        const aspect = img.width / img.height;
+        if (aspect > 1) {
+          drawH = 256 / aspect;
+        } else {
+          drawW = 256 * aspect;
+        }
+        
+        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        ctx.restore();
+        
+        const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setProfile(prev => ({ ...prev, avatarUrl: croppedDataUrl }));
+        setIsCropping(false);
+        setUploadedImageSrc('');
+      };
+    }
+  };
+
   const handleSaveShipping = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -354,6 +417,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       }
 
       await saveBuyerProfile(profile);
+      if (onProfileUpdate) onProfileUpdate(profile.avatarUrl || null);
 
       // Sync newsletter subscription
       if (profile.notifyNewsletter) {
@@ -1064,16 +1128,160 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pref-avatar" style={{ fontWeight: 600 }}>Avatar URL (1:1 Aspect Ratio)</label>
-                    <input 
-                      id="pref-avatar"
-                      type="text" 
-                      className="form-input" 
-                      value={profile.avatarUrl || ''}
-                      onChange={e => setProfile({ ...profile, avatarUrl: e.target.value })}
-                      placeholder="https://example.com/avatar.jpg"
-                      style={{ borderRadius: 0 }}
-                    />
+                    <label className="form-label" style={{ fontWeight: 600 }}>Avatar Image (1:1 Ratio)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                      {profile.avatarUrl ? (
+                        <img 
+                          src={profile.avatarUrl} 
+                          alt="Avatar Preview" 
+                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '50%', border: '1px solid var(--color-hairline-soft)' }} 
+                        />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-soft-cloud)', border: '1px solid var(--color-hairline-soft)', fontSize: '11px', fontWeight: 600, color: 'var(--text-mute)' }}>
+                          {getInitials()}
+                        </div>
+                      )}
+                      <div>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          id="avatar-upload-input" 
+                          style={{ display: 'none' }} 
+                          onChange={handleFileChange}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-small"
+                          onClick={() => document.getElementById('avatar-upload-input')?.click()}
+                          style={{ height: '36px', fontSize: '11px', textTransform: 'uppercase', fontWeight: 600, padding: '0 12px', borderRadius: 0, margin: 0 }}
+                        >
+                          Upload Local Image
+                        </button>
+                      </div>
+                    </div>
+
+                    {isCropping && (
+                      <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: '20px'
+                      }}>
+                        <div style={{
+                          backgroundColor: 'var(--color-canvas)',
+                          padding: '32px',
+                          maxWidth: '400px',
+                          width: '100%',
+                          border: '1px solid var(--color-hairline-soft)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '20px'
+                        }}>
+                          <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '14px', fontWeight: 700, color: 'var(--color-ink)' }}>Position & Scale Avatar</h3>
+                          
+                          <div style={{
+                            width: '150px',
+                            height: '150px',
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            border: '2px solid var(--color-ink)',
+                            position: 'relative',
+                            backgroundColor: '#000000',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <img 
+                              src={uploadedImageSrc} 
+                              alt="Upload source" 
+                              style={{
+                                transform: `translate(${cropX}px, ${cropY}px) scale(${cropScale})`,
+                                transformOrigin: 'center center',
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                                pointerEvents: 'none'
+                              }}
+                            />
+                          </div>
+
+                          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-stone)' }}>
+                                <span>Zoom / Scale</span>
+                                <span>{Math.round(cropScale * 100)}%</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="1" 
+                                max="3" 
+                                step="0.05" 
+                                value={cropScale} 
+                                onChange={e => setCropScale(parseFloat(e.target.value))}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-stone)' }}>
+                                <span>Position X</span>
+                                <span>{cropX}px</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="-100" 
+                                max="100" 
+                                value={cropX} 
+                                onChange={e => setCropX(parseInt(e.target.value))}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-stone)' }}>
+                                <span>Position Y</span>
+                                <span>{cropY}px</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="-100" 
+                                max="100" 
+                                value={cropY} 
+                                onChange={e => setCropY(parseInt(e.target.value))}
+                                style={{ width: '100%' }}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '8px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={handleApplyCrop}
+                              style={{ flex: 1, height: '40px', textTransform: 'uppercase', fontWeight: 600, fontSize: '12px', borderRadius: 0 }}
+                            >
+                              Apply Crop
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => { setIsCropping(false); setUploadedImageSrc(''); }}
+                              style={{ flex: 1, height: '40px', textTransform: 'uppercase', fontWeight: 600, fontSize: '12px', borderRadius: 0, backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', border: 'none' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
