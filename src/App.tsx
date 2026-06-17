@@ -1085,6 +1085,7 @@ function App() {
             onAddToCart={handleAddToCart}
             onShowToast={handleShowToast}
             initialTab={accountTab}
+            settings={settings}
           />
         )}
 

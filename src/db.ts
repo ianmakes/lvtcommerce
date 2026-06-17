@@ -455,15 +455,17 @@ export async function initDb(): Promise<void> {
       console.log("Firebase Database: Seeded default tax classes.");
 
     } else {
-      // Ensure demoMode is disabled, set live public key and default shipping/taxes if not already set
+      // Set defaults for missing settings fields if they are not already set, without overwriting existing configurations
       const currentData = settingsSnap.data();
-      await updateDoc(settingsRef, { 
-        demoMode: false,
-        paystackPublicKey: "pk_live_e5580acce4031873047e94487adc62b82e887b94",
-        shippingFee: currentData?.shippingFee !== undefined ? currentData.shippingFee : 1500,
-        shippingFreeThreshold: currentData?.shippingFreeThreshold !== undefined ? currentData.shippingFreeThreshold : 30000,
-        taxRate: currentData?.taxRate !== undefined ? currentData.taxRate : 16
-      });
+      const updates: any = {};
+      if (currentData?.demoMode === undefined) updates.demoMode = false;
+      if (currentData?.paystackPublicKey === undefined) updates.paystackPublicKey = "pk_live_e5580acce4031873047e94487adc62b82e887b94";
+      if (currentData?.shippingFee === undefined) updates.shippingFee = 1500;
+      if (currentData?.shippingFreeThreshold === undefined) updates.shippingFreeThreshold = 30000;
+      if (currentData?.taxRate === undefined) updates.taxRate = 16;
+      if (Object.keys(updates).length > 0) {
+        await updateDoc(settingsRef, updates);
+      }
     }
 
     isDbInitialized = true;

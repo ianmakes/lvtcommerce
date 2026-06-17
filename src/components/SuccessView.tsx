@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle, Printer, ShoppingBag } from 'lucide-react';
 import { Order, ShopSettings } from '../types';
 import { navigate } from '../Router';
+import { printReceipt } from '../utils/printReceipt';
 
 interface SuccessViewProps {
   order: Order;
@@ -13,7 +14,7 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   settings,
 }) => {
   const handlePrint = () => {
-    window.print();
+    printReceipt(order, settings);
   };
 
   return (

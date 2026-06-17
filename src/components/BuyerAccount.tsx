@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification, multiFactor, TotpMultiFactorGenerator, TotpSecret } from 'firebase/auth';
-import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X } from 'lucide-react';
-import { Order, BuyerProfile, Product, CartItem } from '../types';
+import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X, Printer } from 'lucide-react';
+import { Order, BuyerProfile, Product, CartItem, ShopSettings } from '../types';
 import { getOrders, getBuyerProfile, saveBuyerProfile } from '../db';
 import { navigate } from '../Router';
 import { db } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
+import { printReceipt } from '../utils/printReceipt';
 
 interface BuyerAccountProps {
   currentUser: FirebaseUser;
@@ -16,6 +17,7 @@ interface BuyerAccountProps {
   onAddToCart: (item: CartItem) => void;
   onShowToast: (msg: string, type?: 'success' | 'warning') => void;
   initialTab?: string;
+  settings: ShopSettings;
 }
 
 export const BuyerAccount: React.FC<BuyerAccountProps> = ({
@@ -26,6 +28,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   onAddToCart,
   onShowToast,
   initialTab,
+  settings,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'address' | 'security'>('overview');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -811,8 +814,18 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                           })}
                         </div>
 
-                        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--color-hairline-soft)', fontSize: '13px', color: 'var(--text-mute)' }}>
-                          <strong>Shipping To:</strong> {order.customerName} &bull; {order.customerAddress} &bull; Phone: {order.customerPhone}
+                        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--color-hairline-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                          <div style={{ fontSize: '13px', color: 'var(--text-mute)' }}>
+                            <strong>Shipping To:</strong> {order.customerName} &bull; {order.customerAddress} &bull; Phone: {order.customerPhone}
+                          </div>
+                          <button 
+                            className="btn btn-secondary btn-small"
+                            onClick={() => printReceipt(order, settings)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', height: 'auto', minHeight: 'auto', fontSize: '12px' }}
+                          >
+                            <Printer size={14} />
+                            <span>Print Receipt</span>
+                          </button>
                         </div>
                       </div>
                     </div>
