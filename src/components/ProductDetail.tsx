@@ -570,74 +570,62 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             </div>
             {/* Cumulative Product Ratings Summary */}
             <div style={{
-              marginTop: '24px',
-              padding: '16px',
+              marginTop: '16px',
+              padding: '12px 16px',
               border: '1px solid var(--color-hairline-soft)',
               backgroundColor: 'var(--color-soft-cloud)',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              flexWrap: 'wrap'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span className="font-body-strong" style={{ fontSize: '14px' }}>Customer Reviews</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-mute)', fontWeight: 500 }}>
-                  {reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'}
+              {/* Left Side: Score & Stars */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-ink)', lineHeight: 1 }}>
+                  {reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '0.0'}
                 </span>
+                <div>
+                  <div style={{ display: 'flex', gap: '2px', color: '#dba617', marginBottom: '2px' }}>
+                    {[1, 2, 3, 4, 5].map(starNum => {
+                      const averageRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+                      return (
+                        <Star 
+                          key={starNum} 
+                          size={14} 
+                          fill={starNum <= Math.round(averageRating) ? '#dba617' : 'none'} 
+                          style={{ color: '#dba617' }} 
+                        />
+                      );
+                    })}
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-mute)', fontWeight: 600 }}>
+                    {reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'}
+                  </span>
+                </div>
               </div>
 
+              {/* Right Side: Micro Star Distribution Bars */}
               {reviews.length > 0 ? (
-                (() => {
-                  const averageRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-                  const percentRating = (starNum: number) => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, maxWidth: '160px', minWidth: '110px' }}>
+                  {[5, 4, 3, 2, 1].map(starNum => {
                     const count = reviews.filter(r => r.rating === starNum).length;
-                    return (count / reviews.length) * 100;
-                  };
-
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '36px', fontWeight: 800, color: 'var(--color-ink)', lineHeight: 1 }}>
-                          {averageRating.toFixed(1)}
-                        </span>
-                        <div>
-                          <div style={{ display: 'flex', gap: '2px', color: '#dba617', marginBottom: '2px' }}>
-                            {[1, 2, 3, 4, 5].map(starNum => (
-                              <Star 
-                                key={starNum} 
-                                size={16} 
-                                fill={starNum <= Math.round(averageRating) ? '#dba617' : 'none'} 
-                                style={{ color: '#dba617' }} 
-                              />
-                            ))}
-                          </div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-mute)', fontWeight: 500 }}>
-                            Cumulative rating
-                          </span>
+                    const percent = (count / reviews.length) * 100;
+                    return (
+                      <div key={starNum} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', lineHeight: 1 }}>
+                        <span style={{ color: 'var(--text-charcoal)', fontWeight: 600, minWidth: '8px' }}>{starNum}</span>
+                        <div style={{ flex: 1, height: '4px', backgroundColor: 'var(--color-hairline-soft)', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: `${percent}%`, height: '100%', backgroundColor: 'var(--color-ink)', borderRadius: '2px' }} />
                         </div>
+                        <span style={{ color: 'var(--text-mute)', minWidth: '22px', textAlign: 'right' }}>{Math.round(percent)}%</span>
                       </div>
-
-                      {/* 5-star breakdown bars */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                        {[5, 4, 3, 2, 1].map(starNum => {
-                          const percent = percentRating(starNum);
-                          return (
-                            <div key={starNum} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                              <span style={{ width: '40px', color: 'var(--text-charcoal)', fontWeight: 500 }}>{starNum} star</span>
-                              <div style={{ flex: 1, height: '6px', backgroundColor: 'var(--color-hairline-soft)', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ width: `${percent}%`, height: '100%', backgroundColor: 'var(--color-ink)', borderRadius: '3px' }} />
-                              </div>
-                              <span style={{ width: '30px', textAlign: 'right', color: 'var(--text-mute)', fontSize: '11px' }}>{Math.round(percent)}%</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div style={{ fontSize: '13px', color: 'var(--text-mute)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
-                  No approved reviews yet for this product.
+                    );
+                  })}
                 </div>
+              ) : (
+                <span style={{ fontSize: '12px', color: 'var(--text-mute)', fontStyle: 'italic' }}>
+                  No approved reviews yet
+                </span>
               )}
             </div>
           </div>
