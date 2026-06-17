@@ -110,7 +110,19 @@ const DEFAULT_SETTINGS: ShopSettings = {
     { id: 'logo-3', name: 'LogoIpsum 1', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true },
     { id: 'logo-4', name: 'LogoIpsum 2', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true },
     { id: 'logo-5', name: 'LogoIpsum 3', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true }
-  ]
+  ],
+
+  // Receipt Design Settings
+  receiptTemplateStyle: "minimalist",
+  receiptShowLogo: true,
+  receiptShowBarcode: true,
+  receiptHeaderMessage: "Thank you for shopping with us!",
+  receiptFooterMessage: "For queries, contact support@goldencare.com\nItems can be returned within 7 days.",
+  receiptShowTax: true,
+  receiptShowDiscount: true,
+  receiptShowShipping: true,
+  receiptShowPaymentMethod: true,
+  receiptShowCustomerDetails: true
 };
 
 
@@ -633,6 +645,18 @@ export function migrateSettings(data: ShopSettings): ShopSettings {
     { id: 'logo-4', name: 'LogoIpsum 2', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true },
     { id: 'logo-5', name: 'LogoIpsum 3', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true }
   ];
+
+  // Receipt Design Settings migration fallbacks
+  migrated.receiptTemplateStyle = migrated.receiptTemplateStyle || "minimalist";
+  migrated.receiptShowLogo = migrated.receiptShowLogo !== undefined ? migrated.receiptShowLogo : true;
+  migrated.receiptShowBarcode = migrated.receiptShowBarcode !== undefined ? migrated.receiptShowBarcode : true;
+  migrated.receiptHeaderMessage = migrated.receiptHeaderMessage !== undefined ? migrated.receiptHeaderMessage : "Thank you for shopping with us!";
+  migrated.receiptFooterMessage = migrated.receiptFooterMessage !== undefined ? migrated.receiptFooterMessage : "For queries, contact support@goldencare.com\nItems can be returned within 7 days.";
+  migrated.receiptShowTax = migrated.receiptShowTax !== undefined ? migrated.receiptShowTax : true;
+  migrated.receiptShowDiscount = migrated.receiptShowDiscount !== undefined ? migrated.receiptShowDiscount : true;
+  migrated.receiptShowShipping = migrated.receiptShowShipping !== undefined ? migrated.receiptShowShipping : true;
+  migrated.receiptShowPaymentMethod = migrated.receiptShowPaymentMethod !== undefined ? migrated.receiptShowPaymentMethod : true;
+  migrated.receiptShowCustomerDetails = migrated.receiptShowCustomerDetails !== undefined ? migrated.receiptShowCustomerDetails : true;
 
   return migrated;
 }

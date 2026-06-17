@@ -105,7 +105,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/newsletter') activeTab = 'newsletter';
 
   // Derive settingsSubTab from URL path
-  let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' = 'general';
+  let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' | 'receipt' = 'general';
   if (path === '/dashboard/settings/profile') settingsSubTab = 'profile';
   else if (path === '/dashboard/settings/smtp') settingsSubTab = 'smtp';
   else if (path === '/dashboard/settings/payment') settingsSubTab = 'payment';
@@ -114,6 +114,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/settings/shipping') settingsSubTab = 'shipping';
   else if (path === '/dashboard/settings/tax') settingsSubTab = 'tax';
   else if (path === '/dashboard/settings/shoppage') settingsSubTab = 'shoppage';
+  else if (path === '/dashboard/settings/receipt') settingsSubTab = 'receipt';
 
   // Derive cmsSubTab from URL path
   let cmsSubTab: 'homepage' | 'shoppage' | 'pages' = 'homepage';
@@ -558,6 +559,138 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return [...prev, color];
     });
     setCustomColorName('');
+  };
+
+  const getReceiptPreviewHtml = () => {
+    const style = localSettings.receiptTemplateStyle || 'minimalist';
+    const primaryColor = 
+      style === 'modern-gradient' ? 'linear-gradient(135deg, #111111, #4b4b4d)' :
+      style === 'corporate-slate' ? '#4a5568' :
+      style === 'sunset-glow' ? '#dd6b20' :
+      style === 'mint-fresh' ? '#319795' :
+      '#111111'; // minimalist
+
+    const accentBg = 
+      style === 'modern-gradient' ? '#f7fafc' :
+      style === 'corporate-slate' ? '#edf2f7' :
+      style === 'sunset-glow' ? '#fffaf0' :
+      style === 'mint-fresh' ? '#e6fffa' :
+      '#ffffff'; // minimalist
+
+    const headerTextColor = style === 'modern-gradient' ? '#ffffff' : '#111111';
+
+    // Mock order details
+    const orderNo = "ORD-987452";
+    const orderDate = new Date().toLocaleDateString();
+    const customerName = "Margaret Wambui";
+    const customerPhone = "+254 712 345 678";
+    
+    // Receipt Header styling
+    const headerStyleStr = style === 'modern-gradient' 
+      ? `background: ${primaryColor}; color: ${headerTextColor}; padding: 20px 15px; text-align: center; border-radius: 4px 4px 0 0;`
+      : `border-bottom: 2px solid ${primaryColor}; padding: 15px 0; text-align: ${style === 'minimalist' ? 'left' : 'center'}; color: #111111;`;
+
+    // Barcode mock styling
+    const barcodeHtml = localSettings.receiptShowBarcode 
+      ? `<div style="text-align: center; margin: 15px 0; font-family: monospace; font-size: 11px; letter-spacing: 4px;">
+           ||||| | |||| ||| || |||||| | ||||| <br/>
+           *${orderNo}*
+         </div>`
+      : '';
+
+    // Receipt details list
+    const itemsHtml = `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; line-height: 1.4;">
+        <thead>
+          <tr style="border-bottom: 1px solid #e2e8f0; color: #4a5568;">
+            <th style="text-align: left; padding: 6px 0; font-weight: 600;">Item</th>
+            <th style="text-align: center; padding: 6px 0; width: 40px; font-weight: 600;">Qty</th>
+            <th style="text-align: right; padding: 6px 0; width: 80px; font-weight: 600;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px dashed #e2e8f0;">
+            <td style="padding: 8px 0;">
+              <strong>GC-01 Carbon Fiber Walking Staff</strong>
+              <div style="font-size: 10px; color: #718096; margin-top: 1px;">Color: Stealth Black</div>
+            </td>
+            <td style="text-align: center; padding: 8px 0;">1</td>
+            <td style="text-align: right; padding: 8px 0;">KSh 15,000</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    return `
+      <div style="background: #ffffff; padding: 20px; font-family: 'Inter', system-ui, -apple-system, sans-serif; max-width: 320px; width: 100%; margin: 0 auto; border: ${style === 'minimalist' ? '1px dashed #111111' : '1px solid #e2e8f0'}; box-shadow: ${style === 'minimalist' ? 'none' : '0 2px 4px rgba(0,0,0,0.05)'}; color: #111111; box-sizing: border-box; text-align: left;">
+        
+        {/* Header Block */}
+        <div style="${headerStyleStr}">
+          ${localSettings.receiptShowLogo ? `<div style="font-weight: 850; font-size: 18px; letter-spacing: -0.5px; margin-bottom: 4px;">${localSettings.shopName || 'GOLDENCARE'}</div>` : ''}
+          <div style="font-size: 11px; opacity: 0.85; line-height: 1.3;">
+            ${localSettings.address || 'Address Store Info'}<br/>
+            Phone: ${localSettings.phone || 'Phone number'}
+          </div>
+          ${localSettings.receiptHeaderMessage ? `<div style="font-size: 11px; margin-top: 8px; font-style: italic; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 6px;">${localSettings.receiptHeaderMessage}</div>` : ''}
+        </div>
+
+        {/* Customer & Order Metadata */}
+        <div style="margin-top: 12px; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #cbd5e0; padding-bottom: 10px;">
+          <div><strong>Order:</strong> #${orderNo}</div>
+          <div><strong>Date:</strong> ${orderDate}</div>
+          ${localSettings.receiptShowPaymentMethod ? '<div><strong>Payment Method:</strong> Cash on Delivery</div>' : ''}
+          ${localSettings.receiptShowCustomerDetails ? `
+            <div style="margin-top: 6px; padding: 6px; background: ${accentBg}; border-radius: 4px; border: 1px solid #e2e8f0;">
+              <strong>Customer:</strong> ${customerName}<br/>
+              ${customerPhone}
+            </div>
+          ` : ''}
+        </div>
+
+        {/* Itemized List */}
+        ${itemsHtml}
+
+        {/* Financial Summary */}
+        <div style="margin-top: 10px; font-size: 11px; line-height: 1.5; text-align: right;">
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: #718096;">Subtotal:</span>
+            <strong>KSh 15,000</strong>
+          </div>
+          ${localSettings.receiptShowDiscount ? `
+            <div style="display: flex; justify-content: space-between; color: #e53e3e;">
+              <span>Discount (10%):</span>
+              <strong>- KSh 1,500</strong>
+            </div>
+          ` : ''}
+          ${localSettings.receiptShowShipping ? `
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #718096;">Shipping:</span>
+              <strong>KSh 0</strong>
+            </div>
+          ` : ''}
+          ${localSettings.receiptShowTax ? `
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #718096;">VAT (16%):</span>
+              <strong>KSh 2,400</strong>
+            </div>
+          ` : ''}
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid #cbd5e0; margin-top: 4px; padding-top: 4px; font-size: 13px;">
+            <span><strong>Total:</strong></span>
+            <strong><span style="color: ${style === 'minimalist' ? '#111111' : (style === 'modern-gradient' ? '#111111' : primaryColor)}; font-weight: 800;">KSh 13,500</span></strong>
+          </div>
+        </div>
+
+        {/* Barcode & Footer Block */}
+        ${barcodeHtml}
+
+        ${localSettings.receiptFooterMessage ? `
+          <div style="margin-top: 15px; border-top: 1px dashed #cbd5e0; padding-top: 10px; font-size: 10px; text-align: center; color: #718096; line-height: 1.3; white-space: pre-line;">
+            ${localSettings.receiptFooterMessage}
+          </div>
+        ` : ''}
+
+      </div>
+    `;
   };
 
   // Load Admin Data from Firestore
@@ -2585,6 +2718,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   >
                     SMTP Settings
                   </button>
+
+                  <button
+                    type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'receipt' ? 'active' : ''}`}
+                    onClick={() => navigate('/dashboard/settings/receipt')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'receipt' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'receipt' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    Receipt Design
+                  </button>
                   <button
                     type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'payment' ? 'active' : ''}`}
@@ -3508,6 +3650,153 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                           <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
                           <button type="submit" className="wp-button-primary">Save SMTP & Template Settings</button>
+                        </form>
+                      );
+                    })()}
+
+                    {/* SUB-TAB: Receipt Design Settings */}
+                    {settingsSubTab === 'receipt' && (() => {
+                      const receiptPreview = getReceiptPreviewHtml();
+                      return (
+                        <form onSubmit={handleSaveSettingsSubmit}>
+                          <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>Receipt Design Settings</h2>
+                          <p style={{ fontSize: '13px', color: '#50575e', margin: '0 0 20px' }}>
+                            Configure the default layout style and fields that appear on the customer purchase receipt (A4 or printable format).
+                          </p>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '30px', alignItems: 'start' }}>
+                            
+                            {/* LEFT COLUMN: Controls */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              
+                              <div className="wp-admin-card" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '16px' }}>
+                                <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 15px', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px' }}>Template & Brand Options</h3>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Receipt Style Preset</label>
+                                    <select 
+                                      className="form-input"
+                                      style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', borderRadius: 0 }}
+                                      value={localSettings.receiptTemplateStyle || 'minimalist'}
+                                      onChange={e => setLocalSettings({ ...localSettings, receiptTemplateStyle: e.target.value as any })}
+                                    >
+                                      <option value="minimalist">Minimalist Thermal Look (B&W)</option>
+                                      <option value="modern-gradient">Modern Gradient (Sleek Dark Header)</option>
+                                      <option value="corporate-slate">Corporate Slate (Professional Gray)</option>
+                                      <option value="sunset-glow">Sunset Glow (Warm Amber Accent)</option>
+                                      <option value="mint-fresh">Mint Fresh (Teal Clean Border)</option>
+                                    </select>
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '5px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                      <input 
+                                        type="checkbox"
+                                        checked={!!localSettings.receiptShowLogo}
+                                        onChange={e => setLocalSettings({ ...localSettings, receiptShowLogo: e.target.checked })}
+                                      />
+                                      <span>Show Shop Logo</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                      <input 
+                                        type="checkbox"
+                                        checked={!!localSettings.receiptShowBarcode}
+                                        onChange={e => setLocalSettings({ ...localSettings, receiptShowBarcode: e.target.checked })}
+                                      />
+                                      <span>Show Scan Barcode</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                      <input 
+                                        type="checkbox"
+                                        checked={!!localSettings.receiptShowCustomerDetails}
+                                        onChange={e => setLocalSettings({ ...localSettings, receiptShowCustomerDetails: e.target.checked })}
+                                      />
+                                      <span>Show Customer Details</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                      <input 
+                                        type="checkbox"
+                                        checked={!!localSettings.receiptShowPaymentMethod}
+                                        onChange={e => setLocalSettings({ ...localSettings, receiptShowPaymentMethod: e.target.checked })}
+                                      />
+                                      <span>Show Payment Method</span>
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="wp-admin-card" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '16px' }}>
+                                <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 15px', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px' }}>Line Items & Fees Visibility</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox"
+                                      checked={!!localSettings.receiptShowTax}
+                                      onChange={e => setLocalSettings({ ...localSettings, receiptShowTax: e.target.checked })}
+                                    />
+                                    <span>Show VAT/Tax Details</span>
+                                  </label>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox"
+                                      checked={!!localSettings.receiptShowDiscount}
+                                      onChange={e => setLocalSettings({ ...localSettings, receiptShowDiscount: e.target.checked })}
+                                    />
+                                    <span>Show Coupons/Discounts</span>
+                                  </label>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox"
+                                      checked={!!localSettings.receiptShowShipping}
+                                      onChange={e => setLocalSettings({ ...localSettings, receiptShowShipping: e.target.checked })}
+                                    />
+                                    <span>Show Shipping Fee</span>
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div className="wp-admin-card" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '16px' }}>
+                                <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 15px', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px' }}>Custom Receipt Messages</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Receipt Header Announcement</label>
+                                    <input 
+                                      type="text"
+                                      className="form-input"
+                                      style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', borderRadius: 0 }}
+                                      placeholder="e.g. Welcome to GoldenCare Market!"
+                                      value={localSettings.receiptHeaderMessage || ''}
+                                      onChange={e => setLocalSettings({ ...localSettings, receiptHeaderMessage: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Receipt Footer Memo / Policy</label>
+                                    <textarea 
+                                      className="form-input"
+                                      style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', borderRadius: 0, minHeight: '80px', resize: 'vertical' }}
+                                      placeholder="e.g. For returns, contact support@domain.com."
+                                      value={localSettings.receiptFooterMessage || ''}
+                                      onChange={e => setLocalSettings({ ...localSettings, receiptFooterMessage: e.target.value })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
+
+                            {/* RIGHT COLUMN: Live Interactive Preview */}
+                            <div>
+                              <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 12px' }}>Live Receipt Preview</h3>
+                              <div style={{ background: '#cbd5e0', padding: '24px', borderRadius: '4px', overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
+                                <div dangerouslySetInnerHTML={{ __html: receiptPreview }} style={{ width: '100%' }} />
+                              </div>
+                            </div>
+
+                          </div>
+
+                          <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                          <button type="submit" className="wp-button-primary">Save Receipt Design Settings</button>
                         </form>
                       );
                     })()}

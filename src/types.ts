@@ -258,6 +258,18 @@ export interface ShopSettings {
   cmsCard2BtnIcon?: string;
   cmsCard2BtnIconEnable?: boolean;
   cmsPartnerLogos?: PartnerLogo[];
+
+  // Receipt Design Settings
+  receiptTemplateStyle?: 'minimalist' | 'modern-gradient' | 'corporate-slate' | 'sunset-glow' | 'mint-fresh';
+  receiptShowLogo?: boolean;
+  receiptShowBarcode?: boolean;
+  receiptHeaderMessage?: string;
+  receiptFooterMessage?: string;
+  receiptShowTax?: boolean;
+  receiptShowDiscount?: boolean;
+  receiptShowShipping?: boolean;
+  receiptShowPaymentMethod?: boolean;
+  receiptShowCustomerDetails?: boolean;
 }
 
 export interface PartnerLogo {
