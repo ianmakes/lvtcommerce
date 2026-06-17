@@ -257,6 +257,24 @@ export interface ShopSettings {
   cmsCard2Width?: string;
   cmsCard2BtnIcon?: string;
   cmsCard2BtnIconEnable?: boolean;
+  cmsPartnerLogos?: PartnerLogo[];
+}
+
+export interface PartnerLogo {
+  id: string;
+  name: string;
+  logoUrl: string;
+  websiteUrl?: string;
+  visible: boolean;
+}
+
+export interface NewsletterSubscriber {
+  id?: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  createdAt: string;
 }
 
 export interface HomeSlide {

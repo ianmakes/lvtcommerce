@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, ProcurementLog, Supplier, CustomPage } from './types';
+import { Product, Order, ShopSettings, BuyerProfile, ProductReview, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, ProcurementLog, Supplier, CustomPage, NewsletterSubscriber, PartnerLogo } from './types';
 
 // Helper to clean undefined properties recursively before saving to Firestore
 function cleanObject<T extends object>(obj: T): T {
@@ -103,7 +103,14 @@ const DEFAULT_SETTINGS: ShopSettings = {
   cmsCard2TextColor: "",
   cmsCard2Width: "50%",
   cmsCard2BtnIcon: "fa-solid fa-arrow-right",
-  cmsCard2BtnIconEnable: false
+  cmsCard2BtnIconEnable: false,
+  cmsPartnerLogos: [
+    { id: 'logo-1', name: 'TopBrand', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=TopBrand', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-2', name: 'Retro Brand', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=Retro+Brand', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-3', name: 'LogoIpsum 1', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-4', name: 'LogoIpsum 2', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-5', name: 'LogoIpsum 3', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true }
+  ]
 };
 
 
@@ -619,6 +626,14 @@ export function migrateSettings(data: ShopSettings): ShopSettings {
   migrated.cmsCard2BtnIcon = migrated.cmsCard2BtnIcon !== undefined ? migrated.cmsCard2BtnIcon : "fa-solid fa-arrow-right";
   migrated.cmsCard2BtnIconEnable = migrated.cmsCard2BtnIconEnable !== undefined ? migrated.cmsCard2BtnIconEnable : false;
 
+  migrated.cmsPartnerLogos = migrated.cmsPartnerLogos || [
+    { id: 'logo-1', name: 'TopBrand', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=TopBrand', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-2', name: 'Retro Brand', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=Retro+Brand', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-3', name: 'LogoIpsum 1', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-4', name: 'LogoIpsum 2', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true },
+    { id: 'logo-5', name: 'LogoIpsum 3', logoUrl: 'https://placehold.co/150x150/f0f0f0/999999?text=LogoIpsum', websiteUrl: 'https://example.com', visible: true }
+  ];
+
   return migrated;
 }
 
@@ -1056,4 +1071,32 @@ export async function deleteCustomPage(slug: string): Promise<void> {
   await deleteDoc(pageRef);
   await addAuditLog(`Deleted CMS Custom Page: ${slug}`, 'Admin');
 }
+
+export async function subscribeToNewsletter(firstName: string, lastName: string, phone: string, email: string): Promise<void> {
+  await initDb();
+  const emailClean = email.trim().toLowerCase();
+  const docRef = doc(db, "newsletter_subscribers", emailClean);
+  await setDoc(docRef, {
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
+    phone: phone.trim(),
+    email: emailClean,
+    createdAt: new Date().toISOString()
+  });
+}
+
+export async function getNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
+  await initDb();
+  const colRef = collection(db, "newsletter_subscribers");
+  const snap = await getDocs(colRef);
+  const subscribers = snap.docs.map(d => d.data() as NewsletterSubscriber);
+  return subscribers.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function deleteNewsletterSubscriber(email: string): Promise<void> {
+  await initDb();
+  const docRef = doc(db, "newsletter_subscribers", email.trim().toLowerCase());
+  await deleteDoc(docRef);
+}
+
 

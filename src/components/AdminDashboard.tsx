@@ -4,7 +4,7 @@ import {
   Users, FileText, Layers, Tag, LogOut, ExternalLink, Activity, Trash2, Plus, Sliders, Link as LinkIcon, Film, Mail,
   Boxes, Send, MessageSquare, Globe
 } from 'lucide-react';
-import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier, ProductReview, CustomPage } from '../types';
+import { Product, Order, ShopSettings, Attribute, ProductVariant, HomeSlide, MediaFile, Category, Coupon, ShippingZone, TaxClass, AuditLog, showToast, BuyerProfile, ProcurementLog, Supplier, ProductReview, CustomPage, PartnerLogo, NewsletterSubscriber } from '../types';
 import { 
   getProducts, saveProduct, deleteProduct, getOrders, updateOrderStatus, getSettings, saveSettings,
   getHomeSlides, saveHomeSlide, deleteHomeSlide, getMediaFiles, saveMediaFile, deleteMediaFile,
@@ -13,7 +13,8 @@ import {
   getAllUsers, deleteBuyerProfile, saveBuyerProfile, getProcurements, addProcurement,
   getSuppliers, saveSupplier, deleteSupplier,
   getAllReviews, approveReview, deleteProductReview,
-  getCustomPages, saveCustomPage, deleteCustomPage
+  getCustomPages, saveCustomPage, deleteCustomPage,
+  getNewsletterSubscribers, deleteNewsletterSubscriber
 } from '../db';
 import { useLocation, navigate } from '../Router';
 import { auth, db, firebaseConfig } from '../firebase';
@@ -88,7 +89,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const path = useLocation();
 
   // activeTab derived from URL path
-  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' | 'reviews' | 'cms' = 'overview';
+  let activeTab: 'overview' | 'orders' | 'products' | 'settings' | 'customers' | 'reports' | 'categories' | 'promos' | 'media' | 'slides' | 'inventory' | 'reviews' | 'cms' | 'newsletter' = 'overview';
   if (path === '/dashboard/orders') activeTab = 'orders';
   else if (path === '/dashboard/products') activeTab = 'products';
   else if (path.startsWith('/dashboard/settings')) activeTab = 'settings';
@@ -101,6 +102,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/inventory') activeTab = 'inventory';
   else if (path === '/dashboard/reviews') activeTab = 'reviews';
   else if (path.startsWith('/dashboard/cms')) activeTab = 'cms';
+  else if (path === '/dashboard/newsletter') activeTab = 'newsletter';
 
   // Derive settingsSubTab from URL path
   let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' = 'general';
@@ -127,6 +129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [customPages, setCustomPages] = useState<CustomPage[]>([]);
   const [loadingCustomPages, setLoadingCustomPages] = useState(false);
   const [isPageEditorOpen, setIsPageEditorOpen] = useState(false);
+  const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>([]);
   const [editingCustomPage, setEditingCustomPage] = useState<CustomPage | null>(null);
   const [pageSlug, setPageSlug] = useState('');
   const [pageTitle, setPageTitle] = useState('');
@@ -562,7 +565,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsAdminLoading(true);
     setIsLoading(true);
     try {
-      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements, dbSuppliers, dbReviews, dbPages] = await Promise.all([
+      const [dbProds, dbOrders, dbSettings, dbSlides, dbMedia, dbUsers, dbProcurements, dbSuppliers, dbReviews, dbPages, dbSubscribers] = await Promise.all([
         getProducts(),
         getOrders(),
         getSettings(),
@@ -572,7 +575,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         getProcurements(),
         getSuppliers(),
         getAllReviews(),
-        getCustomPages()
+        getCustomPages(),
+        getNewsletterSubscribers()
       ]);
       setProducts(dbProds);
       setOrders(dbOrders);
@@ -584,6 +588,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setSuppliers(dbSuppliers);
       setAdminReviews(dbReviews);
       setCustomPages(dbPages);
+      setNewsletterSubscribers(dbSubscribers);
     } catch (e) {
       console.error("Error loading data from Firestore:", e);
     } finally {
@@ -980,6 +985,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setLocalSettings(prev => ({ ...prev, cmsCard2Image: url }));
     } else if (mediaModalTarget === 'cms-promo-banner-bg-image') {
       setLocalSettings(prev => ({ ...prev, cmsPromoBannerBgImage: url }));
+    } else if (mediaModalTarget && mediaModalTarget.startsWith('partner-logo-')) {
+      const idx = parseInt(mediaModalTarget.replace('partner-logo-', ''), 10);
+      if (!isNaN(idx) && localSettings.cmsPartnerLogos) {
+        const updatedLogos = [...localSettings.cmsPartnerLogos];
+        updatedLogos[idx] = { ...updatedLogos[idx], logoUrl: url };
+        setLocalSettings(prev => ({ ...prev, cmsPartnerLogos: updatedLogos }));
+      }
     }
     setMediaModalOpen(false);
     setMediaModalTarget(null);
@@ -1187,6 +1199,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       showToast("Failed to delete custom page.", "warning");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteNewsletterSubscriber = async (email: string) => {
+    if (!confirm(`Are you sure you want to remove subscriber "${email}"?`)) return;
+    setIsLoading(true);
+    try {
+      await deleteNewsletterSubscriber(email);
+      showToast("Subscriber removed successfully.", "success");
+      await loadAdminData();
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to remove subscriber.", "warning");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExportNewsletterCSV = () => {
+    try {
+      const headers = ['First Name', 'Last Name', 'Phone', 'Email', 'Date Subscribed'];
+      const rows = newsletterSubscribers.map(sub => [
+        sub.firstName || '',
+        sub.lastName || '',
+        sub.phone || '',
+        sub.email || '',
+        sub.createdAt ? new Date(sub.createdAt).toLocaleString() : ''
+      ]);
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(r => r.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `newsletter_subscribers_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("CSV exported successfully.", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to export CSV.", "warning");
     }
   };
 
@@ -2106,12 +2164,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {hasPermission('manageSettings') && (
             <>
               <button 
-                type="button"
+                type="button" 
                 className={`wp-admin-menu-item ${activeTab === 'cms' ? 'active' : ''}`}
                 onClick={() => navigate('/dashboard/cms')}
               >
                 <Globe size={18} />
                 <span>CMS Content</span>
+              </button>
+
+              <button 
+                type="button" 
+                className={`wp-admin-menu-item ${activeTab === 'newsletter' ? 'active' : ''}`}
+                onClick={() => navigate('/dashboard/newsletter')}
+              >
+                <Mail size={18} />
+                <span>Newsletter</span>
               </button>
 
               <button 
@@ -2132,7 +2199,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             (['products', 'categories', 'promos', 'media', 'slides', 'reviews'].includes(activeTab) && !hasPermission('manageProducts')) ||
             (activeTab === 'customers' && !hasPermission('manageUsers')) ||
             (activeTab === 'reports' && !hasPermission('viewReports')) ||
-            ((activeTab === 'settings' || activeTab === 'cms') && !hasPermission('manageSettings'))) ? (
+            ((activeTab === 'settings' || activeTab === 'cms' || activeTab === 'newsletter') && !hasPermission('manageSettings'))) ? (
             <div style={{ padding: '24px', background: '#fff', border: '1px solid #d30005', marginTop: '20px' }}>
               <h1 style={{ fontSize: '20px', color: '#d30005', fontWeight: 600, margin: '0 0 10px' }}>Access Denied</h1>
               <p style={{ fontSize: '13px', margin: 0 }}>You do not have the required permissions to view this administrative page. Please contact your system administrator.</p>
@@ -6779,6 +6846,133 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
 
+                  {/* Section 4: Partner Logos */}
+                  <div style={{ border: '1px solid #e5e5e5', borderRadius: '4px', padding: '20px', marginTop: '24px', background: '#fcfcfc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: '#1d2327' }}>4. Partner Logos Grid</h3>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-small"
+                        onClick={() => {
+                          const newLogo = {
+                            id: `logo-${Date.now()}`,
+                            name: '',
+                            logoUrl: '',
+                            websiteUrl: '',
+                            visible: true
+                          };
+                          setLocalSettings(prev => ({
+                            ...prev,
+                            cmsPartnerLogos: [...(prev.cmsPartnerLogos || []), newLogo]
+                          }));
+                        }}
+                      >
+                        + Add Partner Logo
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {(!localSettings.cmsPartnerLogos || localSettings.cmsPartnerLogos.length === 0) ? (
+                        <p style={{ fontStyle: 'italic', color: '#666', fontSize: '13px', margin: 0 }}>No partner logos configured. Add one above.</p>
+                      ) : (
+                        localSettings.cmsPartnerLogos.map((logo, index) => (
+                          <div key={logo.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr 1fr auto', gap: '12px', alignItems: 'center', borderBottom: index < (localSettings.cmsPartnerLogos || []).length - 1 ? '1px dashed #e5e5e5' : 'none', paddingBottom: '12px' }}>
+                            <div style={{ width: '64px', height: '64px', border: '1px solid #c3c4c7', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
+                              {logo.logoUrl ? (
+                                <img src={logo.logoUrl} alt={logo.name || 'Logo'} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                              ) : (
+                                <span style={{ fontSize: '10px', color: '#999' }}>No Image</span>
+                              )}
+                            </div>
+                            <div>
+                              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', margin: '0 0 4px 0' }}>Partner Name</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={logo.name}
+                                onChange={e => {
+                                  const updatedLogos = [...(localSettings.cmsPartnerLogos || [])];
+                                  updatedLogos[index] = { ...logo, name: e.target.value };
+                                  setLocalSettings(prev => ({ ...prev, cmsPartnerLogos: updatedLogos }));
+                                }}
+                                style={{ width: '100%', fontSize: '12px', height: '32px' }}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', margin: '0 0 4px 0' }}>Logo Image URL (1:1)</label>
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  value={logo.logoUrl}
+                                  onChange={e => {
+                                    const updatedLogos = [...(localSettings.cmsPartnerLogos || [])];
+                                    updatedLogos[index] = { ...logo, logoUrl: e.target.value };
+                                    setLocalSettings(prev => ({ ...prev, cmsPartnerLogos: updatedLogos }));
+                                  }}
+                                  style={{ flexGrow: 1, fontSize: '12px', height: '32px' }}
+                                  required
+                                />
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-small"
+                                  onClick={() => {
+                                    setMediaModalTarget(`partner-logo-${index}`);
+                                    setMediaModalOpen(true);
+                                  }}
+                                  style={{ height: '32px', minHeight: '32px', padding: '0 8px' }}
+                                >
+                                  ...
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', margin: '0 0 4px 0' }}>Website Link (Optional)</label>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={logo.websiteUrl || ''}
+                                onChange={e => {
+                                  const updatedLogos = [...(localSettings.cmsPartnerLogos || [])];
+                                  updatedLogos[index] = { ...logo, websiteUrl: e.target.value };
+                                  setLocalSettings(prev => ({ ...prev, cmsPartnerLogos: updatedLogos }));
+                                }}
+                                style={{ width: '100%', fontSize: '12px', height: '32px' }}
+                                placeholder="https://..."
+                              />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={logo.visible !== false}
+                                  onChange={e => {
+                                    const updatedLogos = [...(localSettings.cmsPartnerLogos || [])];
+                                    updatedLogos[index] = { ...logo, visible: e.target.checked };
+                                    setLocalSettings(prev => ({ ...prev, cmsPartnerLogos: updatedLogos }));
+                                  }}
+                                />
+                                Visible
+                              </label>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-small"
+                                onClick={() => {
+                                  const updatedLogos = (localSettings.cmsPartnerLogos || []).filter(l => l.id !== logo.id);
+                                  setLocalSettings(prev => ({ ...prev, cmsPartnerLogos: updatedLogos }));
+                                }}
+                                style={{ color: 'var(--color-sale)', padding: '2px 6px' }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
                   <div style={{ borderTop: '1px solid #c3c4c7', paddingTop: '15px', marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button type="submit" className="btn btn-primary" style={{ minWidth: '150px' }}>Save Homepage CMS</button>
                   </div>
@@ -6926,6 +7120,88 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB: Newsletter Subscribers */}
+          {activeTab === 'newsletter' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h1 className="wp-admin-page-title" style={{ margin: 0 }}>Newsletter Subscribers</h1>
+                <button 
+                  type="button" 
+                  className="wp-button-primary"
+                  onClick={handleExportNewsletterCSV}
+                  disabled={newsletterSubscribers.length === 0}
+                >
+                  Export CSV
+                </button>
+              </div>
+
+              <div className="wp-admin-card" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '0', borderRadius: '0' }}>
+                <div style={{ padding: '16px', borderBottom: '1px solid #c3c4c7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f6f7f7' }}>
+                  <span style={{ fontWeight: 600, fontSize: '13px' }}>
+                    All Subscribers ({newsletterSubscribers.length})
+                  </span>
+                </div>
+                
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="wp-list-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ background: '#f6f7f7', borderBottom: '1px solid #c3c4c7', textAlign: 'left' }}>
+                        <th style={{ padding: '12px 15px', fontWeight: 600 }}>First Name</th>
+                        <th style={{ padding: '12px 15px', fontWeight: 600 }}>Last Name</th>
+                        <th style={{ padding: '12px 15px', fontWeight: 600 }}>Phone</th>
+                        <th style={{ padding: '12px 15px', fontWeight: 600 }}>Email Address</th>
+                        <th style={{ padding: '12px 15px', fontWeight: 600 }}>Date Subscribed</th>
+                        <th style={{ padding: '12px 15px', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {newsletterSubscribers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '30px 15px', textAlign: 'center', color: '#646970', fontStyle: 'italic' }}>
+                            No newsletter subscribers found.
+                          </td>
+                        </tr>
+                      ) : (
+                        newsletterSubscribers.map((sub, idx) => (
+                          <tr key={sub.email || idx} style={{ borderBottom: '1px solid #f0f0f1' }}>
+                            <td style={{ padding: '12px 15px', verticalAlign: 'middle', fontWeight: 500 }}>{sub.firstName || '—'}</td>
+                            <td style={{ padding: '12px 15px', verticalAlign: 'middle', fontWeight: 500 }}>{sub.lastName || '—'}</td>
+                            <td style={{ padding: '12px 15px', verticalAlign: 'middle' }}>{sub.phone || '—'}</td>
+                            <td style={{ padding: '12px 15px', verticalAlign: 'middle' }}>
+                              <a href={`mailto:${sub.email}`} style={{ color: '#2271b1', textDecoration: 'none' }}>
+                                {sub.email}
+                              </a>
+                            </td>
+                            <td style={{ padding: '12px 15px', verticalAlign: 'middle', color: '#646970' }}>
+                              {sub.createdAt ? new Date(sub.createdAt).toLocaleString() : '—'}
+                            </td>
+                            <td style={{ padding: '12px 15px', verticalAlign: 'middle', textAlign: 'right' }}>
+                              <button
+                                type="button"
+                                style={{ 
+                                  background: 'none', 
+                                  border: 'none', 
+                                  color: '#b32d2e', 
+                                  cursor: 'pointer', 
+                                  padding: 0, 
+                                  fontSize: '12px',
+                                  fontWeight: 500
+                                }}
+                                onClick={() => handleDeleteNewsletterSubscriber(sub.email)}
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
           </>

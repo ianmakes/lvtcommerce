@@ -4,6 +4,7 @@ import { auth, db } from '../firebase';
 import { Mail, Lock, User, AlertCircle, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
 import * as OTPAuth from 'otpauth';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { subscribeToNewsletter } from '../db';
 
 interface BuyerAuthProps {
   onSuccess: () => void;
@@ -23,6 +24,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [joinNewsletter, setJoinNewsletter] = useState(true);
 
   // MFA Challenge State
   const [showMfaChallenge, setShowMfaChallenge] = useState(false);
@@ -47,6 +49,17 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         await updateProfile(userCredential.user, {
           displayName: fullName.trim()
         });
+
+        if (joinNewsletter) {
+          try {
+            const names = fullName.trim().split(/\s+/);
+            const firstName = names[0] || '';
+            const lastName = names.slice(1).join(' ') || '';
+            await subscribeToNewsletter(firstName, lastName, '', email);
+          } catch (newsletterErr) {
+            console.error("Failed to subscribe on signup:", newsletterErr);
+          }
+        }
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
@@ -469,6 +482,23 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                     style={{ borderRadius: 0 }}
                   />
                 </div>
+
+                {/* Join Newsletter Checkbox */}
+                {isSignUp && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <input 
+                      id="joinNewsletter"
+                      type="checkbox" 
+                      checked={joinNewsletter}
+                      onChange={e => setJoinNewsletter(e.target.checked)}
+                      disabled={loading}
+                      style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
+                    />
+                    <label htmlFor="joinNewsletter" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
+                      Join our newsletter to receive updates & offers
+                    </label>
+                  </div>
+                )}
 
                 <button 
                   type="submit" 

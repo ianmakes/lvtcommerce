@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification, multiFactor, TotpMultiFactorGenerator, TotpSecret } from 'firebase/auth';
-import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X, Printer } from 'lucide-react';
+import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X, Printer, User } from 'lucide-react';
 import { Order, BuyerProfile, Product, CartItem, ShopSettings } from '../types';
 import { getOrders, getBuyerProfile, saveBuyerProfile } from '../db';
 import { navigate } from '../Router';
@@ -30,7 +30,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   initialTab,
   settings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'address' | 'security'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security'>('overview');
   const [orders, setOrders] = useState<Order[]>([]);
   const [profile, setProfile] = useState<BuyerProfile>({
     uid: currentUser.uid,
@@ -67,19 +67,19 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     const handleUrlTabSync = () => {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'security'].includes(tabParam)) {
-        setActiveTab(tabParam as 'overview' | 'orders' | 'wishlist' | 'address' | 'security');
+      if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(tabParam)) {
+        setActiveTab(tabParam as 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security');
       }
     };
 
     // Run on initial mount
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'security'].includes(tabParam)) {
+    if (tabParam && ['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(tabParam)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveTab(tabParam as 'overview' | 'orders' | 'wishlist' | 'address' | 'security');
-    } else if (initialTab && ['overview', 'orders', 'wishlist', 'address', 'security'].includes(initialTab)) {
-      setActiveTab(initialTab as 'overview' | 'orders' | 'wishlist' | 'address' | 'security');
+      setActiveTab(tabParam as 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security');
+    } else if (initialTab && ['overview', 'orders', 'wishlist', 'address', 'profile', 'security'].includes(initialTab)) {
+      setActiveTab(initialTab as 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security');
     }
 
     window.addEventListener('popstate', handleUrlTabSync);
@@ -333,7 +333,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     }
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const handleSaveProfileOnly = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setSuccessMsg('');
@@ -347,23 +347,39 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       }
 
       await saveBuyerProfile(profile);
-
-      if (newPassword) {
-        if (newPassword !== confirmPassword) {
-          throw new Error("Passwords do not match.");
-        }
-        if (newPassword.length < 6) {
-          throw new Error("Password must be at least 6 characters.");
-        }
-        await updatePassword(currentUser, newPassword);
-        setNewPassword('');
-        setConfirmPassword('');
-      }
-
-      setSuccessMsg("Profile and security settings updated successfully!");
+      setSuccessMsg("Profile settings updated successfully!");
     } catch (err) {
       console.error(err);
       setErrorMsg(err instanceof Error ? err.message : "Failed to update profile settings.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveSecurityOnly = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) {
+      setErrorMsg("Please enter a new password.");
+      return;
+    }
+    setIsLoading(true);
+    setSuccessMsg('');
+    setErrorMsg('');
+
+    try {
+      if (newPassword !== confirmPassword) {
+        throw new Error("Passwords do not match.");
+      }
+      if (newPassword.length < 6) {
+        throw new Error("Password must be at least 6 characters.");
+      }
+      await updatePassword(currentUser, newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+      setSuccessMsg("Password updated successfully!");
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to update password.");
     } finally {
       setIsLoading(false);
     }
@@ -405,7 +421,8 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     { id: 'orders', label: `Orders (${orders.length})`, icon: <ShoppingBag size={18} /> },
     { id: 'wishlist', label: `Wishlist (${wishlist.length})`, icon: <Heart size={18} /> },
     { id: 'address', label: 'Shipping Address', icon: <MapPin size={18} /> },
-    { id: 'security', label: 'Security & Profile', icon: <Lock size={18} /> }
+    { id: 'profile', label: 'Profile Settings', icon: <User size={18} /> },
+    { id: 'security', label: 'Security Settings', icon: <Lock size={18} /> }
   ] as const;
 
   return (
@@ -973,12 +990,12 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
             </form>
           )}
 
-          {/* TAB: Security */}
-          {activeTab === 'security' && (
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* TAB: Profile Settings */}
+          {activeTab === 'profile' && (
+            <form onSubmit={handleSaveProfileOnly} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div>
-                <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Security & Profile Settings</h2>
-                <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', margin: 0 }}>Manage your personal details, change password, and configure notification settings.</p>
+                <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Profile Settings</h2>
+                <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', margin: 0 }}>Manage your personal details and configure notification preferences.</p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1109,43 +1126,62 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                         <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Send weekly newsletters, recovery guides, and pre-order drops notifications.</span>
                       </div>
                     </label>
+                  </div>
+                </div>
+              </div>
 
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '16px', marginTop: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={handleToggle2FA}
-                        className={`btn btn-${is2FAEnabled ? 'secondary' : 'primary'}`}
-                        style={{
-                          borderRadius: 0,
-                          padding: '8px 16px',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          minHeight: '38px',
-                          height: '38px',
-                          backgroundColor: is2FAEnabled ? '#d30005' : 'var(--color-ink)',
-                          color: '#fff',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {is2FAEnabled ? 'Disable 2FA' : 'Enable 2FA'}
-                      </button>
-                      <div>
-                        <span style={{ fontSize: '14px', fontWeight: 600, display: 'block' }}>
-                          Two-Factor Authentication (2FA) - Status: <strong style={{ color: is2FAEnabled ? 'var(--color-success)' : 'var(--color-sale)' }}>{is2FAEnabled ? 'Active (Authenticator Protected)' : 'Inactive'}</strong>
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Secure your account using a secondary mobile authenticator (e.g., Google Authenticator).</span>
-                      </div>
-                    </div>
+              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start', padding: '12px 24px', textTransform: 'uppercase', fontWeight: 600 }}>
+                Save Profile Settings
+              </button>
+            </form>
+          )}
+
+          {/* TAB: Security */}
+          {activeTab === 'security' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div>
+                <h2 className="font-heading-lg" style={{ marginBottom: '8px', textTransform: 'uppercase' }}>Security & Credentials</h2>
+                <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '14px', margin: 0 }}>Configure Two-Factor Authentication and update your account password.</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* 2FA Status Box */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', border: '1px solid var(--color-hairline-soft)', padding: '20px', background: '#fafafa' }}>
+                  <button
+                    type="button"
+                    onClick={handleToggle2FA}
+                    className={`btn btn-${is2FAEnabled ? 'secondary' : 'primary'}`}
+                    style={{
+                      borderRadius: 0,
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      minHeight: '38px',
+                      height: '38px',
+                      backgroundColor: is2FAEnabled ? '#d30005' : 'var(--color-ink)',
+                      color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      flexShrink: 0
+                    }}
+                  >
+                    {is2FAEnabled ? 'Disable 2FA' : 'Enable 2FA'}
+                  </button>
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                      Two-Factor Authentication (2FA) - Status: <strong style={{ color: is2FAEnabled ? 'var(--color-success)' : 'var(--color-sale)' }}>{is2FAEnabled ? 'Active' : 'Inactive'}</strong>
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-mute)' }}>Add an extra layer of protection. When signing in you will be asked for a code generated by an authenticator application.</span>
                   </div>
                 </div>
 
-                <div style={{ borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '20px' }}>
+                {/* Password Change Form */}
+                <form onSubmit={handleSaveSecurityOnly} style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '20px' }}>
                   <h4 className="font-heading-xs" style={{ textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.5px' }}>
                     Update Password
                   </h4>
                   <p style={{ fontSize: '12px', color: 'var(--text-mute)', marginBottom: '16px' }}>
-                    Leave these fields blank if you do not want to change your password.
+                    Enter a new password below to update your login credentials.
                   </p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -1159,6 +1195,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                         value={newPassword}
                         onChange={e => setNewPassword(e.target.value)}
                         style={{ borderRadius: 0 }}
+                        required
                       />
                     </div>
                     <div className="form-group">
@@ -1171,13 +1208,17 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
                         style={{ borderRadius: 0 }}
+                        required
                       />
                     </div>
                   </div>
-                </div>
-              </div>
 
-            </form>
+                  <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start', padding: '10px 20px', textTransform: 'uppercase', fontWeight: 600, marginTop: '8px' }}>
+                    Update Password
+                  </button>
+                </form>
+              </div>
+            </div>
           )}
             </>
           )}

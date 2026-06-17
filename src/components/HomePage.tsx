@@ -9,6 +9,7 @@ import {
   Heart
 } from 'lucide-react';
 import { Product, HomeSlide, Category, ShopSettings } from '../types';
+import { subscribeToNewsletter } from '../db';
 
 interface HomePageProps {
   products: Product[];
@@ -367,7 +368,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* 4. Promotional Full-Width Banner */}
       {settings.cmsPromoBannerVisible !== false && (
         <section className="homepage-promo-banner-section">
-          <div className="container" style={{ width: settings.cmsPromoBannerWidth || undefined, maxWidth: '100%' }}>
+          <div className="container" style={{ width: settings.cmsPromoBannerWidth || undefined }}>
             <div 
               className="promo-banner-blue"
               style={{
@@ -702,21 +703,35 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="homepage-brand-bar">
         <div className="container">
           <div className="brand-logos-row">
-            <div className="brand-logo-item">
-              <span className="logo-placeholder-text">TopBrand</span>
-            </div>
-            <div className="brand-logo-item">
-              <span className="logo-placeholder-text">Retro Brand</span>
-            </div>
-            <div className="brand-logo-item">
-              <span className="logo-placeholder-text">LogoIpsum</span>
-            </div>
-            <div className="brand-logo-item">
-              <span className="logo-placeholder-text">LogoIpsum</span>
-            </div>
-            <div className="brand-logo-item">
-              <span className="logo-placeholder-text">LogoIpsum</span>
-            </div>
+            {settings.cmsPartnerLogos && settings.cmsPartnerLogos.filter(l => l.visible !== false).length > 0 ? (
+              settings.cmsPartnerLogos.filter(l => l.visible !== false).map(logo => {
+                const content = (
+                  <div className="brand-logo-item" style={{ cursor: logo.websiteUrl ? 'pointer' : 'default', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    {logo.logoUrl ? (
+                      <img 
+                        src={logo.logoUrl} 
+                        alt={logo.name} 
+                        style={{ maxHeight: '48px', maxWidth: '100%', objectFit: 'contain' }} 
+                      />
+                    ) : (
+                      <span className="logo-placeholder-text">{logo.name}</span>
+                    )}
+                  </div>
+                );
+                if (logo.websiteUrl) {
+                  return (
+                    <a key={logo.id} href={logo.websiteUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none', flex: 1, minWidth: '120px' }}>
+                      {content}
+                    </a>
+                  );
+                }
+                return <React.Fragment key={logo.id}>{content}</React.Fragment>;
+              })
+            ) : (
+              <div style={{ textAlign: 'center', width: '100%', color: 'var(--text-mute)', fontSize: '14px', fontStyle: 'italic' }}>
+                No partner logos configured.
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -730,19 +745,56 @@ export const HomePage: React.FC<HomePageProps> = ({
               <p>Subscribe to receive design releases, structural upgrades, and exclusive pre-order discounts.</p>
             </div>
             <form 
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                handleShowToast("Subscribed successfully!", "success");
-                (e.target as HTMLFormElement).reset();
+                const target = e.target as HTMLFormElement;
+                const formData = new FormData(target);
+                const firstName = formData.get('firstName') as string;
+                const lastName = formData.get('lastName') as string;
+                const phone = formData.get('phone') as string;
+                const email = formData.get('email') as string;
+                
+                try {
+                  await subscribeToNewsletter(firstName, lastName, phone, email);
+                  handleShowToast("Subscribed successfully!", "success");
+                  target.reset();
+                } catch (error) {
+                  console.error(error);
+                  handleShowToast("Subscription failed. Please try again.", "warning");
+                }
               }}
               className="newsletter-form-box"
             >
-              <input 
-                type="email" 
-                placeholder="Enter email address" 
-                className="newsletter-input" 
-                required 
-              />
+              <div className="newsletter-form-grid">
+                <input 
+                  type="text" 
+                  name="firstName"
+                  placeholder="First Name" 
+                  className="newsletter-input" 
+                  required 
+                />
+                <input 
+                  type="text" 
+                  name="lastName"
+                  placeholder="Last Name" 
+                  className="newsletter-input" 
+                  required 
+                />
+                <input 
+                  type="tel" 
+                  name="phone"
+                  placeholder="Phone Number" 
+                  className="newsletter-input" 
+                  required 
+                />
+                <input 
+                  type="email" 
+                  name="email"
+                  placeholder="Email Address" 
+                  className="newsletter-input" 
+                  required 
+                />
+              </div>
               <button type="submit" className="newsletter-btn">
                 Subscribe
               </button>

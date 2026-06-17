@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ShoppingCart, ShoppingBag, Search, Heart, Menu, X, Home, Store, Info, User, LogOut, Shield } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, Search, Heart, Menu, X, Home, Store, Info, User, LogOut, Shield, LayoutDashboard } from 'lucide-react';
 import { ShopSettings, CartItem } from '../types';
 import { Link, navigate } from '../Router';
 
@@ -106,34 +106,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Center: Navigation Links */}
             <nav className="nav-center-links">
-              <Link
-                to="/"
-                className={`nav-center-link ${currentView === 'landing' ? 'active' : ''}`}
-              >
-                Home
-              </Link>
-              <Link
-                to="/shop"
-                className={`nav-center-link ${currentView === 'store' || currentView === 'product-details' ? 'active' : ''}`}
-              >
-                Shop
-              </Link>
-              {currentUser && !isAdminAuthenticated && (
-                <Link
-                  to="/account"
-                  className={`nav-center-link ${currentView === 'account' ? 'active' : ''}`}
-                >
-                  My Account
-                </Link>
-              )}
-              {isAdminAuthenticated && (
-                <Link
-                  to="/dashboard/home"
-                  className={`nav-center-link ${currentView === 'admin' ? 'active' : ''}`}
-                >
-                  Admin Dashboard
-                </Link>
-              )}
             </nav>
 
             {/* Right side: Search, Wishlist, Cart */}
@@ -160,6 +132,36 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
                 </div>
+              )}
+
+              {/* Expandable Navigation Icons */}
+              <Link to="/" className="expandable-nav-item" title="Home">
+                <Home size={20} />
+                <span className="expandable-nav-label">Home</span>
+              </Link>
+
+              <Link to="/shop" className="expandable-nav-item" title="Shop">
+                <Store size={20} />
+                <span className="expandable-nav-label">Shop</span>
+              </Link>
+
+              {currentUser ? (
+                isAdminAuthenticated ? (
+                  <Link to="/dashboard/home" className="expandable-nav-item" title="Admin Panel">
+                    <Shield size={20} />
+                    <span className="expandable-nav-label">Admin Panel</span>
+                  </Link>
+                ) : (
+                  <Link to="/account" className="expandable-nav-item" title="Dashboard">
+                    <LayoutDashboard size={20} />
+                    <span className="expandable-nav-label">Dashboard</span>
+                  </Link>
+                )
+              ) : (
+                <Link to="/auth" className="expandable-nav-item" title="Sign In">
+                  <User size={20} />
+                  <span className="expandable-nav-label">Sign In</span>
+                </Link>
               )}
 
               {/* Wishlist Button (Circular Icon Button) */}
