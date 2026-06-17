@@ -163,6 +163,14 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
       onSuccess();
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
+      const firebaseError = error as { code?: string; message?: string };
+      if (firebaseError.code === 'auth/multi-factor-auth-required') {
+        const resolver = getMultiFactorResolver(auth, error as MultiFactorError);
+        setMfaResolver(resolver);
+        setShowMfaChallenge(true);
+        setMfaChallengeType('totp');
+        return;
+      }
       setErrorMsg(error.message || "Google Sign-In failed.");
     } finally {
       setLoading(false);
