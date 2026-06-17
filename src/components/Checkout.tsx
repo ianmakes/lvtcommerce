@@ -983,13 +983,44 @@ export const Checkout: React.FC<CheckoutProps> = ({
         </div>
       )}
 
-      {/* Spinner animation keyframes */}
       <style>{`
         @keyframes spin {
           100% { transform: rotate(360deg); }
         }
         .spinner {
           animation: spin 1s linear infinite;
+        }
+        /* Premium scoped overrides for Checkout Page */
+        .container .card {
+          border: 1px solid var(--color-hairline-soft) !important;
+          border-radius: 10px !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03) !important;
+          background-color: var(--color-canvas) !important;
+          transition: all 0.3s ease;
+        }
+        .container .form-input {
+          border-radius: 6px !important;
+          border: 1px solid #dcdcdc !important;
+          padding: 12px 16px !important;
+          transition: all 0.2s ease !important;
+        }
+        .container .form-input:focus {
+          border-color: var(--color-ink) !important;
+          box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.05) !important;
+          outline: none !important;
+        }
+        .container .btn {
+          border-radius: 6px !important;
+          transition: all 0.2s ease !important;
+        }
+        .container .btn-primary:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(17, 17, 17, 0.15) !important;
+        }
+        .paystack-iframe-mock {
+          border-radius: 12px !important;
+          overflow: hidden;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2) !important;
         }
       `}</style>
 

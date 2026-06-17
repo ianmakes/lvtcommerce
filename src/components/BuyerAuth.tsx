@@ -388,14 +388,11 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           </div>
         </div>
         
-        <div className="auth-brand-footer">
-          GoldenCare Co. &copy; 2026. All rights reserved.
-        </div>
       </div>
 
       {/* Form Column (Right) */}
       <div className="auth-form-column">
-        <div style={{ width: '100%', maxWidth: '380px' }}>
+        <div style={{ width: '100%', maxWidth: '440px' }}>
           {showMfaChallenge ? (
             <div>
               <h3 className="auth-form-title">Two-Factor Authentication</h3>
@@ -928,24 +925,27 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         .auth-wrapper {
           display: grid;
           grid-template-columns: 1fr;
-          min-height: 580px;
+          min-height: 620px;
           border: 1px solid var(--color-hairline-soft);
           background-color: var(--color-canvas);
           margin: 40px auto;
-          max-width: 1000px;
+          max-width: 1100px;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.06);
         }
         @media (min-width: 768px) {
           .auth-wrapper {
-            grid-template-columns: 1.1fr 0.9fr;
+            grid-template-columns: 1.05fr 0.95fr;
           }
         }
         .auth-brand-column {
           display: none;
           background-color: var(--color-ink);
           color: #ffffff;
-          padding: 48px;
+          padding: 64px 48px;
           flex-direction: column;
-          justify-content: space-between;
+          justify-content: center;
           text-align: left;
         }
         @media (min-width: 768px) {
@@ -963,7 +963,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           margin-bottom: 24px;
         }
         .auth-brand-title {
-          font-size: 28px;
+          font-size: 32px;
           font-weight: 800;
           text-transform: uppercase;
           line-height: 1.2;
@@ -973,7 +973,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         }
         .auth-brand-subtitle {
           font-size: 14px;
-          line-height: 1.5;
+          line-height: 1.6;
           color: #ffffff;
           opacity: 0.95;
           margin: 0 0 40px 0;
@@ -981,11 +981,11 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         .auth-benefits-list {
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 24px;
         }
         .auth-benefit-item {
           display: flex;
-          gap: 12px;
+          gap: 16px;
           align-items: flex-start;
         }
         .auth-benefit-icon {
@@ -995,7 +995,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         }
         .auth-benefit-title {
           margin: 0 0 4px 0;
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 600;
           color: #ffffff;
         }
@@ -1003,22 +1003,17 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           margin: 0;
           font-size: 12px;
           color: rgba(255, 255, 255, 0.85);
-          line-height: 1.4;
-        }
-        .auth-brand-footer {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.7);
-          margin-top: 40px;
+          line-height: 1.5;
         }
         .auth-form-column {
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 48px 32px;
+          padding: 64px 48px;
         }
         @media (max-width: 480px) {
           .auth-form-column {
-            padding: 32px 16px;
+            padding: 48px 24px;
           }
         }
         .auth-tabs {

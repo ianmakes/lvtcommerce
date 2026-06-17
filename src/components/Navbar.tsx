@@ -121,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Right side: Search, Wishlist, Cart */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               {/* Search Pill */}
-              {(currentView === 'store' || currentView === 'product-details') && (
+              {(currentView === 'store' || currentView === 'product-details' || currentView === 'landing') && (
                 <div className="search-pill-container">
                   <input
                     type="text"
