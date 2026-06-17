@@ -603,24 +603,27 @@ a {
 
 /* Featured highlight for product card */
 .prod-card.is-featured {
-  border: none !important;
-  box-shadow: none !important;
-  background-color: transparent !important;
+  background-color: #faf7f2 !important;
+  border: 1px solid #f2ece1 !important;
+  padding: 12px !important;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast) !important;
 }
 
 .prod-card.is-featured:hover {
-  border-color: transparent !important;
-  box-shadow: none !important;
+  background-color: #f6f0e5 !important;
+  border-color: #e5dac4 !important;
 }
 
 .prod-card.list-view.is-featured {
-  border-color: var(--color-hairline-soft) !important;
-  background-color: transparent !important;
+  background-color: #faf7f2 !important;
+  border: 1px solid #f2ece1 !important;
+  padding: 16px !important;
 }
 
 .prod-card.list-view.is-featured:hover {
-  border-color: var(--color-hairline) !important;
-  box-shadow: none !important;
+  background-color: #f6f0e5 !important;
+  border-color: #e5dac4 !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
 }
 
 .prod-card-price-row {
@@ -3545,13 +3548,13 @@ tr:hover .row-actions {
 
 .two-banners-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: var(--grid-columns, repeat(2, 1fr));
   gap: 24px;
 }
 
 @media (max-width: 767px) {
   .two-banners-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
     gap: 20px;
   }
 }

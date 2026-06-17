@@ -270,16 +270,13 @@ function App() {
     };
   }, []);
 
-  // Inject Shop Settings branding, title and favicon
+  // Inject Shop Settings branding and favicon
   useEffect(() => {
     if (settings.brandingPrimaryColor) {
       document.documentElement.style.setProperty('--color-ink', settings.brandingPrimaryColor);
     }
     if (settings.brandingSecondaryColor) {
       document.documentElement.style.setProperty('--color-sale', settings.brandingSecondaryColor);
-    }
-    if (settings.shopName) {
-      document.title = settings.shopName;
     }
     if (settings.faviconUrl) {
       let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
@@ -291,6 +288,7 @@ function App() {
       link.href = settings.faviconUrl;
     }
   }, [settings]);
+
 
   // Initialize DB and load states in realtime
   useEffect(() => {
@@ -436,6 +434,25 @@ function App() {
   const isProductDetail = path.startsWith('/product/');
   const pathProductId = isProductDetail ? path.replace('/product/', '') : null;
   const matchedProduct = products.find(p => p.id === pathProductId);
+
+  // Dynamically update document.title based on current view/route
+  useEffect(() => {
+    if (!settings.shopName) return;
+    
+    if (path === '/shop') {
+      document.title = settings.cmsShopMetaTitle || `Shop - ${settings.shopName}`;
+    } else if (path.startsWith('/product/')) {
+      if (matchedProduct) {
+        document.title = `${matchedProduct.name} - ${settings.shopName}`;
+      } else {
+        document.title = settings.shopName;
+      }
+    } else if (path.startsWith('/dashboard')) {
+      document.title = `Admin Dashboard - ${settings.shopName}`;
+    } else {
+      document.title = settings.seoTitle || settings.shopName;
+    }
+  }, [path, settings, matchedProduct]);
 
   const comingSoonTitles: Record<string, string> = {
     '/gift-cards': 'Gift Cards',
@@ -835,8 +852,8 @@ function App() {
 
               {/* Page Header */}
               <div className="shop-page-header">
-                <h1 className="shop-page-title">Shop All</h1>
-                <p className="shop-page-subtitle">Explore our curated collection of engineered wellness products.</p>
+                <h1 className="shop-page-title">{settings.cmsShopTitle || "Shop All"}</h1>
+                <p className="shop-page-subtitle">{settings.cmsShopSubtitle || "Explore our curated collection of engineered wellness products."}</p>
               </div>
 
               {/* Controls Bar */}

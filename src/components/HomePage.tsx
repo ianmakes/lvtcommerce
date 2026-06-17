@@ -190,39 +190,55 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* 2. Feature Badges Row */}
-      <section className="homepage-badges-section">
-        <div className="container">
-          <div className="badges-grid">
-            <div className="badge-card">
-              <div className="badge-icon-box">
-                <Truck size={24} className="badge-icon" />
-              </div>
-              <div className="badge-text-box">
-                <h4>{settings.cmsBadge1Title || "Delivery Free 24 hrs"}</h4>
-                <p>{settings.cmsBadge1Desc || "Light speed delivery right to your door step"}</p>
+      {(() => {
+        const b1Visible = settings.cmsBadge1Visible !== false;
+        const b2Visible = settings.cmsBadge2Visible !== false;
+        const b3Visible = settings.cmsBadge3Visible !== false;
+        const count = [b1Visible, b2Visible, b3Visible].filter(Boolean).length;
+        if (count === 0) return null;
+        
+        return (
+          <section className="homepage-badges-section">
+            <div className="container">
+              <div className="badges-grid" style={{ gridTemplateColumns: `repeat(${count}, 1fr)` }}>
+                {b1Visible && (
+                  <div className="badge-card" style={{ backgroundColor: settings.cmsBadge1BgColor || undefined, color: settings.cmsBadge1TextColor || undefined }}>
+                    <div className="badge-icon-box" style={{ color: settings.cmsBadge1TextColor || undefined }}>
+                      <Truck size={24} className="badge-icon" />
+                    </div>
+                    <div className="badge-text-box">
+                      <h4 style={{ color: settings.cmsBadge1TextColor || undefined }}>{settings.cmsBadge1Title || "Delivery Free 24 hrs"}</h4>
+                      <p style={{ color: settings.cmsBadge1TextColor ? 'inherit' : undefined, opacity: settings.cmsBadge1TextColor ? 0.8 : 1 }}>{settings.cmsBadge1Desc || "Light speed delivery right to your door step"}</p>
+                    </div>
+                  </div>
+                )}
+                {b2Visible && (
+                  <div className="badge-card" style={{ backgroundColor: settings.cmsBadge2BgColor || undefined, color: settings.cmsBadge2TextColor || undefined }}>
+                    <div className="badge-icon-box" style={{ color: settings.cmsBadge2TextColor || undefined }}>
+                      <ShieldCheck size={24} className="badge-icon" />
+                    </div>
+                    <div className="badge-text-box">
+                      <h4 style={{ color: settings.cmsBadge2TextColor || undefined }}>{settings.cmsBadge2Title || "Quality assurance"}</h4>
+                      <p style={{ color: settings.cmsBadge2TextColor ? 'inherit' : undefined, opacity: settings.cmsBadge2TextColor ? 0.8 : 1 }}>{settings.cmsBadge2Desc || "100% genuine products with full warranty support"}</p>
+                    </div>
+                  </div>
+                )}
+                {b3Visible && (
+                  <div className="badge-card" style={{ backgroundColor: settings.cmsBadge3BgColor || undefined, color: settings.cmsBadge3TextColor || undefined }}>
+                    <div className="badge-icon-box" style={{ color: settings.cmsBadge3TextColor || undefined }}>
+                      <Lock size={24} className="badge-icon" />
+                    </div>
+                    <div className="badge-text-box">
+                      <h4 style={{ color: settings.cmsBadge3TextColor || undefined }}>{settings.cmsBadge3Title || "100% Secure Checkout"}</h4>
+                      <p style={{ color: settings.cmsBadge3TextColor ? 'inherit' : undefined, opacity: settings.cmsBadge3TextColor ? 0.8 : 1 }}>{settings.cmsBadge3Desc || "Your transactions are encrypted and secure"}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="badge-card">
-              <div className="badge-icon-box">
-                <ShieldCheck size={24} className="badge-icon" />
-              </div>
-              <div className="badge-text-box">
-                <h4>{settings.cmsBadge2Title || "Quality assurance"}</h4>
-                <p>{settings.cmsBadge2Desc || "100% genuine products with full warranty support"}</p>
-              </div>
-            </div>
-            <div className="badge-card">
-              <div className="badge-icon-box">
-                <Lock size={24} className="badge-icon" />
-              </div>
-              <div className="badge-text-box">
-                <h4>{settings.cmsBadge3Title || "100% Secure Checkout"}</h4>
-                <p>{settings.cmsBadge3Desc || "Your transactions are encrypted and secure"}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
       {/* 3. Deals of the Week */}
       <section className="homepage-deals-section">
@@ -349,89 +365,195 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* 4. Promotional Full-Width Banner */}
-      <section className="homepage-promo-banner-section">
-        <div className="container">
-          <div className="promo-banner-blue">
-            <div className="promo-banner-content">
-              <h2 style={{ color: '#ffffff' }}>{settings.cmsPromoBannerTitle || "Celebrate July with Discounts on All Phone Accessories!"}</h2>
-              <div className="promo-banner-actions">
-                <button className="btn-red-action" onClick={() => navigate(settings.cmsPromoBannerBtn1Link || '/shop')}>
-                  {settings.cmsPromoBannerBtn1Text || "Shop Recently"} &rarr;
-                </button>
-                <button className="btn-blue-outline" onClick={() => navigate(settings.cmsPromoBannerBtn2Link || '/shop')}>
-                  {settings.cmsPromoBannerBtn2Text || "Shop Popular"} &rarr;
-                </button>
+      {settings.cmsPromoBannerVisible !== false && (
+        <section className="homepage-promo-banner-section">
+          <div className="container" style={{ width: settings.cmsPromoBannerWidth || undefined, maxWidth: '100%' }}>
+            <div 
+              className="promo-banner-blue"
+              style={{
+                background: settings.cmsPromoBannerBgImage 
+                  ? `url(${settings.cmsPromoBannerBgImage})` 
+                  : (settings.cmsPromoBannerBgColor || undefined),
+                backgroundSize: settings.cmsPromoBannerBgImage ? 'cover' : undefined,
+                backgroundPosition: settings.cmsPromoBannerBgImage ? 'center' : undefined,
+              }}
+            >
+              {/* Overlay for background image */}
+              {settings.cmsPromoBannerBgImage && (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: settings.cmsPromoBannerOverlayColor || '#000000',
+                    opacity: settings.cmsPromoBannerOverlayOpacity !== undefined ? settings.cmsPromoBannerOverlayOpacity : 0.4,
+                    zIndex: 1
+                  }}
+                />
+              )}
+              <div 
+                className="promo-banner-content"
+                style={{
+                  textAlign: settings.cmsPromoBannerTextAlign || 'center',
+                  margin: settings.cmsPromoBannerTextAlign === 'center' ? '0 auto' : (settings.cmsPromoBannerTextAlign === 'right' ? '0 0 0 auto' : undefined),
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: settings.cmsPromoBannerTextAlign === 'center' ? 'center' : (settings.cmsPromoBannerTextAlign === 'right' ? 'flex-end' : 'flex-start'),
+                  zIndex: 2,
+                  position: 'relative'
+                }}
+              >
+                <h2 style={{ color: settings.cmsPromoBannerTextColor || '#ffffff' }}>
+                  {settings.cmsPromoBannerTitle || "Celebrate July with Discounts on All Phone Accessories!"}
+                </h2>
+                <div 
+                  className="promo-banner-actions"
+                  style={{
+                    justifyContent: settings.cmsPromoBannerTextAlign === 'center' ? 'center' : (settings.cmsPromoBannerTextAlign === 'right' ? 'flex-end' : 'flex-start')
+                  }}
+                >
+                  <button className="btn-red-action" onClick={() => navigate(settings.cmsPromoBannerBtn1Link || '/shop')}>
+                    {settings.cmsPromoBannerBtn1IconEnable && settings.cmsPromoBannerBtn1Icon && (
+                      <i className={settings.cmsPromoBannerBtn1Icon} style={{ marginRight: '8px' }}></i>
+                    )}
+                    {settings.cmsPromoBannerBtn1Text || "Shop Recently"}
+                    {!settings.cmsPromoBannerBtn1IconEnable && " \u2192"}
+                  </button>
+                  <button className="btn-blue-outline" onClick={() => navigate(settings.cmsPromoBannerBtn2Link || '/shop')}>
+                    {settings.cmsPromoBannerBtn2IconEnable && settings.cmsPromoBannerBtn2Icon && (
+                      <i className={settings.cmsPromoBannerBtn2Icon} style={{ marginRight: '8px' }}></i>
+                    )}
+                    {settings.cmsPromoBannerBtn2Text || "Shop Popular"}
+                    {!settings.cmsPromoBannerBtn2IconEnable && " \u2192"}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="promo-banner-design-accent">
-              <span className="accent-bar-1"></span>
-              <span className="accent-bar-2"></span>
-              <span className="accent-bar-3"></span>
+              
+              {/* Only show decorative accents if there is no background image */}
+              {!settings.cmsPromoBannerBgImage && (
+                <div className="promo-banner-design-accent" style={{ zIndex: 1 }}>
+                  <span className="accent-bar-1"></span>
+                  <span className="accent-bar-2"></span>
+                  <span className="accent-bar-3"></span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 6. Two Promo Cards side-by-side (Linked to actual dynamic products) */}
-      <section className="homepage-two-banners-section">
-        <div className="container">
-          <div className="two-banners-grid">
-            
-            {/* Banner 1 */}
+      {settings.cmsCardsSectionVisible !== false && (
+        <section className="homepage-two-banners-section" style={{ backgroundColor: settings.cmsCardsSectionBgColor || undefined }}>
+          <div className="container">
             <div 
-              className="promo-card-box purple-gradient-box" 
-              onClick={() => navigate(settings.cmsCard1Link || (products[0] ? `/product/${products[0].id}` : '/shop'))} 
-              style={{ cursor: 'pointer' }}
+              className="two-banners-grid"
+              style={{
+                '--grid-columns': `${settings.cmsCard1Width || '50%'} ${settings.cmsCard2Width || '50%'}`
+              } as React.CSSProperties}
             >
-              <div className="promo-card-text">
-                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>{settings.cmsCard1Badge || "Save Up To 70%"}</span>
-                <h3 style={{ color: '#ffffff' }}>{settings.cmsCard1Title || (products[0] ? products[0].name : "Great discounts on accessories")}</h3>
-                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>
-                  {settings.cmsCard1Price || (products[0] ? `KSh ${products[0].basePrice.toLocaleString()}` : "$120.00")}
-                </p>
-                <button className="btn-red-action-small" onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(settings.cmsCard1Link || (products[0] ? `/product/${products[0].id}` : '/shop'));
-                }}>
-                  Shop Now &rarr;
-                </button>
+              
+              {/* Banner 1 */}
+              <div 
+                className={`promo-card-box ${!settings.cmsCard1BgColor ? 'purple-gradient-box' : ''}`}
+                onClick={() => navigate(settings.cmsCard1Link || (products[0] ? `/product/${products[0].id}` : '/shop'))} 
+                style={{ 
+                  cursor: 'pointer',
+                  background: settings.cmsCard1BgColor || undefined
+                }}
+              >
+                <div className="promo-card-text">
+                  <span 
+                    className="promo-badge-text" 
+                    style={{ 
+                      color: settings.cmsCard1TextColor ? 'inherit' : '#e8eaf6', 
+                      opacity: settings.cmsCard1TextColor ? 0.9 : 1 
+                    }}
+                  >
+                    {settings.cmsCard1Badge || "Save Up To 70%"}
+                  </span>
+                  <h3 style={{ color: settings.cmsCard1TextColor || '#ffffff' }}>
+                    {settings.cmsCard1Title || (products[0] ? products[0].name : "Great discounts on accessories")}
+                  </h3>
+                  <p 
+                    className="promo-price-tag" 
+                    style={{ 
+                      color: settings.cmsCard1TextColor ? 'inherit' : '#fcd34d', 
+                      opacity: settings.cmsCard1TextColor ? 0.95 : 1 
+                    }}
+                  >
+                    {settings.cmsCard1Price || (products[0] ? `KSh ${products[0].basePrice.toLocaleString()}` : "$120.00")}
+                  </p>
+                  <button className="btn-red-action-small" onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(settings.cmsCard1Link || (products[0] ? `/product/${products[0].id}` : '/shop'));
+                  }}>
+                    {settings.cmsCard1BtnIconEnable && settings.cmsCard1BtnIcon && (
+                      <i className={settings.cmsCard1BtnIcon} style={{ marginRight: '6px' }}></i>
+                    )}
+                    Shop Now
+                    {!settings.cmsCard1BtnIconEnable && " \u2192"}
+                  </button>
+                </div>
+                <div className="promo-card-image-box">
+                  {(settings.cmsCard1Image || (products[0] && products[0].image)) && (
+                    <img src={settings.cmsCard1Image || products[0]?.image} alt={settings.cmsCard1Title || products[0]?.name || "promo 1"} className="floating-img" />
+                  )}
+                </div>
               </div>
-              <div className="promo-card-image-box">
-                {(settings.cmsCard1Image || (products[0] && products[0].image)) && (
-                  <img src={settings.cmsCard1Image || products[0]?.image} alt={settings.cmsCard1Title || products[0]?.name || "promo 1"} className="floating-img" />
-                )}
-              </div>
-            </div>
 
-            {/* Banner 2 */}
-            <div 
-              className="promo-card-box dark-navy-box" 
-              onClick={() => navigate(settings.cmsCard2Link || (products[1] ? `/product/${products[1].id}` : '/shop'))} 
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="promo-card-text">
-                <span className="promo-badge-text" style={{ color: '#e8eaf6' }}>{settings.cmsCard2Badge || "Local Alarm Clock"}</span>
-                <h3 style={{ color: '#ffffff' }}>{settings.cmsCard2Title || (products[1] ? products[1].name : "Smart alarm for daily routine")}</h3>
-                <p className="promo-price-tag" style={{ color: '#fcd34d' }}>
-                  {settings.cmsCard2Price || (products[1] ? `KSh ${products[1].basePrice.toLocaleString()}` : "")}
-                </p>
-                <button className="btn-red-action-small" onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(settings.cmsCard2Link || (products[1] ? `/product/${products[1].id}` : '/shop'));
-                }}>
-                  Shop Now &rarr;
-                </button>
+              {/* Banner 2 */}
+              <div 
+                className={`promo-card-box ${!settings.cmsCard2BgColor ? 'dark-navy-box' : ''}`}
+                onClick={() => navigate(settings.cmsCard2Link || (products[1] ? `/product/${products[1].id}` : '/shop'))} 
+                style={{ 
+                  cursor: 'pointer',
+                  background: settings.cmsCard2BgColor || undefined
+                }}
+              >
+                <div className="promo-card-text">
+                  <span 
+                    className="promo-badge-text" 
+                    style={{ 
+                      color: settings.cmsCard2TextColor ? 'inherit' : '#e8eaf6', 
+                      opacity: settings.cmsCard2TextColor ? 0.9 : 1 
+                    }}
+                  >
+                    {settings.cmsCard2Badge || "Local Alarm Clock"}
+                  </span>
+                  <h3 style={{ color: settings.cmsCard2TextColor || '#ffffff' }}>
+                    {settings.cmsCard2Title || (products[1] ? products[1].name : "Smart alarm for daily routine")}
+                  </h3>
+                  <p 
+                    className="promo-price-tag" 
+                    style={{ 
+                      color: settings.cmsCard2TextColor ? 'inherit' : '#fcd34d', 
+                      opacity: settings.cmsCard2TextColor ? 0.95 : 1 
+                    }}
+                  >
+                    {settings.cmsCard2Price || (products[1] ? `KSh ${products[1].basePrice.toLocaleString()}` : "")}
+                  </p>
+                  <button className="btn-red-action-small" onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(settings.cmsCard2Link || (products[1] ? `/product/${products[1].id}` : '/shop'));
+                  }}>
+                    {settings.cmsCard2BtnIconEnable && settings.cmsCard2BtnIcon && (
+                      <i className={settings.cmsCard2BtnIcon} style={{ marginRight: '6px' }}></i>
+                    )}
+                    Shop Now
+                    {!settings.cmsCard2BtnIconEnable && " \u2192"}
+                  </button>
+                </div>
+                <div className="promo-card-image-box">
+                  {(settings.cmsCard2Image || (products[1] && products[1].image)) && (
+                    <img src={settings.cmsCard2Image || products[1]?.image} alt={settings.cmsCard2Title || products[1]?.name || "promo 2"} className="floating-img" />
+                  )}
+                </div>
               </div>
-              <div className="promo-card-image-box">
-                {(settings.cmsCard2Image || (products[1] && products[1].image)) && (
-                  <img src={settings.cmsCard2Image || products[1]?.image} alt={settings.cmsCard2Title || products[1]?.name || "promo 2"} className="floating-img" />
-                )}
-              </div>
-            </div>
 
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 7. Explore Inventory (Tabbed Product Explorer) */}
       <section className="homepage-explore-inventory-section">

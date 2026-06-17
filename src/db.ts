@@ -59,7 +59,51 @@ const DEFAULT_SETTINGS: ShopSettings = {
   cmsCard2Badge: "Local Alarm Clock",
   cmsCard2Price: "KSh 3,500",
   cmsCard2Link: "/product/prod-magnify",
-  cmsCard2Image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample.jpg"
+  cmsCard2Image: "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample.jpg",
+
+  // Shop Page defaults
+  cmsShopTitle: "Shop All",
+  cmsShopSubtitle: "Explore our curated collection of engineered wellness products.",
+  cmsShopMetaTitle: "Shop Engineered Wellness - GoldenCare Market",
+
+  // Granular styling defaults
+  cmsBadge1BgColor: "",
+  cmsBadge1TextColor: "",
+  cmsBadge1Visible: true,
+  cmsBadge2BgColor: "",
+  cmsBadge2TextColor: "",
+  cmsBadge2Visible: true,
+  cmsBadge3BgColor: "",
+  cmsBadge3TextColor: "",
+  cmsBadge3Visible: true,
+
+  cmsPromoBannerBgColor: "",
+  cmsPromoBannerTextColor: "",
+  cmsPromoBannerVisible: true,
+  cmsPromoBannerWidth: "100%",
+  cmsPromoBannerTextAlign: "center",
+  cmsPromoBannerBgImage: "",
+  cmsPromoBannerOverlayColor: "#000000",
+  cmsPromoBannerOverlayOpacity: 0.4,
+  cmsPromoBannerBtn1Icon: "fa-solid fa-arrow-right",
+  cmsPromoBannerBtn1IconEnable: false,
+  cmsPromoBannerBtn2Icon: "fa-solid fa-arrow-right",
+  cmsPromoBannerBtn2IconEnable: false,
+
+  cmsCardsSectionBgColor: "",
+  cmsCardsSectionVisible: true,
+
+  cmsCard1BgColor: "",
+  cmsCard1TextColor: "",
+  cmsCard1Width: "50%",
+  cmsCard1BtnIcon: "fa-solid fa-arrow-right",
+  cmsCard1BtnIconEnable: false,
+
+  cmsCard2BgColor: "",
+  cmsCard2TextColor: "",
+  cmsCard2Width: "50%",
+  cmsCard2BtnIcon: "fa-solid fa-arrow-right",
+  cmsCard2BtnIconEnable: false
 };
 
 
@@ -530,6 +574,50 @@ export function migrateSettings(data: ShopSettings): ShopSettings {
   migrated.cmsCard2Price = migrated.cmsCard2Price || "KSh 3,500";
   migrated.cmsCard2Link = migrated.cmsCard2Link || "/product/prod-magnify";
   migrated.cmsCard2Image = migrated.cmsCard2Image || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/cld-sample.jpg";
+
+  // Shop Page Titles migration
+  migrated.cmsShopTitle = migrated.cmsShopTitle || "Shop All";
+  migrated.cmsShopSubtitle = migrated.cmsShopSubtitle || "Explore our curated collection of engineered wellness products.";
+  migrated.cmsShopMetaTitle = migrated.cmsShopMetaTitle || "Shop Engineered Wellness - GoldenCare Market";
+
+  // Granular styling defaults migration
+  migrated.cmsBadge1BgColor = migrated.cmsBadge1BgColor !== undefined ? migrated.cmsBadge1BgColor : "";
+  migrated.cmsBadge1TextColor = migrated.cmsBadge1TextColor !== undefined ? migrated.cmsBadge1TextColor : "";
+  migrated.cmsBadge1Visible = migrated.cmsBadge1Visible !== undefined ? migrated.cmsBadge1Visible : true;
+  migrated.cmsBadge2BgColor = migrated.cmsBadge2BgColor !== undefined ? migrated.cmsBadge2BgColor : "";
+  migrated.cmsBadge2TextColor = migrated.cmsBadge2TextColor !== undefined ? migrated.cmsBadge2TextColor : "";
+  migrated.cmsBadge2Visible = migrated.cmsBadge2Visible !== undefined ? migrated.cmsBadge2Visible : true;
+  migrated.cmsBadge3BgColor = migrated.cmsBadge3BgColor !== undefined ? migrated.cmsBadge3BgColor : "";
+  migrated.cmsBadge3TextColor = migrated.cmsBadge3TextColor !== undefined ? migrated.cmsBadge3TextColor : "";
+  migrated.cmsBadge3Visible = migrated.cmsBadge3Visible !== undefined ? migrated.cmsBadge3Visible : true;
+
+  migrated.cmsPromoBannerBgColor = migrated.cmsPromoBannerBgColor !== undefined ? migrated.cmsPromoBannerBgColor : "";
+  migrated.cmsPromoBannerTextColor = migrated.cmsPromoBannerTextColor !== undefined ? migrated.cmsPromoBannerTextColor : "";
+  migrated.cmsPromoBannerVisible = migrated.cmsPromoBannerVisible !== undefined ? migrated.cmsPromoBannerVisible : true;
+  migrated.cmsPromoBannerWidth = migrated.cmsPromoBannerWidth !== undefined ? migrated.cmsPromoBannerWidth : "100%";
+  migrated.cmsPromoBannerTextAlign = migrated.cmsPromoBannerTextAlign !== undefined ? migrated.cmsPromoBannerTextAlign : "center";
+  migrated.cmsPromoBannerBgImage = migrated.cmsPromoBannerBgImage !== undefined ? migrated.cmsPromoBannerBgImage : "";
+  migrated.cmsPromoBannerOverlayColor = migrated.cmsPromoBannerOverlayColor !== undefined ? migrated.cmsPromoBannerOverlayColor : "#000000";
+  migrated.cmsPromoBannerOverlayOpacity = migrated.cmsPromoBannerOverlayOpacity !== undefined ? migrated.cmsPromoBannerOverlayOpacity : 0.4;
+  migrated.cmsPromoBannerBtn1Icon = migrated.cmsPromoBannerBtn1Icon !== undefined ? migrated.cmsPromoBannerBtn1Icon : "fa-solid fa-arrow-right";
+  migrated.cmsPromoBannerBtn1IconEnable = migrated.cmsPromoBannerBtn1IconEnable !== undefined ? migrated.cmsPromoBannerBtn1IconEnable : false;
+  migrated.cmsPromoBannerBtn2Icon = migrated.cmsPromoBannerBtn2Icon !== undefined ? migrated.cmsPromoBannerBtn2Icon : "fa-solid fa-arrow-right";
+  migrated.cmsPromoBannerBtn2IconEnable = migrated.cmsPromoBannerBtn2IconEnable !== undefined ? migrated.cmsPromoBannerBtn2IconEnable : false;
+
+  migrated.cmsCardsSectionBgColor = migrated.cmsCardsSectionBgColor !== undefined ? migrated.cmsCardsSectionBgColor : "";
+  migrated.cmsCardsSectionVisible = migrated.cmsCardsSectionVisible !== undefined ? migrated.cmsCardsSectionVisible : true;
+
+  migrated.cmsCard1BgColor = migrated.cmsCard1BgColor !== undefined ? migrated.cmsCard1BgColor : "";
+  migrated.cmsCard1TextColor = migrated.cmsCard1TextColor !== undefined ? migrated.cmsCard1TextColor : "";
+  migrated.cmsCard1Width = migrated.cmsCard1Width !== undefined ? migrated.cmsCard1Width : "50%";
+  migrated.cmsCard1BtnIcon = migrated.cmsCard1BtnIcon !== undefined ? migrated.cmsCard1BtnIcon : "fa-solid fa-arrow-right";
+  migrated.cmsCard1BtnIconEnable = migrated.cmsCard1BtnIconEnable !== undefined ? migrated.cmsCard1BtnIconEnable : false;
+
+  migrated.cmsCard2BgColor = migrated.cmsCard2BgColor !== undefined ? migrated.cmsCard2BgColor : "";
+  migrated.cmsCard2TextColor = migrated.cmsCard2TextColor !== undefined ? migrated.cmsCard2TextColor : "";
+  migrated.cmsCard2Width = migrated.cmsCard2Width !== undefined ? migrated.cmsCard2Width : "50%";
+  migrated.cmsCard2BtnIcon = migrated.cmsCard2BtnIcon !== undefined ? migrated.cmsCard2BtnIcon : "fa-solid fa-arrow-right";
+  migrated.cmsCard2BtnIconEnable = migrated.cmsCard2BtnIconEnable !== undefined ? migrated.cmsCard2BtnIconEnable : false;
 
   return migrated;
 }

@@ -114,8 +114,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/settings/shoppage') settingsSubTab = 'shoppage';
 
   // Derive cmsSubTab from URL path
-  let cmsSubTab: 'homepage' | 'pages' = 'homepage';
+  let cmsSubTab: 'homepage' | 'shoppage' | 'pages' = 'homepage';
   if (path === '/dashboard/cms/pages') cmsSubTab = 'pages';
+  else if (path === '/dashboard/cms/shoppage') cmsSubTab = 'shoppage';
   
   // Lists from Firestore DB
   const [products, setProducts] = useState<Product[]>([]);
@@ -977,6 +978,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setLocalSettings(prev => ({ ...prev, cmsCard1Image: url }));
     } else if (mediaModalTarget === 'cms-card2-image') {
       setLocalSettings(prev => ({ ...prev, cmsCard2Image: url }));
+    } else if (mediaModalTarget === 'cms-promo-banner-bg-image') {
+      setLocalSettings(prev => ({ ...prev, cmsPromoBannerBgImage: url }));
     }
     setMediaModalOpen(false);
     setMediaModalTarget(null);
@@ -5940,6 +5943,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <li>
                   <button 
                     type="button" 
+                    onClick={() => navigate('/dashboard/cms/shoppage')}
+                    className={cmsSubTab === 'shoppage' ? 'current' : ''}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: cmsSubTab === 'shoppage' ? '#000' : '#2271b1', fontWeight: cmsSubTab === 'shoppage' ? '600' : 'normal', borderBottom: cmsSubTab === 'shoppage' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
+                  >
+                    Shop Page Settings
+                  </button>
+                </li>
+                <li style={{ color: '#c3c4c7' }}>|</li>
+                <li>
+                  <button 
+                    type="button" 
                     onClick={() => navigate('/dashboard/cms/pages')}
                     className={cmsSubTab === 'pages' ? 'current' : ''}
                     style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', color: cmsSubTab === 'pages' ? '#000' : '#2271b1', fontWeight: cmsSubTab === 'pages' ? '600' : 'normal', borderBottom: cmsSubTab === 'pages' ? '2px solid #2271b1' : 'none', paddingBottom: '4px' }}
@@ -5954,266 +5968,870 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h2 style={{ fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '12px', margin: '0 0 20px' }}>Edit Homepage Sections</h2>
                   
                   {/* Section 1: Feature Badges */}
-                  <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#646970', borderBottom: '1px solid #f0f0f1', paddingBottom: '6px', marginBottom: '16px' }}>1. Top Feature Badges</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 1 Title</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsBadge1Title || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1Title: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
+                  <div style={{ border: '1px solid #e5e5e5', borderRadius: '4px', padding: '20px', marginBottom: '24px', background: '#fcfcfc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: '#1d2327' }}>1. Top Feature Badges Row</h3>
                     </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 1 Description</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsBadge1Desc || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1Desc: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
+                    
+                    {/* Badge 1 */}
+                    <div style={{ borderBottom: '1px solid #f0f0f1', paddingBottom: '16px', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 style={{ fontSize: '13px', fontWeight: 600, margin: 0, color: '#2c3338' }}>Badge 1</h4>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localSettings.cmsBadge1Visible !== false} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1Visible: e.target.checked }))}
+                          />
+                          Visible on website
+                        </label>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Title</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsBadge1Title || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1Title: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Description</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsBadge1Desc || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1Desc: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Background Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsBadge1BgColor || '#f9f9f9'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1BgColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#f9f9f9)"
+                              value={localSettings.cmsBadge1BgColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1BgColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Text Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsBadge1TextColor || '#111111'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1TextColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#111111)"
+                              value={localSettings.cmsBadge1TextColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge1TextColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 2 Title</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsBadge2Title || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2Title: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
+
+                    {/* Badge 2 */}
+                    <div style={{ borderBottom: '1px solid #f0f0f1', paddingBottom: '16px', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 style={{ fontSize: '13px', fontWeight: 600, margin: 0, color: '#2c3338' }}>Badge 2</h4>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localSettings.cmsBadge2Visible !== false} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2Visible: e.target.checked }))}
+                          />
+                          Visible on website
+                        </label>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Title</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsBadge2Title || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2Title: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Description</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsBadge2Desc || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2Desc: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Background Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsBadge2BgColor || '#f9f9f9'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2BgColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#f9f9f9)"
+                              value={localSettings.cmsBadge2BgColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2BgColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Text Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsBadge2TextColor || '#111111'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2TextColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#111111)"
+                              value={localSettings.cmsBadge2TextColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2TextColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 2 Description</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsBadge2Desc || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge2Desc: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 3 Title</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsBadge3Title || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3Title: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Badge 3 Description</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsBadge3Desc || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3Desc: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
+
+                    {/* Badge 3 */}
+                    <div style={{ paddingBottom: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 style={{ fontSize: '13px', fontWeight: 600, margin: 0, color: '#2c3338' }}>Badge 3</h4>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localSettings.cmsBadge3Visible !== false} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3Visible: e.target.checked }))}
+                          />
+                          Visible on website
+                        </label>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Title</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsBadge3Title || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3Title: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Description</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsBadge3Desc || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3Desc: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Background Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsBadge3BgColor || '#f9f9f9'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3BgColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#f9f9f9)"
+                              value={localSettings.cmsBadge3BgColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3BgColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Text Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsBadge3TextColor || '#111111'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3TextColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#111111)"
+                              value={localSettings.cmsBadge3TextColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsBadge3TextColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Section 2: Full-Width Promo Banner */}
-                  <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#646970', borderBottom: '1px solid #f0f0f1', paddingBottom: '6px', marginBottom: '16px' }}>2. Full-Width Promo Banner</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Banner Title Text</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsPromoBannerTitle || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerTitle: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
+                  <div style={{ border: '1px solid #e5e5e5', borderRadius: '4px', padding: '20px', marginBottom: '24px', background: '#fcfcfc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: '#1d2327' }}>2. Full-Width Promo Banner</h3>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={localSettings.cmsPromoBannerVisible !== false} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerVisible: e.target.checked }))}
+                        />
+                        Section Visible
+                      </label>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div>
-                        <label className="form-label" style={{ fontWeight: 600 }}>Button 1 Label</label>
+                        <label className="form-label" style={{ fontWeight: 600 }}>Banner Title Text</label>
                         <input 
                           type="text" 
                           className="form-input" 
-                          value={localSettings.cmsPromoBannerBtn1Text || ''} 
-                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1Text: e.target.value }))}
+                          value={localSettings.cmsPromoBannerTitle || ''} 
+                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerTitle: e.target.value }))}
                           style={{ width: '100%', boxSizing: 'border-box' }}
                         />
                       </div>
-                      <div>
-                        <label className="form-label" style={{ fontWeight: 600 }}>Button 1 Link Route</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={localSettings.cmsPromoBannerBtn1Link || ''} 
-                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1Link: e.target.value }))}
-                          style={{ width: '100%', boxSizing: 'border-box' }}
-                        />
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600 }}>Button 1 Label</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsPromoBannerBtn1Text || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1Text: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600 }}>Button 1 Link Route</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsPromoBannerBtn1Link || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1Link: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600 }}>Button 2 Label</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsPromoBannerBtn2Text || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2Text: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600 }}>Button 2 Link Route</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsPromoBannerBtn2Link || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2Link: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="form-label" style={{ fontWeight: 600 }}>Button 2 Label</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={localSettings.cmsPromoBannerBtn2Text || ''} 
-                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2Text: e.target.value }))}
-                          style={{ width: '100%', boxSizing: 'border-box' }}
-                        />
+
+                      {/* Advanced Layout and Style Fields */}
+                      <h4 style={{ fontSize: '12px', fontWeight: 600, borderBottom: '1px solid #f0f0f1', paddingBottom: '4px', margin: '12px 0 6px', color: '#646970' }}>Advanced Styling & Layout</h4>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Background Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsPromoBannerBgColor || '#1a237e'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBgColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default Blue Gradient"
+                              value={localSettings.cmsPromoBannerBgColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBgColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Custom Text Color</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsPromoBannerTextColor || '#ffffff'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerTextColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#ffffff)"
+                              value={localSettings.cmsPromoBannerTextColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerTextColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Width Percentage</label>
+                          <select 
+                            className="form-input"
+                            value={localSettings.cmsPromoBannerWidth || '100%'}
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerWidth: e.target.value }))}
+                            style={{ width: '100%' }}
+                          >
+                            <option value="100%">100% (Full width)</option>
+                            <option value="90%">90%</option>
+                            <option value="80%">80%</option>
+                            <option value="75%">75%</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Text Alignment</label>
+                          <select 
+                            className="form-input"
+                            value={localSettings.cmsPromoBannerTextAlign || 'center'}
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerTextAlign: e.target.value as 'left' | 'center' | 'right' }))}
+                            style={{ width: '100%' }}
+                          >
+                            <option value="center">Center</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                          </select>
+                        </div>
                       </div>
+
                       <div>
-                        <label className="form-label" style={{ fontWeight: 600 }}>Button 2 Link Route</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={localSettings.cmsPromoBannerBtn2Link || ''} 
-                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2Link: e.target.value }))}
-                          style={{ width: '100%', boxSizing: 'border-box' }}
-                        />
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Background Image URL</label>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsPromoBannerBgImage || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBgImage: e.target.value }))}
+                            style={{ flexGrow: 1 }}
+                            placeholder="Optional: background image overlaying color"
+                          />
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setMediaModalTarget('cms-promo-banner-bg-image');
+                              setMediaModalOpen(true);
+                            }}
+                          >
+                            Choose from Library
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Overlay Color (for Bg Image)</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsPromoBannerOverlayColor || '#000000'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerOverlayColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '32px', height: '32px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#000000)"
+                              value={localSettings.cmsPromoBannerOverlayColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerOverlayColor: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Overlay Opacity (0.0 - 1.0)</label>
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <input 
+                              type="range" 
+                              min="0" 
+                              max="1" 
+                              step="0.1" 
+                              value={localSettings.cmsPromoBannerOverlayOpacity !== undefined ? localSettings.cmsPromoBannerOverlayOpacity : 0.4} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerOverlayOpacity: parseFloat(e.target.value) }))}
+                              style={{ flexGrow: 1, height: '6px', cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: '12px', fontWeight: 'bold', width: '25px', textAlign: 'right' }}>
+                              {localSettings.cmsPromoBannerOverlayOpacity !== undefined ? localSettings.cmsPromoBannerOverlayOpacity : 0.4}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', borderTop: '1px dotted #e5e5e5', paddingTop: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Button 1 Font Awesome Icon Class</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="e.g. fa-solid fa-cart-shopping"
+                              value={localSettings.cmsPromoBannerBtn1Icon || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1Icon: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={!!localSettings.cmsPromoBannerBtn1IconEnable} 
+                                onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn1IconEnable: e.target.checked }))}
+                              />
+                              Enable
+                            </label>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Button 2 Font Awesome Icon Class</label>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="e.g. fa-solid fa-arrow-right"
+                              value={localSettings.cmsPromoBannerBtn2Icon || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2Icon: e.target.value }))}
+                              style={{ flexGrow: 1 }}
+                            />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={!!localSettings.cmsPromoBannerBtn2IconEnable} 
+                                onChange={e => setLocalSettings(prev => ({ ...prev, cmsPromoBannerBtn2IconEnable: e.target.checked }))}
+                              />
+                              Enable
+                            </label>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Section 3: Two Promo Cards */}
-                  <h3 style={{ fontSize: '13px', textTransform: 'uppercase', color: '#646970', borderBottom: '1px solid #f0f0f1', paddingBottom: '6px', marginBottom: '16px' }}>3. Double Promo Cards</h3>
-                  
-                  {/* Card 1 */}
-                  <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)', marginBottom: '12px' }}>Promo Card 1 (Left Card)</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Title</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard1Title || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Title: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Badge Text</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard1Badge || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Badge: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Price or Detail Tag</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard1Price || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Price: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Button Link Route</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard1Link || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Link: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 1 Image URL</label>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={localSettings.cmsCard1Image || ''} 
-                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Image: e.target.value }))}
-                          style={{ flexGrow: 1 }}
-                        />
-                        <button 
-                          type="button" 
-                          className="btn btn-secondary"
-                          onClick={() => {
-                            setMediaModalTarget('cms-card1-image');
-                            setMediaModalOpen(true);
-                          }}
-                        >
-                          Choose from Library
-                        </button>
+                  {/* Section 3: Double Promo Cards */}
+                  <div style={{ border: '1px solid #e5e5e5', borderRadius: '4px', padding: '20px', background: '#fcfcfc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f1', paddingBottom: '8px', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: '#1d2327' }}>3. Double Promo Cards Section</h3>
+                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px', display: 'inline-block', marginRight: '6px' }}>Bg Color</label>
+                          <input 
+                            type="color" 
+                            value={localSettings.cmsCardsSectionBgColor || '#ffffff'} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCardsSectionBgColor: e.target.value }))}
+                            style={{ border: '1px solid #c3c4c7', verticalAlign: 'middle', padding: '0', width: '24px', height: '24px', cursor: 'pointer' }}
+                          />
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={localSettings.cmsCardsSectionVisible !== false} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCardsSectionVisible: e.target.checked }))}
+                          />
+                          Section Visible
+                        </label>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Card 2 */}
-                  <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)', marginBottom: '12px', marginTop: '24px' }}>Promo Card 2 (Right Card)</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Title</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard2Title || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Title: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
+                    {/* Card 1 */}
+                    <div style={{ borderBottom: '1px solid #f0f0f1', paddingBottom: '20px', marginBottom: '20px' }}>
+                      <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-ink)', marginBottom: '12px' }}>Promo Card 1 (Left Card)</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 1 Title</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard1Title || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Title: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 1 Badge Text</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard1Badge || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Badge: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 1 Price or Detail Tag</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard1Price || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Price: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 1 Button Link Route</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard1Link || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Link: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '12px' }}>
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 1 Image URL</label>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard1Image || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Image: e.target.value }))}
+                            style={{ flexGrow: 1 }}
+                          />
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setMediaModalTarget('cms-card1-image');
+                              setMediaModalOpen(true);
+                            }}
+                          >
+                            Choose from Library
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Card 1 Styling */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Background Style (Color/Gradient)</label>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsCard1BgColor && !localSettings.cmsCard1BgColor.startsWith('linear') ? localSettings.cmsCard1BgColor : '#673ab7'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1BgColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '28px', height: '28px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="e.g. #673ab7 or gradient"
+                              value={localSettings.cmsCard1BgColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1BgColor: e.target.value }))}
+                              style={{ flexGrow: 1, fontSize: '11px', padding: '4px 6px' }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Text Color</label>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsCard1TextColor || '#ffffff'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1TextColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '28px', height: '28px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#ffffff)"
+                              value={localSettings.cmsCard1TextColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1TextColor: e.target.value }))}
+                              style={{ flexGrow: 1, fontSize: '11px', padding: '4px 6px' }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card Desktop Width</label>
+                          <select 
+                            className="form-input"
+                            value={localSettings.cmsCard1Width || '50%'}
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1Width: e.target.value }))}
+                            style={{ width: '100%', fontSize: '12px', padding: '4px' }}
+                          >
+                            <option value="50%">50% (Default split)</option>
+                            <option value="60%">60%</option>
+                            <option value="40%">40%</option>
+                            <option value="70%">70%</option>
+                            <option value="30%">30%</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Button Font Awesome Icon</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="e.g. fa-solid fa-cart-shopping"
+                            value={localSettings.cmsCard1BtnIcon || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1BtnIcon: e.target.value }))}
+                            style={{ flexGrow: 1 }}
+                          />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={!!localSettings.cmsCard1BtnIconEnable} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard1BtnIconEnable: e.target.checked }))}
+                            />
+                            Enable Icon
+                          </label>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Card 2 */}
                     <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Badge Text</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard2Badge || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Badge: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Price or Detail Tag</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard2Price || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Price: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Button Link Route</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        value={localSettings.cmsCard2Link || ''} 
-                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Link: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label className="form-label" style={{ fontWeight: 600 }}>Card 2 Image URL</label>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          value={localSettings.cmsCard2Image || ''} 
-                          onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Image: e.target.value }))}
-                          style={{ flexGrow: 1 }}
-                        />
-                        <button 
-                          type="button" 
-                          className="btn btn-secondary"
-                          onClick={() => {
-                            setMediaModalTarget('cms-card2-image');
-                            setMediaModalOpen(true);
-                          }}
-                        >
-                          Choose from Library
-                        </button>
+                      <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-ink)', marginBottom: '12px' }}>Promo Card 2 (Right Card)</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 2 Title</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard2Title || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Title: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 2 Badge Text</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard2Badge || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Badge: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 2 Price or Detail Tag</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard2Price || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Price: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 2 Button Link Route</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard2Link || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Link: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '12px' }}>
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card 2 Image URL</label>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            value={localSettings.cmsCard2Image || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Image: e.target.value }))}
+                            style={{ flexGrow: 1 }}
+                          />
+                          <button 
+                            type="button" 
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setMediaModalTarget('cms-card2-image');
+                              setMediaModalOpen(true);
+                            }}
+                          >
+                            Choose from Library
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Card 2 Styling */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '12px' }}>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Background Style (Color/Gradient)</label>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsCard2BgColor && !localSettings.cmsCard2BgColor.startsWith('linear') ? localSettings.cmsCard2BgColor : '#000033'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2BgColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '28px', height: '28px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="e.g. #000033 or gradient"
+                              value={localSettings.cmsCard2BgColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2BgColor: e.target.value }))}
+                              style={{ flexGrow: 1, fontSize: '11px', padding: '4px 6px' }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Text Color</label>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <input 
+                              type="color" 
+                              value={localSettings.cmsCard2TextColor || '#ffffff'} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2TextColor: e.target.value }))}
+                              style={{ border: '1px solid #c3c4c7', padding: '0', width: '28px', height: '28px', cursor: 'pointer' }}
+                            />
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="Default (#ffffff)"
+                              value={localSettings.cmsCard2TextColor || ''} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2TextColor: e.target.value }))}
+                              style={{ flexGrow: 1, fontSize: '11px', padding: '4px 6px' }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Card Desktop Width</label>
+                          <select 
+                            className="form-input"
+                            value={localSettings.cmsCard2Width || '50%'}
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2Width: e.target.value }))}
+                            style={{ width: '100%', fontSize: '12px', padding: '4px' }}
+                          >
+                            <option value="50%">50% (Default split)</option>
+                            <option value="60%">60%</option>
+                            <option value="40%">40%</option>
+                            <option value="70%">70%</option>
+                            <option value="30%">30%</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="form-label" style={{ fontWeight: 600, fontSize: '12px' }}>Button Font Awesome Icon</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="e.g. fa-solid fa-cart-shopping"
+                            value={localSettings.cmsCard2BtnIcon || ''} 
+                            onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2BtnIcon: e.target.value }))}
+                            style={{ flexGrow: 1 }}
+                          />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={!!localSettings.cmsCard2BtnIconEnable} 
+                              onChange={e => setLocalSettings(prev => ({ ...prev, cmsCard2BtnIconEnable: e.target.checked }))}
+                            />
+                            Enable Icon
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div style={{ borderTop: '1px solid #c3c4c7', paddingTop: '15px', marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button type="submit" className="btn btn-primary" style={{ minWidth: '150px' }}>Save Homepage CMS</button>
+                  </div>
+                </form>
+              )}
+
+              {cmsSubTab === 'shoppage' && (
+                <form onSubmit={handleSaveCmsSettings} className="wp-postbox" style={{ background: '#fff', border: '1px solid #c3c4c7', padding: '24px', position: 'relative' }}>
+                  <h2 style={{ fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #c3c4c7', paddingBottom: '12px', margin: '0 0 20px' }}>Edit Shop Page Settings</h2>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Shop Page Main Title</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsShopTitle || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsShopTitle: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                        placeholder="e.g. Shop All"
+                      />
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#646970' }}>The main header title displayed at the top of the product catalog.</p>
+                    </div>
+
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Shop Page Subtitle</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsShopSubtitle || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsShopSubtitle: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                        placeholder="e.g. Explore our curated collection of engineered wellness products."
+                      />
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#646970' }}>The descriptive text shown underneath the main title.</p>
+                    </div>
+
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600 }}>Shop Page SEO Meta Title</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={localSettings.cmsShopMetaTitle || ''} 
+                        onChange={e => setLocalSettings(prev => ({ ...prev, cmsShopMetaTitle: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box' }}
+                        placeholder="e.g. Shop Engineered Wellness - GoldenCare Market"
+                      />
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#646970' }}>The page title shown in the browser tab when viewing the shop catalog (excellent for SEO).</p>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #c3c4c7', paddingTop: '15px', marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button type="submit" className="btn btn-primary" style={{ minWidth: '150px' }}>Save Shop Settings</button>
                   </div>
                 </form>
               )}

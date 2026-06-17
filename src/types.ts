@@ -213,6 +213,50 @@ export interface ShopSettings {
   cmsCard2Price?: string;
   cmsCard2Link?: string;
   cmsCard2Image?: string;
+
+  // Shop Page Titles
+  cmsShopTitle?: string;
+  cmsShopSubtitle?: string;
+  cmsShopMetaTitle?: string;
+
+  // Granular styling options
+  cmsBadge1BgColor?: string;
+  cmsBadge1TextColor?: string;
+  cmsBadge1Visible?: boolean;
+  cmsBadge2BgColor?: string;
+  cmsBadge2TextColor?: string;
+  cmsBadge2Visible?: boolean;
+  cmsBadge3BgColor?: string;
+  cmsBadge3TextColor?: string;
+  cmsBadge3Visible?: boolean;
+
+  cmsPromoBannerBgColor?: string;
+  cmsPromoBannerTextColor?: string;
+  cmsPromoBannerVisible?: boolean;
+  cmsPromoBannerWidth?: string;
+  cmsPromoBannerTextAlign?: 'left' | 'center' | 'right';
+  cmsPromoBannerBgImage?: string;
+  cmsPromoBannerOverlayColor?: string;
+  cmsPromoBannerOverlayOpacity?: number;
+  cmsPromoBannerBtn1Icon?: string;
+  cmsPromoBannerBtn1IconEnable?: boolean;
+  cmsPromoBannerBtn2Icon?: string;
+  cmsPromoBannerBtn2IconEnable?: boolean;
+
+  cmsCardsSectionBgColor?: string;
+  cmsCardsSectionVisible?: boolean;
+  
+  cmsCard1BgColor?: string;
+  cmsCard1TextColor?: string;
+  cmsCard1Width?: string;
+  cmsCard1BtnIcon?: string;
+  cmsCard1BtnIconEnable?: boolean;
+
+  cmsCard2BgColor?: string;
+  cmsCard2TextColor?: string;
+  cmsCard2Width?: string;
+  cmsCard2BtnIcon?: string;
+  cmsCard2BtnIconEnable?: boolean;
 }
 
 export interface HomeSlide {
