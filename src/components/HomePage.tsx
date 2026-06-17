@@ -243,6 +243,44 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <div className="deal-img-wrapper">
                     <span className="deal-badge-percent">{disc}</span>
                     <span className="deal-badge-featured">FEATURED</span>
+                    
+                    {/* Wishlist Button */}
+                    <button
+                      type="button"
+                      className="btn-icon-circular"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleWishlist(prod);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        zIndex: 10,
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '34px',
+                        height: '34px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        transition: 'transform 0.2s ease, background-color 0.2s'
+                      }}
+                      aria-label={isWishlisted(prod.id) ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      <Heart 
+                        size={18} 
+                        fill={isWishlisted(prod.id) ? "var(--color-sale)" : "none"} 
+                        style={{ 
+                          color: isWishlisted(prod.id) ? "var(--color-sale)" : "var(--color-ink)",
+                          transition: 'fill 0.2s'
+                        }} 
+                      />
+                    </button>
+
                     <img src={prod.image} alt={prod.name} className="deal-product-image" />
                     
                     {/* Action overlays for add to cart and quick view */}
@@ -269,7 +307,19 @@ export const HomePage: React.FC<HomePageProps> = ({
                     </div>
                   </div>
                   <div className="deal-info-wrapper">
-                    <h4 className="deal-product-name">{prod.name}</h4>
+                    <h4 
+                      className="deal-product-name"
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget;
+                        if (el.scrollWidth > el.clientWidth) {
+                          el.setAttribute('title', prod.name);
+                        } else {
+                          el.removeAttribute('title');
+                        }
+                      }}
+                    >
+                      {prod.name}
+                    </h4>
                     <div className="deal-rating-box">
                       <div className="stars-row">
                         {[...Array(5)].map((_, i) => (
