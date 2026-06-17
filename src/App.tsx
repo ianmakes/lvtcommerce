@@ -813,6 +813,12 @@ function App() {
           onSearchChange={setSearchQuery}
           wishlistCount={wishlist.length}
           currentUserAvatarUrl={currentUserAvatarUrl}
+          products={products}
+          categories={dbCategories}
+          onSelectCategory={(categoryName) => {
+            setSelectedCategory(categoryName);
+            navigate('/shop');
+          }}
         />
       )}
 

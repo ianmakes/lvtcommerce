@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { ShoppingCart, ShoppingBag, Search, Heart, Menu, X, Home, Store, Info, User, LogOut, Shield, LayoutDashboard } from 'lucide-react';
-import { ShopSettings, CartItem } from '../types';
+import { ShopSettings, CartItem, Product, Category } from '../types';
 import { Link, navigate } from '../Router';
 
 interface NavbarProps {
@@ -15,6 +15,9 @@ interface NavbarProps {
   onSearchChange: (query: string) => void;
   wishlistCount: number;
   currentUserAvatarUrl?: string | null;
+  products?: Product[];
+  categories?: Category[];
+  onSelectCategory?: (categoryName: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -28,9 +31,27 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSearchChange,
   wishlistCount,
   currentUserAvatarUrl,
+  products = [],
+  categories = [],
+  onSelectCategory,
 }) => {
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Suggestions filtering
+  const getSuggestions = () => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    const matchedCats = categories.filter(c => c.name.toLowerCase().includes(q));
+    const matchedProds = products.filter(p => p.name.toLowerCase().includes(q));
+    
+    return [
+      ...matchedCats.map(c => ({ type: 'category' as const, id: c.id, name: c.name })),
+      ...matchedProds.map(p => ({ type: 'product' as const, id: p.id, name: p.name, image: p.images?.[0] || p.imageUrl }))
+    ].slice(0, 10);
+  };
+  
+  const suggestions = getSuggestions();
 
   const getAccountLabel = () => {
     if (currentUser?.displayName) {
@@ -140,6 +161,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       ✕
                     </button>
+                  )}
+                  {suggestions.length > 0 && (
+                    <div className="search-suggestions-dropdown">
+                      {suggestions.map((item, idx) => (
+                        <div 
+                          key={idx} 
+                          className="search-suggestion-item"
+                          onClick={() => {
+                            if (item.type === 'category') {
+                              if (onSelectCategory) onSelectCategory(item.name);
+                            } else {
+                              navigate(`/product/${item.id}`);
+                            }
+                            onSearchChange('');
+                          }}
+                        >
+                          {item.type === 'product' && item.image && (
+                            <img src={item.image} alt={item.name} className="suggestion-thumb" />
+                          )}
+                          <div className="suggestion-details">
+                            <span className="suggestion-name">{item.name}</span>
+                            <span className="suggestion-badge">{item.type}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
@@ -376,6 +423,66 @@ export const Navbar: React.FC<NavbarProps> = ({
           </p>
         </div>
       </nav>
+      <style>{`
+        .search-pill-container {
+          position: relative;
+        }
+        .search-suggestions-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: #ffffff;
+          border: 1px solid var(--color-hairline-soft);
+          border-radius: 8px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+          z-index: 10000;
+          margin-top: 8px;
+          max-height: 400px;
+          overflow-y: auto;
+        }
+        .search-suggestion-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 16px;
+          cursor: pointer;
+          border-bottom: 1px solid var(--color-hairline-soft);
+          transition: background 0.2s ease;
+          text-align: left;
+        }
+        .search-suggestion-item:last-child {
+          border-bottom: none;
+        }
+        .search-suggestion-item:hover {
+          background: var(--color-soft-cloud);
+        }
+        .suggestion-thumb {
+          width: 32px;
+          height: 32px;
+          object-fit: cover;
+          border-radius: 4px;
+          background: #f5f5f5;
+        }
+        .suggestion-details {
+          display: flex;
+          flex-direction: column;
+          flex-grow: 1;
+        }
+        .suggestion-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--color-ink);
+        }
+        .suggestion-badge {
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--text-mute);
+          margin-top: 2px;
+        }
+      `}</style>
     </>
   );
 };
