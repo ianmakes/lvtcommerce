@@ -571,62 +571,34 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
             {/* Cumulative Product Ratings Summary */}
             <div style={{
               marginTop: '16px',
-              padding: '12px 16px',
+              padding: '10px 14px',
               border: '1px solid var(--color-hairline-soft)',
               backgroundColor: 'var(--color-soft-cloud)',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              flexWrap: 'wrap'
+              gap: '12px'
             }}>
-              {/* Left Side: Score & Stars */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-ink)', lineHeight: 1 }}>
-                  {reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '0.0'}
-                </span>
-                <div>
-                  <div style={{ display: 'flex', gap: '2px', color: '#dba617', marginBottom: '2px' }}>
-                    {[1, 2, 3, 4, 5].map(starNum => {
-                      const averageRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
-                      return (
-                        <Star 
-                          key={starNum} 
-                          size={14} 
-                          fill={starNum <= Math.round(averageRating) ? '#dba617' : 'none'} 
-                          style={{ color: '#dba617' }} 
-                        />
-                      );
-                    })}
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-mute)', fontWeight: 600 }}>
-                    {reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Right Side: Micro Star Distribution Bars */}
-              {reviews.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, maxWidth: '160px', minWidth: '110px' }}>
-                  {[5, 4, 3, 2, 1].map(starNum => {
-                    const count = reviews.filter(r => r.rating === starNum).length;
-                    const percent = (count / reviews.length) * 100;
+              <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-ink)', lineHeight: 1 }}>
+                {reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '0.0'}
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <div style={{ display: 'flex', gap: '2px', color: '#dba617' }}>
+                  {[1, 2, 3, 4, 5].map(starNum => {
+                    const averageRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
                     return (
-                      <div key={starNum} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', lineHeight: 1 }}>
-                        <span style={{ color: 'var(--text-charcoal)', fontWeight: 600, minWidth: '8px' }}>{starNum}</span>
-                        <div style={{ flex: 1, height: '4px', backgroundColor: 'var(--color-hairline-soft)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ width: `${percent}%`, height: '100%', backgroundColor: 'var(--color-ink)', borderRadius: '2px' }} />
-                        </div>
-                        <span style={{ color: 'var(--text-mute)', minWidth: '22px', textAlign: 'right' }}>{Math.round(percent)}%</span>
-                      </div>
+                      <Star 
+                        key={starNum} 
+                        size={12} 
+                        fill={starNum <= Math.round(averageRating) ? '#dba617' : 'none'} 
+                        style={{ color: '#dba617' }} 
+                      />
                     );
                   })}
                 </div>
-              ) : (
-                <span style={{ fontSize: '12px', color: 'var(--text-mute)', fontStyle: 'italic' }}>
-                  No approved reviews yet
+                <span style={{ fontSize: '11px', color: 'var(--text-mute)', fontWeight: 600, lineHeight: 1 }}>
+                  {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
                 </span>
-              )}
+              </div>
             </div>
           </div>
 
