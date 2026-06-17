@@ -1129,7 +1129,16 @@ function App() {
         {/* VIEW H: Buyer Authentication */}
         {path === '/auth' && (
           <div className="container" style={{ padding: '40px 0' }}>
-            <BuyerAuth onSuccess={() => navigate('/account')} />
+            <BuyerAuth onSuccess={(isNewUser) => {
+              if (isNewUser) {
+                navigate('/account/profile');
+                setTimeout(() => {
+                  handleShowToast("Welcome! Please complete filling in your profile details.", "success");
+                }, 600);
+              } else {
+                navigate('/account');
+              }
+            }} />
           </div>
         )}
 

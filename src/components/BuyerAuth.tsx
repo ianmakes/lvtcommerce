@@ -26,7 +26,7 @@ declare global {
 }
 
 interface BuyerAuthProps {
-  onSuccess: () => void;
+  onSuccess: (isNewUser?: boolean) => void;
 }
 
 const hashRecoveryCode = async (code: string) => {
@@ -112,7 +112,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      onSuccess();
+      onSuccess(isSignUp);
     } catch (error: any) {
       console.error("Authentication error:", error);
       const firebaseError = error as { code?: string; message?: string };
@@ -151,6 +151,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
       // Check if user is logging in or if we need to prevent duplicates
       // Google automatically links or handles accounts, but let's query the profile
       const userProfile = await getBuyerProfile(user.uid);
+      const isNew = !userProfile;
       if (!userProfile && user.email) {
         // If signup: check if email is already in use by email/password
         const emailQuery = query(collection(db, "users"), where("email", "==", user.email));
@@ -160,7 +161,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           console.warn("User already exists with this email.");
         }
       }
-      onSuccess();
+      onSuccess(isNew);
     } catch (error: any) {
       console.error("Google Sign-In error:", error);
       const firebaseError = error as { code?: string; message?: string };
@@ -228,6 +229,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
       const user = result.user;
 
       const userProfile = await getBuyerProfile(user.uid);
+      const isNew = !userProfile;
       if (!userProfile) {
         const initialProfile = {
           uid: user.uid,
@@ -242,7 +244,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         };
         await saveBuyerProfile(initialProfile);
       }
-      onSuccess();
+      onSuccess(isNew);
     } catch (error: any) {
       console.error("OTP verification error:", error);
       setErrorMsg("Invalid OTP code. Please check and try again.");
