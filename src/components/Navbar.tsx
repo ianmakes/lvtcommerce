@@ -47,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     
     return [
       ...matchedCats.map(c => ({ type: 'category' as const, id: c.id, name: c.name })),
-      ...matchedProds.map(p => ({ type: 'product' as const, id: p.id, name: p.name, image: p.images?.[0] || p.imageUrl }))
+      ...matchedProds.map(p => ({ type: 'product' as const, id: p.id, name: p.name, image: p.image || p.images?.[0] }))
     ].slice(0, 10);
   };
   
