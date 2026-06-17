@@ -853,6 +853,7 @@ function App() {
               navigate('/shop');
             }}
             settings={settings}
+            currentUser={currentUser}
           />
         )}
 

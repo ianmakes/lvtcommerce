@@ -191,7 +191,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
 
       // Check duplicate accounts
       if (isSignUp) {
-        await checkDuplicateUser(undefined, phoneVal);
+        await checkDuplicateUser(email.trim() || undefined, phoneVal);
       }
 
       if (!window.recaptchaVerifier) {
@@ -234,15 +234,27 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         const initialProfile = {
           uid: user.uid,
           fullName: fullName.trim() || user.displayName || 'Phone User',
-          email: user.email || '',
+          email: email.trim() || user.email || '',
           phone: user.phoneNumber || phoneVal,
           address: '',
           notifyEmail: true,
           notifySms: true,
           notifyPromos: true,
+          notifyNewsletter: joinNewsletter,
           role: 'customer'
         };
         await saveBuyerProfile(initialProfile);
+
+        if (joinNewsletter && email.trim()) {
+          try {
+            const names = fullName.trim().split(/\s+/);
+            const firstName = names[0] || '';
+            const lastName = names.slice(1).join(' ') || '';
+            await subscribeToNewsletter(firstName, lastName, phoneVal || '', email.trim());
+          } catch (newsletterErr) {
+            console.error("Failed to subscribe on signup:", newsletterErr);
+          }
+        }
       }
       onSuccess(isNew);
     } catch (error: any) {
@@ -740,23 +752,41 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                   {!confirmationResult ? (
                     <form onSubmit={handlePhoneSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                       {isSignUp && (
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label className="form-label" htmlFor="buyer-name-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                            <User size={16} />
-                            <span>Full Name</span>
-                          </label>
-                          <input 
-                            id="buyer-name-phone"
-                            type="text" 
-                            className="form-input" 
-                            placeholder="e.g. Samuel Wambui"
-                            value={fullName}
-                            onChange={e => setFullName(e.target.value)}
-                            required
-                            disabled={loading}
-                            style={{ borderRadius: 0 }}
-                          />
-                        </div>
+                        <>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" htmlFor="buyer-name-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                              <User size={16} />
+                              <span>Full Name</span>
+                            </label>
+                            <input 
+                              id="buyer-name-phone"
+                              type="text" 
+                              className="form-input" 
+                              placeholder="e.g. Samuel Wambui"
+                              value={fullName}
+                              onChange={e => setFullName(e.target.value)}
+                              required
+                              disabled={loading}
+                              style={{ borderRadius: 0 }}
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" htmlFor="buyer-email-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                              <Mail size={16} />
+                              <span>Email Address (Optional)</span>
+                            </label>
+                            <input 
+                              id="buyer-email-phone"
+                              type="email" 
+                              className="form-input" 
+                              placeholder="e.g. samuel@example.com"
+                              value={email}
+                              onChange={e => setEmail(e.target.value)}
+                              disabled={loading}
+                              style={{ borderRadius: 0 }}
+                            />
+                          </div>
+                        </>
                       )}
 
                       <div className="form-group" style={{ margin: 0 }}>
@@ -776,6 +806,22 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                           style={{ borderRadius: 0 }}
                         />
                       </div>
+
+                      {isSignUp && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                          <input 
+                            id="joinNewsletterPhone"
+                            type="checkbox" 
+                            checked={joinNewsletter}
+                            onChange={e => setJoinNewsletter(e.target.checked)}
+                            disabled={loading}
+                            style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
+                          />
+                          <label htmlFor="joinNewsletterPhone" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
+                            Join our newsletter to receive updates & offers
+                          </label>
+                        </div>
+                      )}
 
                       <button 
                         id="sign-in-button"

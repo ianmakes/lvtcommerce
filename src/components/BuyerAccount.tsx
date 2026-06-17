@@ -105,9 +105,10 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       let currentPhone = '';
       // Check newsletter status
       const subscribers = await getNewsletterSubscribers();
-      const isSubscribed = subscribers.some(s => s.email.toLowerCase() === currentUser.email?.toLowerCase());
-
       const userProfile = await getBuyerProfile(currentUser.uid);
+      const emailToMatch = (userProfile?.email || currentUser.email || '').toLowerCase();
+      const isSubscribed = emailToMatch ? subscribers.some(s => s.email.toLowerCase() === emailToMatch) : false;
+
       if (userProfile) {
         setProfile({ ...userProfile, notifyNewsletter: isSubscribed });
         currentPhone = userProfile.phone;
@@ -420,6 +421,12 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       if (onProfileUpdate) onProfileUpdate(profile.avatarUrl || null);
 
       // Sync newsletter subscription
+      const oldProfile = await getBuyerProfile(currentUser.uid);
+      const oldEmail = oldProfile?.email;
+      if (oldEmail && oldEmail.trim().toLowerCase() !== profile.email.trim().toLowerCase()) {
+        await deleteNewsletterSubscriber(oldEmail);
+      }
+
       if (profile.notifyNewsletter) {
         const names = profile.fullName.trim().split(' ');
         const firstName = names[0] || '';
@@ -1298,14 +1305,15 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
                   />
                 </div>
 
-                <div className="form-group" style={{ opacity: 0.7 }}>
+                <div className="form-group" style={{ opacity: profile.email && !currentUser.phoneNumber ? 0.7 : 1 }}>
                   <label className="form-label" style={{ fontWeight: 600 }}>Email Address</label>
                   <input 
                     type="email" 
                     className="form-input" 
-                    value={profile.email} 
-                    disabled 
-                    style={{ borderRadius: 0, cursor: 'not-allowed' }}
+                    value={profile.email || ''} 
+                    onChange={e => setProfile({ ...profile, email: e.target.value })}
+                    disabled={!!(profile.email && !currentUser.phoneNumber)} 
+                    style={{ borderRadius: 0, cursor: profile.email && !currentUser.phoneNumber ? 'not-allowed' : 'text' }}
                   />
                 </div>
 

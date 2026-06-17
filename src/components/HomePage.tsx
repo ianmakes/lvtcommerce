@@ -8,8 +8,9 @@ import {
   ChevronLeft,
   Heart
 } from 'lucide-react';
+import { User } from 'firebase/auth';
 import { Product, HomeSlide, Category, ShopSettings } from '../types';
-import { subscribeToNewsletter } from '../db';
+import { subscribeToNewsletter, getBuyerProfile } from '../db';
 
 interface HomePageProps {
   products: Product[];
@@ -26,6 +27,7 @@ interface HomePageProps {
   handleShowToast: (msg: string, type: 'success' | 'warning') => void;
   onSelectCategory: (category: string) => void;
   settings: ShopSettings;
+  currentUser?: User | null;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -42,9 +44,35 @@ export const HomePage: React.FC<HomePageProps> = ({
   onSelectCategory,
   settings,
   isWishlisted,
-  onToggleWishlist
+  onToggleWishlist,
+  currentUser
 }) => {
   const [selectedTab, setSelectedTab] = useState<string>('All');
+  const [newsFirstName, setNewsFirstName] = useState('');
+  const [newsLastName, setNewsLastName] = useState('');
+  const [newsPhone, setNewsPhone] = useState('');
+  const [newsEmail, setNewsEmail] = useState('');
+
+  // Autofill newsletter form with logged-in user profile details
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (currentUser) {
+        try {
+          const profile = await getBuyerProfile(currentUser.uid);
+          if (profile) {
+            const names = (profile.fullName || '').trim().split(/\s+/);
+            setNewsFirstName(profile.firstName || names[0] || '');
+            setNewsLastName(profile.lastName || names.slice(1).join(' ') || '');
+            setNewsPhone(profile.phone || '');
+            setNewsEmail(profile.email || '');
+          }
+        } catch (err) {
+          console.error("Failed to load profile for newsletter autofill:", err);
+        }
+      }
+    };
+    loadProfile();
+  }, [currentUser]);
 
   // Auto advance hero slider
   useEffect(() => {
@@ -771,6 +799,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                   name="firstName"
                   placeholder="First Name" 
                   className="newsletter-input" 
+                  value={newsFirstName}
+                  onChange={e => setNewsFirstName(e.target.value)}
                   required 
                 />
                 <input 
@@ -778,6 +808,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                   name="lastName"
                   placeholder="Last Name" 
                   className="newsletter-input" 
+                  value={newsLastName}
+                  onChange={e => setNewsLastName(e.target.value)}
                   required 
                 />
                 <input 
@@ -785,6 +817,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                   name="phone"
                   placeholder="Phone Number" 
                   className="newsletter-input" 
+                  value={newsPhone}
+                  onChange={e => setNewsPhone(e.target.value)}
                   required 
                 />
                 <input 
@@ -792,6 +826,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                   name="email"
                   placeholder="Email Address" 
                   className="newsletter-input" 
+                  value={newsEmail}
+                  onChange={e => setNewsEmail(e.target.value)}
                   required 
                 />
               </div>
