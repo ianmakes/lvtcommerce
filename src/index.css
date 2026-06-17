@@ -529,7 +529,7 @@ a {
   }
 }
 
-/* Product Card Rebuild */
+/* Product Card Rebuild - Borderless sharp look matching the design mockup */
 .prod-card {
   display: flex;
   flex-direction: column;
@@ -537,28 +537,28 @@ a {
   height: 100%;
   position: relative;
   margin-bottom: 0;
-  background-color: #ffffff;
-  border: 1px solid #f0f0f1;
-  border-radius: 6px;
-  padding: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  transition: transform 0.2s ease;
   box-sizing: border-box;
 }
 
 .prod-card:hover {
-  transform: translateY(-2.5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-  border-color: #e2e8f0;
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
 }
 
 .prod-img-container {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background-color: var(--color-soft-cloud); /* Gray backdrop */
+  background-color: #f6f6f6; /* Soft gray backdrop */
   position: relative;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 0;
   border: none;
 }
 
@@ -566,11 +566,11 @@ a {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--transition-normal);
+  transition: transform 0.4s ease;
 }
 
 .prod-card:hover .prod-img {
-  transform: scale(1.02);
+  transform: scale(1.03);
 }
 
 .prod-card-metadata {
@@ -582,9 +582,9 @@ a {
 }
 
 .prod-card-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-ink);
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
   line-height: 1.4;
   margin-bottom: 2px;
   overflow: hidden;
@@ -593,50 +593,57 @@ a {
 }
 
 .prod-card-category {
-  font-size: 14px;
-  color: var(--text-mute);
+  font-size: 12px;
+  color: #767676;
   line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
 }
 
 /* Featured highlight for product card */
 .prod-card.is-featured {
-  border: 1px solid rgba(219, 166, 23, 0.45) !important;
-  box-shadow: 0 3px 10px rgba(219, 166, 23, 0.08);
-  background-color: #fffdf9; /* warm gold/white tint */
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
 }
 
 .prod-card.is-featured:hover {
-  border-color: rgba(219, 166, 23, 0.85) !important;
-  box-shadow: 0 10px 24px rgba(219, 166, 23, 0.16) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .prod-card.list-view.is-featured {
-  border-color: rgba(219, 166, 23, 0.35) !important;
-  background-color: rgba(219, 166, 23, 0.01) !important;
+  border-color: var(--color-hairline-soft) !important;
+  background-color: transparent !important;
 }
 
 .prod-card.list-view.is-featured:hover {
-  border-color: rgba(219, 166, 23, 0.75) !important;
-  box-shadow: 0 4px 16px rgba(219, 166, 23, 0.12) !important;
+  border-color: var(--color-hairline) !important;
+  box-shadow: none !important;
 }
 
 .prod-card-price-row {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
 .price-sale {
-  color: var(--color-sale);
+  color: #ff3f3f; /* Coral red */
+}
+
+.price-regular {
+  color: #ff3f3f; /* Coral red */
 }
 
 .price-original {
   text-decoration: line-through;
-  color: var(--text-mute);
+  color: #8d8d8d;
 }
 
 /* Shop Page Controls Bar — Redesigned */
@@ -946,13 +953,15 @@ a {
   top: 12px;
   left: 12px;
   z-index: 5;
-  background-color: var(--color-canvas);
-  border: 1px solid var(--color-hairline);
-  color: var(--text-ink);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 12px;
-  border-radius: var(--radius-lg);
+  background-color: #ffffff;
+  border: 1px solid #111111;
+  color: #000000;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* PDP Accodions */
@@ -3743,14 +3752,16 @@ tr:hover .row-actions {
   position: absolute;
   top: 12px;
   left: 12px;
-  background-color: var(--home-blue-dark);
-  color: #ffffff;
+  background-color: #ffffff;
+  border: 1px solid #111111;
+  color: #000000;
   font-size: 10px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 4px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 0;
   z-index: 2;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .explore-img {
@@ -4139,7 +4150,7 @@ tr:hover .row-actions {
   font-size: 10px;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 0;
   z-index: 2;
   letter-spacing: 0.5px;
 }
@@ -4152,7 +4163,7 @@ tr:hover .row-actions {
   align-items: center;
   z-index: 2;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 

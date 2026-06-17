@@ -456,9 +456,11 @@ export const HomePage: React.FC<HomePageProps> = ({
             {getFilteredProductsForTab().map(prod => (
               <div key={prod.id} className="explore-product-card" onClick={() => navigate(`/product/${prod.id}`)}>
                 <div className="explore-img-container">
-                  {prod.badge && (
+                  {prod.badge ? (
                     <span className="explore-badge">{prod.badge}</span>
-                  )}
+                  ) : (prod.salePrice && prod.salePrice > 0 && prod.salePrice < prod.basePrice) ? (
+                    <span className="explore-badge">SALE</span>
+                  ) : null}
                   
                   {/* Wishlist Button */}
                   <button

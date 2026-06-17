@@ -82,9 +82,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
         {/* Promo Badge */}
-        {product.badge && (
+        {product.badge ? (
           <span className="badge-promo">{product.badge}</span>
-        )}
+        ) : isOnSale ? (
+          <span className="badge-promo">SALE</span>
+        ) : null}
 
         {/* Wishlist Button (Circular Icon Button) */}
         <button
