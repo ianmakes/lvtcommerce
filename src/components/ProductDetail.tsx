@@ -388,9 +388,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
           <div className="pdp-main-image-wrapper">
             <div 
-              className="prod-img-container" 
+              className="pdp-main-img-container" 
               onClick={() => setIsLightboxOpen(true)}
-              style={{ aspectRatio: '1 / 1', height: 'auto', border: '1px solid var(--color-hairline-soft)', width: '100%', cursor: 'zoom-in' }}
+              style={{ border: '1px solid var(--color-hairline-soft)', width: '100%' }}
             >
               {product.badge && (
                 <span className="badge-promo">{product.badge}</span>
@@ -567,6 +567,78 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
               >
                 <Heart size={18} fill={isWishlisted ? 'var(--color-sale)' : 'none'} />
               </button>
+            </div>
+            {/* Cumulative Product Ratings Summary */}
+            <div style={{
+              marginTop: '24px',
+              padding: '16px',
+              border: '1px solid var(--color-hairline-soft)',
+              backgroundColor: 'var(--color-soft-cloud)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="font-body-strong" style={{ fontSize: '14px' }}>Customer Reviews</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-mute)', fontWeight: 500 }}>
+                  {reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'}
+                </span>
+              </div>
+
+              {reviews.length > 0 ? (
+                (() => {
+                  const averageRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+                  const percentRating = (starNum: number) => {
+                    const count = reviews.filter(r => r.rating === starNum).length;
+                    return (count / reviews.length) * 100;
+                  };
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '36px', fontWeight: 800, color: 'var(--color-ink)', lineHeight: 1 }}>
+                          {averageRating.toFixed(1)}
+                        </span>
+                        <div>
+                          <div style={{ display: 'flex', gap: '2px', color: '#dba617', marginBottom: '2px' }}>
+                            {[1, 2, 3, 4, 5].map(starNum => (
+                              <Star 
+                                key={starNum} 
+                                size={16} 
+                                fill={starNum <= Math.round(averageRating) ? '#dba617' : 'none'} 
+                                style={{ color: '#dba617' }} 
+                              />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-mute)', fontWeight: 500 }}>
+                            Cumulative rating
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 5-star breakdown bars */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                        {[5, 4, 3, 2, 1].map(starNum => {
+                          const percent = percentRating(starNum);
+                          return (
+                            <div key={starNum} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                              <span style={{ width: '40px', color: 'var(--text-charcoal)', fontWeight: 500 }}>{starNum} star</span>
+                              <div style={{ flex: 1, height: '6px', backgroundColor: 'var(--color-hairline-soft)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${percent}%`, height: '100%', backgroundColor: 'var(--color-ink)', borderRadius: '3px' }} />
+                              </div>
+                              <span style={{ width: '30px', textAlign: 'right', color: 'var(--text-mute)', fontSize: '11px' }}>{Math.round(percent)}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div style={{ fontSize: '13px', color: 'var(--text-mute)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
+                  No approved reviews yet for this product.
+                </div>
+              )}
             </div>
           </div>
 
