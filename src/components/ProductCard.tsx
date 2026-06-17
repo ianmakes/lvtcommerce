@@ -155,7 +155,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <span className="prod-card-category">
           {(product.categories && product.categories.length > 0) ? product.categories[0] : product.category}
         </span>
-        <h3 className="prod-card-title">{product.name}</h3>
+        <h3 
+          className="prod-card-title"
+          onMouseEnter={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollWidth > el.clientWidth) {
+              el.setAttribute('title', product.name);
+            } else {
+              el.removeAttribute('title');
+            }
+          }}
+        >
+          {product.name}
+        </h3>
 
         {/* Subtle Review Rating */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-mute)', margin: '4px 0 6px' }}>
