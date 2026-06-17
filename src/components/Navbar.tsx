@@ -147,10 +147,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {currentUser ? (
                 isAdminAuthenticated ? (
-                  <Link to="/dashboard/home" className="expandable-nav-item" title="Admin Panel">
-                    <Shield size={20} />
-                    <span className="expandable-nav-label">Admin Panel</span>
-                  </Link>
+                  <>
+                    <Link to="/dashboard/home" className="expandable-nav-item" title="Admin Panel">
+                      <Shield size={20} />
+                      <span className="expandable-nav-label">Admin Panel</span>
+                    </Link>
+                    <Link to="/account" className="expandable-nav-item" title="My Account">
+                      <LayoutDashboard size={20} />
+                      <span className="expandable-nav-label">My Account</span>
+                    </Link>
+                  </>
                 ) : (
                   <Link to="/account" className="expandable-nav-item" title="My Account">
                     <LayoutDashboard size={20} />
@@ -165,7 +171,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
 
               {/* Wishlist Button (Expandable Nav Item) */}
-              {currentUser && !isAdminAuthenticated && (
+              {currentUser && (
                 <Link
                   to="/account?tab=wishlist"
                   className="expandable-nav-item"

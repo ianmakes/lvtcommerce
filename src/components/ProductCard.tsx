@@ -111,12 +111,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           />
         </button>
 
-        <img 
-          src={product.image || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
-          alt={product.name} 
-          className="prod-img"
-          loading="lazy"
-        />
+        {/* Gallery Hover Transition */}
+        {(() => {
+          const alternateImage = product.images && product.images.length > 0
+            ? product.images.find(img => img !== product.image) || product.images[0]
+            : null;
+
+          return (
+            <div className="prod-img-wrapper">
+              <img 
+                src={product.image || 'https://images.unsplash.com/photo-1532187643603-ba119ca4109e?w=500'} 
+                alt={product.name} 
+                className="prod-img prod-img-primary"
+                loading="lazy"
+              />
+              {alternateImage && alternateImage !== product.image && (
+                <img 
+                  src={alternateImage} 
+                  alt={`${product.name} alternate`} 
+                  className="prod-img prod-img-secondary"
+                  loading="lazy"
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* Hover Action Overlay */}
         <div className="prod-card-hover-actions">
