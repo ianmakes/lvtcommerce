@@ -4140,6 +4140,43 @@ tr:hover .row-actions {
   letter-spacing: 0.5px;
 }
 
+.deal-badges-group {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.deal-badges-group .deal-badge-percent {
+  position: static;
+  background-color: var(--home-blue-dark);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 0;
+  margin: 0;
+  display: inline-block;
+}
+
+.deal-badges-group .deal-badge-featured {
+  position: static;
+  background-color: #dba617;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 0;
+  margin: 0;
+  display: inline-block;
+  letter-spacing: 0.5px;
+}
+
 /* ==========================================================================
    PDP Gallery System (Amazon style layout)
    ========================================================================== */

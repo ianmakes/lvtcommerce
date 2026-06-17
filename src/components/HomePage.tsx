@@ -241,8 +241,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               return (
                 <div key={prod.id} className="deal-product-card featured-highlight" onClick={() => navigate(`/product/${prod.id}`)}>
                   <div className="deal-img-wrapper">
-                    <span className="deal-badge-percent">{disc}</span>
-                    <span className="deal-badge-featured">FEATURED</span>
+                    <div className="deal-badges-group">
+                      <span className="deal-badge-percent">{disc}</span>
+                      <span className="deal-badge-featured">FEATURED</span>
+                    </div>
                     
                     {/* Wishlist Button */}
                     <button
