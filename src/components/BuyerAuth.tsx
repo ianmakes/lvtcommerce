@@ -1,10 +1,29 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, getMultiFactorResolver, TotpMultiFactorGenerator, MultiFactorResolver, MultiFactorError } from 'firebase/auth';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile, 
+  getMultiFactorResolver, 
+  TotpMultiFactorGenerator, 
+  MultiFactorResolver, 
+  MultiFactorError,
+  GoogleAuthProvider,
+  signInWithPopup,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 import { auth, db } from '../firebase';
-import { Mail, Lock, User, AlertCircle, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle, Loader2, CheckCircle2, ArrowRight, Phone } from 'lucide-react';
 import * as OTPAuth from 'otpauth';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { subscribeToNewsletter } from '../db';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { subscribeToNewsletter, saveBuyerProfile, getBuyerProfile } from '../db';
+
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+  }
+}
 
 interface BuyerAuthProps {
   onSuccess: () => void;
@@ -26,6 +45,15 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [joinNewsletter, setJoinNewsletter] = useState(true);
 
+  // Authentication mode: 'email' | 'phone' | 'forgot'
+  const [authMethod, setAuthMethod] = useState<'email' | 'phone' | 'forgot'>('email');
+
+  // Phone Authentication States
+  const [phoneVal, setPhoneVal] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<any>(null);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+
   // MFA Challenge State
   const [showMfaChallenge, setShowMfaChallenge] = useState(false);
   const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null);
@@ -34,6 +62,24 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState('');
   const [mfaChallengeType, setMfaChallengeType] = useState<'totp' | 'recovery'>('totp');
+
+  // Helper to verify duplicates
+  const checkDuplicateUser = async (emailToCheck?: string, phoneToCheck?: string) => {
+    if (emailToCheck) {
+      const emailQuery = query(collection(db, "users"), where("email", "==", emailToCheck.trim()));
+      const snap = await getDocs(emailQuery);
+      if (!snap.empty) {
+        throw new Error("This email is already registered. Please Sign In instead.");
+      }
+    }
+    if (phoneToCheck) {
+      const phoneQuery = query(collection(db, "users"), where("phone", "==", phoneToCheck.trim()));
+      const snap = await getDocs(phoneQuery);
+      if (!snap.empty) {
+        throw new Error("This phone number is already registered under another account.");
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +91,9 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         if (!fullName.trim()) {
           throw new Error("Please enter your full name.");
         }
+        // Duplicate check
+        await checkDuplicateUser(email, phoneVal || undefined);
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, {
           displayName: fullName.trim()
@@ -64,7 +113,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         await signInWithEmailAndPassword(auth, email, password);
       }
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Authentication error:", error);
       const firebaseError = error as { code?: string; message?: string };
       if (firebaseError.code === 'auth/multi-factor-auth-required') {
@@ -85,6 +134,130 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         message = "Invalid credentials. Please verify your email and password.";
       }
       setErrorMsg(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Google Sign-In
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user is logging in or if we need to prevent duplicates
+      // Google automatically links or handles accounts, but let's query the profile
+      const userProfile = await getBuyerProfile(user.uid);
+      if (!userProfile && user.email) {
+        // If signup: check if email is already in use by email/password
+        const emailQuery = query(collection(db, "users"), where("email", "==", user.email));
+        const emailSnap = await getDocs(emailQuery);
+        if (!emailSnap.empty) {
+          // Profile exists under another provider
+          console.warn("User already exists with this email.");
+        }
+      }
+      onSuccess();
+    } catch (error: any) {
+      console.error("Google Sign-In error:", error);
+      setErrorMsg(error.message || "Google Sign-In failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Phone Sign-In initialization
+  const handlePhoneSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      if (!phoneVal.startsWith('+')) {
+        throw new Error("Phone number must include country code (e.g., +254712345678).");
+      }
+
+      // Check duplicate accounts
+      if (isSignUp) {
+        await checkDuplicateUser(undefined, phoneVal);
+      }
+
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'sign-in-button', {
+          'size': 'invisible',
+          'callback': () => {
+            // reCAPTCHA solved
+          }
+        });
+      }
+
+      const confirmation = await signInWithPhoneNumber(auth, phoneVal.trim(), window.recaptchaVerifier);
+      setConfirmationResult(confirmation);
+    } catch (error: any) {
+      console.error("Phone sign-in error:", error);
+      setErrorMsg(error.message || "Failed to send verification code. Please try again.");
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // OTP Verification
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      if (!confirmationResult) return;
+      const result = await confirmationResult.confirm(verificationCode);
+      const user = result.user;
+
+      const userProfile = await getBuyerProfile(user.uid);
+      if (!userProfile) {
+        const initialProfile = {
+          uid: user.uid,
+          fullName: fullName.trim() || user.displayName || 'Phone User',
+          email: user.email || '',
+          phone: user.phoneNumber || phoneVal,
+          address: '',
+          notifyEmail: true,
+          notifySms: true,
+          notifyPromos: true,
+          role: 'customer'
+        };
+        await saveBuyerProfile(initialProfile);
+      }
+      onSuccess();
+    } catch (error: any) {
+      console.error("OTP verification error:", error);
+      setErrorMsg("Invalid OTP code. Please check and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Forgot Password
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setErrorMsg("Please enter your email address.");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetEmailSent(true);
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      setErrorMsg(error.message || "Failed to send password reset email.");
     } finally {
       setLoading(false);
     }
@@ -116,7 +289,6 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
     setMfaError('');
 
     try {
-      // 1. Find user UID by email query
       const usersQuery = query(collection(db, "users"), where("email", "==", email));
       const querySnapshot = await getDocs(usersQuery);
       if (querySnapshot.empty) {
@@ -125,7 +297,6 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
       const userDoc = querySnapshot.docs[0];
       const uid = userDoc.id;
 
-      // 2. Fetch the security doc
       const secRef = doc(db, "users", uid, "security", "recovery");
       const secSnap = await getDoc(secRef);
       if (!secSnap.exists()) {
@@ -137,28 +308,24 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         throw new Error("Recovery codes or secret key missing from configuration.");
       }
 
-      // 3. Hash the input recovery code
       const inputHashed = await hashRecoveryCode(recoveryInput.trim());
 
-      // 4. Compare with stored hashes
       if (!recoveryCodes.includes(inputHashed)) {
         throw new Error("Invalid recovery code. Please check and try again.");
       }
 
-      // 5. Generate TOTP code using otpauth
       const totp = new OTPAuth.TOTP({
         secret: totpSecretKey
       });
       const generatedCode = totp.generate();
 
-      // 6. Sign in
       const hint = mfaResolver.hints[0];
       const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, generatedCode);
       await mfaResolver.resolveSignIn(assertion);
 
-      // 7. Consume the code
       const updatedCodes = recoveryCodes.filter(c => c !== inputHashed);
-      await updateDoc(secRef, {
+      const { updateDoc: updateFirestoreDoc } = await import('firebase/firestore');
+      await updateFirestoreDoc(secRef, {
         recoveryCodes: updatedCodes
       });
 
@@ -189,6 +356,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
 
   return (
     <div className="auth-wrapper">
+      <div id="recaptcha-container"></div>
       
       {/* Brand Column (Left) */}
       <div className="auth-brand-column">
@@ -392,27 +560,49 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
               <div className="auth-tabs">
                 <button
                   type="button"
-                  onClick={() => { setIsSignUp(false); setErrorMsg(''); }}
-                  className={`auth-tab-btn ${!isSignUp ? 'active' : ''}`}
+                  onClick={() => { setIsSignUp(false); setErrorMsg(''); setResetEmailSent(false); setAuthMethod('email'); }}
+                  className={`auth-tab-btn ${!isSignUp && authMethod !== 'forgot' ? 'active' : ''}`}
                 >
                   Sign In
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setIsSignUp(true); setErrorMsg(''); }}
+                  onClick={() => { setIsSignUp(true); setErrorMsg(''); setResetEmailSent(false); setAuthMethod('email'); }}
                   className={`auth-tab-btn ${isSignUp ? 'active' : ''}`}
                 >
                   Join Us
                 </button>
               </div>
 
+              {/* Login Method Toggle (Email/Password vs Phone) */}
+              {authMethod !== 'forgot' && (
+                <div className="auth-sub-tabs">
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMethod('email'); setErrorMsg(''); }}
+                    className={`sub-tab-btn ${authMethod === 'email' ? 'active' : ''}`}
+                  >
+                    Email Method
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMethod('phone'); setErrorMsg(''); }}
+                    className={`sub-tab-btn ${authMethod === 'phone' ? 'active' : ''}`}
+                  >
+                    Phone Method
+                  </button>
+                </div>
+              )}
+
               <h3 className="auth-form-title">
-                {isSignUp ? "Create Account" : "Welcome Back"}
+                {authMethod === 'forgot' ? "Reset Password" : isSignUp ? "Create Account" : "Welcome Back"}
               </h3>
               <p className="auth-form-subtitle">
-                {isSignUp 
+                {authMethod === 'forgot' 
+                  ? "Enter your email address and we'll send you a recovery link." 
+                  : isSignUp 
                   ? "Fill in your details to create an account and access your member benefits." 
-                  : "Enter your registered email and password to log in."
+                  : `Enter your details below to log in using ${authMethod === 'email' ? 'email' : 'phone'}.`
                 }
               </p>
 
@@ -423,102 +613,304 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* Full Name (Join Us only) */}
-                {isSignUp && (
+              {resetEmailSent && (
+                <div className="auth-success-alert">
+                  <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+                  <span>Reset link sent! Please check your email inbox.</span>
+                </div>
+              )}
+
+              {/* Email / Password Form */}
+              {authMethod === 'email' && (
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {isSignUp && (
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" htmlFor="buyer-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                        <User size={16} />
+                        <span>Full Name</span>
+                      </label>
+                      <input 
+                        id="buyer-name"
+                        type="text" 
+                        className="form-input" 
+                        placeholder="e.g. Samuel Wambui"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        required
+                        disabled={loading}
+                        style={{ borderRadius: 0 }}
+                      />
+                    </div>
+                  )}
+
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" htmlFor="buyer-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                      <User size={16} />
-                      <span>Full Name</span>
+                    <label className="form-label" htmlFor="buyer-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                      <Mail size={16} />
+                      <span>Email Address</span>
                     </label>
                     <input 
-                      id="buyer-name"
-                      type="text" 
+                      id="buyer-email"
+                      type="email" 
                       className="form-input" 
-                      placeholder="e.g. Samuel Wambui"
-                      value={fullName}
-                      onChange={e => setFullName(e.target.value)}
+                      placeholder="name@email.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
                       required
                       disabled={loading}
                       style={{ borderRadius: 0 }}
                     />
                   </div>
-                )}
 
-                {/* Email input */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" htmlFor="buyer-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                    <Mail size={16} />
-                    <span>Email Address</span>
-                  </label>
-                  <input 
-                    id="buyer-email"
-                    type="email" 
-                    className="form-input" 
-                    placeholder="name@email.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    disabled={loading}
-                    style={{ borderRadius: 0 }}
-                  />
-                </div>
-
-                {/* Password input */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" htmlFor="buyer-password" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                    <Lock size={16} />
-                    <span>Password</span>
-                  </label>
-                  <input 
-                    id="buyer-password"
-                    type="password" 
-                    className="form-input" 
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                    style={{ borderRadius: 0 }}
-                  />
-                </div>
-
-                {/* Join Newsletter Checkbox */}
-                {isSignUp && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label className="form-label" htmlFor="buyer-password" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, margin: 0 }}>
+                        <Lock size={16} />
+                        <span>Password</span>
+                      </label>
+                      {!isSignUp && (
+                        <button
+                          type="button"
+                          onClick={() => { setAuthMethod('forgot'); setErrorMsg(''); setResetEmailSent(false); }}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-mute)', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                    </div>
                     <input 
-                      id="joinNewsletter"
-                      type="checkbox" 
-                      checked={joinNewsletter}
-                      onChange={e => setJoinNewsletter(e.target.checked)}
+                      id="buyer-password"
+                      type="password" 
+                      className="form-input" 
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
                       disabled={loading}
-                      style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
+                      style={{ borderRadius: 0, marginTop: '8px' }}
                     />
-                    <label htmlFor="joinNewsletter" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
-                      Join our newsletter to receive updates & offers
-                    </label>
                   </div>
-                )}
 
-                <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                  disabled={loading}
-                  style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
-                      <span>Please wait...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{isSignUp ? "Join Membership" : "Sign In"}</span>
-                      <ArrowRight size={16} />
-                    </>
+                  {isSignUp && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                      <input 
+                        id="joinNewsletter"
+                        type="checkbox" 
+                        checked={joinNewsletter}
+                        onChange={e => setJoinNewsletter(e.target.checked)}
+                        disabled={loading}
+                        style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
+                      />
+                      <label htmlFor="joinNewsletter" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
+                        Join our newsletter to receive updates & offers
+                      </label>
+                    </div>
                   )}
-                </button>
-              </form>
+
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={loading}
+                    style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+                        <span>Please wait...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{isSignUp ? "Join Membership" : "Sign In"}</span>
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* Phone Login Form */}
+              {authMethod === 'phone' && (
+                <div>
+                  {!confirmationResult ? (
+                    <form onSubmit={handlePhoneSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      {isSignUp && (
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" htmlFor="buyer-name-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                            <User size={16} />
+                            <span>Full Name</span>
+                          </label>
+                          <input 
+                            id="buyer-name-phone"
+                            type="text" 
+                            className="form-input" 
+                            placeholder="e.g. Samuel Wambui"
+                            value={fullName}
+                            onChange={e => setFullName(e.target.value)}
+                            required
+                            disabled={loading}
+                            style={{ borderRadius: 0 }}
+                          />
+                        </div>
+                      )}
+
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" htmlFor="buyer-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                          <Phone size={16} />
+                          <span>Phone Number (with country code)</span>
+                        </label>
+                        <input 
+                          id="buyer-phone"
+                          type="tel" 
+                          className="form-input" 
+                          placeholder="e.g. +254712345678"
+                          value={phoneVal}
+                          onChange={e => setPhoneVal(e.target.value)}
+                          required
+                          disabled={loading}
+                          style={{ borderRadius: 0 }}
+                        />
+                      </div>
+
+                      <button 
+                        id="sign-in-button"
+                        type="submit" 
+                        className="btn btn-primary"
+                        disabled={loading}
+                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+                            <span>Sending OTP...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Send Verification Code</span>
+                            <ArrowRight size={16} />
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" htmlFor="verification-code" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                          <Lock size={16} />
+                          <span>Enter 6-Digit SMS OTP Code</span>
+                        </label>
+                        <input 
+                          id="verification-code"
+                          type="text" 
+                          maxLength={6}
+                          pattern="[0-9]*"
+                          inputMode="numeric"
+                          className="form-input" 
+                          placeholder="000000"
+                          value={verificationCode}
+                          onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                          required
+                          disabled={loading}
+                          style={{ borderRadius: 0 }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button 
+                          type="submit" 
+                          className="btn btn-primary"
+                          disabled={loading || verificationCode.length !== 6}
+                          style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
+                        >
+                          {loading ? (
+                            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+                          ) : (
+                            <span>Verify Code</span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setConfirmationResult(null)}
+                          style={{ height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0, backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', border: 'none', padding: '0 20px' }}
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {/* Forgot Password Form */}
+              {authMethod === 'forgot' && (
+                <form onSubmit={handleForgotPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" htmlFor="reset-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                      <Mail size={16} />
+                      <span>Email Address</span>
+                    </label>
+                    <input 
+                      id="reset-email"
+                      type="email" 
+                      className="form-input" 
+                      placeholder="name@email.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      disabled={loading}
+                      style={{ borderRadius: 0 }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={loading}
+                      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
+                    >
+                      {loading ? (
+                        <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+                      ) : (
+                        <span>Send Recovery Link</span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => { setAuthMethod('email'); setErrorMsg(''); setResetEmailSent(false); }}
+                      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0, backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', border: 'none' }}
+                    >
+                      Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Premium Google Sign-In Button */}
+              {authMethod !== 'forgot' && (
+                <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-hairline-soft)' }} />
+                    <span style={{ fontSize: '11px', color: 'var(--text-mute)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '1px' }}>or continue with</span>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-hairline-soft)' }} />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    className="google-btn"
+                    disabled={loading}
+                  >
+                    <svg className="google-icon" viewBox="0 0 24 24">
+                      <path fill="#EA4335" d="M12 5.04c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 1.84 14.93 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.85 3C6.31 7.55 8.94 5.04 12 5.04z" />
+                      <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.98 3.74-4.9 3.74-8.53z" />
+                      <path fill="#FBBC05" d="M5.35 14.73c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28l-3.85-3C.72 8.79 0 10.31 0 12s.72 3.21 1.5 4.82l3.85-3.09z" />
+                      <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.02.68-2.33 1.09-4.28 1.09-3.06 0-5.69-2.51-6.65-5.46l-3.85 3C3.4 20.35 7.35 23 12 23z" />
+                    </svg>
+                    <span>Google Secure Login</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -625,7 +1017,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           display: flex;
           gap: 24px;
           border-bottom: 1px solid var(--color-hairline-soft);
-          margin-bottom: 32px;
+          margin-bottom: 24px;
         }
         .auth-tab-btn {
           background: none;
@@ -652,6 +1044,31 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           height: 2px;
           background-color: var(--color-ink);
         }
+        
+        .auth-sub-tabs {
+          display: flex;
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+        .sub-tab-btn {
+          background: var(--color-soft-cloud);
+          border: 1px solid var(--color-hairline-soft);
+          padding: 6px 12px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          color: var(--color-ink);
+          border-radius: 4px;
+          transition: all 0.2s ease;
+        }
+        .sub-tab-btn.active {
+          background: var(--color-ink);
+          color: #ffffff;
+          border-color: var(--color-ink);
+        }
+
         .auth-form-title {
           font-size: 20px;
           font-weight: 700;
@@ -676,6 +1093,46 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           margin-bottom: 24px;
           font-weight: 600;
           font-size: 13px;
+        }
+        .auth-success-alert {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          color: var(--color-success); 
+          background-color: #f4fbf7; 
+          padding: 12px 16px; 
+          border: 1px solid #e1f5eb;
+          margin-bottom: 24px;
+          font-weight: 600;
+          font-size: 13px;
+        }
+        .google-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          height: 48px;
+          border: 1px solid var(--color-hairline-soft);
+          background: #ffffff;
+          color: var(--color-ink);
+          font-weight: 600;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+        }
+        .google-btn:hover {
+          background: var(--color-soft-cloud);
+          border-color: var(--color-ink);
+        }
+        .google-icon {
+          width: 18px;
+          height: 18px;
+        }
+        #recaptcha-container {
+          display: none;
         }
         @keyframes spin {
           100% { transform: rotate(360deg); }
