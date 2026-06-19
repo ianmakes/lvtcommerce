@@ -4086,7 +4086,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         paymentMethod: 'Paystack',
                         shippingFee: 0,
                         taxAmount: 0,
-                        orderStatus: 'processing',
+                        orderStatus: 'Paid',
                         createdAt: new Date().toISOString(),
                       };
 
