@@ -8,6 +8,7 @@ import {
   MultiFactorResolver, 
   MultiFactorError,
   GoogleAuthProvider,
+  FacebookAuthProvider,
   signInWithPopup,
   RecaptchaVerifier,
   signInWithPhoneNumber,
@@ -173,6 +174,54 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
         return;
       }
       setErrorMsg(error.message || "Google Sign-In failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Facebook Sign-In
+  const handleFacebookSignIn = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const provider = new FacebookAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user is logging in or if we need to prevent duplicates
+      const userProfile = await getBuyerProfile(user.uid);
+      const isNew = !userProfile;
+      if (!userProfile) {
+        // Create initial profile for Facebook user
+        const initialProfile = {
+          uid: user.uid,
+          fullName: user.displayName || 'Facebook User',
+          email: user.email || '',
+          phone: user.phoneNumber || '',
+          address: '',
+          notifyEmail: true,
+          notifySms: true,
+          notifyPromos: true,
+          role: 'customer'
+        };
+        await saveBuyerProfile(initialProfile);
+      }
+      onSuccess(isNew);
+    } catch (error: any) {
+      console.error("Facebook Sign-In error:", error);
+      const firebaseError = error as { code?: string; message?: string };
+      if (firebaseError.code === 'auth/multi-factor-auth-required') {
+        const resolver = getMultiFactorResolver(auth, error as MultiFactorError);
+        setMfaResolver(resolver);
+        setShowMfaChallenge(true);
+        setMfaChallengeType('totp');
+        return;
+      }
+      let msg = error.message || "Facebook Sign-In failed.";
+      if (firebaseError.code === 'auth/account-exists-with-different-credential') {
+        msg = "An account already exists with the same email address but different sign-in credentials. Please Sign In using Google or Email/Password.";
+      }
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -939,7 +988,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                 </form>
               )}
 
-              {/* Premium Google Sign-In Button */}
+              {/* Premium Google & Facebook Sign-In Buttons */}
               {authMethod !== 'forgot' && (
                 <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -948,20 +997,36 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                     <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-hairline-soft)' }} />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleGoogleSignIn}
-                    className="google-btn"
-                    disabled={loading}
-                  >
-                    <svg className="google-icon" viewBox="0 0 24 24">
-                      <path fill="#EA4335" d="M12 5.04c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 1.84 14.93 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.85 3C6.31 7.55 8.94 5.04 12 5.04z" />
-                      <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.98 3.74-4.9 3.74-8.53z" />
-                      <path fill="#FBBC05" d="M5.35 14.73c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28l-3.85-3C.72 8.79 0 10.31 0 12s.72 3.21 1.5 4.82l3.85-3.09z" />
-                      <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.02.68-2.33 1.09-4.28 1.09-3.06 0-5.69-2.51-6.65-5.46l-3.85 3C3.4 20.35 7.35 23 12 23z" />
-                    </svg>
-                    <span>Google Secure Login</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      className="google-btn"
+                      disabled={loading}
+                      style={{ flex: 1 }}
+                    >
+                      <svg className="google-icon" viewBox="0 0 24 24">
+                        <path fill="#EA4335" d="M12 5.04c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 1.84 14.93 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.85 3C6.31 7.55 8.94 5.04 12 5.04z" />
+                        <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.98 3.74-4.9 3.74-8.53z" />
+                        <path fill="#FBBC05" d="M5.35 14.73c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28l-3.85-3C.72 8.79 0 10.31 0 12s.72 3.21 1.5 4.82l3.85-3.09z" />
+                        <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.02.68-2.33 1.09-4.28 1.09-3.06 0-5.69-2.51-6.65-5.46l-3.85 3C3.4 20.35 7.35 23 12 23z" />
+                      </svg>
+                      <span>Google</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleFacebookSignIn}
+                      className="facebook-btn"
+                      disabled={loading}
+                      style={{ flex: 1 }}
+                    >
+                      <svg viewBox="0 0 24 24" style={{ width: '18px', height: '18px', marginRight: '4px' }}>
+                        <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                      </svg>
+                      <span>Facebook</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1176,6 +1241,28 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
           border-radius: 8px !important;
         }
         .google-btn:hover {
+          background: var(--color-soft-cloud);
+          border-color: var(--color-ink);
+        }
+        .facebook-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          height: 48px;
+          border: 1px solid var(--color-hairline-soft);
+          background: #ffffff;
+          color: var(--color-ink);
+          font-weight: 600;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          width: 100%;
+          border-radius: 8px !important;
+        }
+        .facebook-btn:hover {
           background: var(--color-soft-cloud);
           border-color: var(--color-ink);
         }

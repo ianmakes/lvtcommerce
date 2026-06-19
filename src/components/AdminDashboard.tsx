@@ -27,6 +27,7 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
 import { compileEmailTemplate, sendOrderStatusEmail, sendTestEmail } from '../utils/emailService';
+import { sendWhatsappMessage, sendTestWhatsapp, compileWhatsappMessage } from '../utils/whatsappService';
 
 interface AdminDashboardProps {
   settings: ShopSettings;
@@ -105,7 +106,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/newsletter') activeTab = 'newsletter';
 
   // Derive settingsSubTab from URL path
-  let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' | 'receipt' = 'general';
+  let settingsSubTab: 'general' | 'profile' | 'smtp' | 'payment' | 'rbac' | 'audit' | 'shipping' | 'tax' | 'shoppage' | 'receipt' | 'sms' = 'general';
   if (path === '/dashboard/settings/profile') settingsSubTab = 'profile';
   else if (path === '/dashboard/settings/smtp') settingsSubTab = 'smtp';
   else if (path === '/dashboard/settings/payment') settingsSubTab = 'payment';
@@ -115,6 +116,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   else if (path === '/dashboard/settings/tax') settingsSubTab = 'tax';
   else if (path === '/dashboard/settings/shoppage') settingsSubTab = 'shoppage';
   else if (path === '/dashboard/settings/receipt') settingsSubTab = 'receipt';
+  else if (path === '/dashboard/settings/sms') settingsSubTab = 'sms';
 
   // Derive cmsSubTab from URL path
   let cmsSubTab: 'homepage' | 'shoppage' | 'pages' = 'homepage';
@@ -145,6 +147,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [testEmailAddress, setTestEmailAddress] = useState('');
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [testEmailStatus, setTestEmailStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Test WhatsApp delivery states
+  const [testWhatsappPhone, setTestWhatsappPhone] = useState('');
+  const [isSendingTestWhatsapp, setIsSendingTestWhatsapp] = useState(false);
+  const [testWhatsappStatus, setTestWhatsappStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // 2FA state variables
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
@@ -1961,13 +1968,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       await updateOrderStatus(orderId, status, paymentStatus);
 
-      // Trigger status update email
+      // Trigger status update email & WhatsApp
       const order = orders.find(o => o.id === orderId);
       if (order) {
         try {
           await sendOrderStatusEmail(order, localSettings, status);
         } catch (mailErr) {
           console.error("Failed to send status update email:", mailErr);
+        }
+        try {
+          await sendWhatsappMessage(order, localSettings, 'status_updated', status);
+        } catch (waErr) {
+          console.error("Failed to send status update WhatsApp notification:", waErr);
         }
       }
 
@@ -2091,6 +2103,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setTestEmailStatus({ type: 'error', message: `Delivery failed: ${err.message || String(err)}` });
     } finally {
       setIsSendingTestEmail(false);
+    }
+  };
+
+  // Send Test WhatsApp Delivery Handler
+  const handleSendTestWhatsappClick = async () => {
+    if (!testWhatsappPhone || testWhatsappPhone.trim().length < 8) {
+      setTestWhatsappStatus({ type: 'error', message: 'Please enter a valid phone number (with country code, e.g. +254712345678).' });
+      return;
+    }
+    
+    setIsSendingTestWhatsapp(true);
+    setTestWhatsappStatus(null);
+    
+    try {
+      await sendTestWhatsapp(testWhatsappPhone.trim(), localSettings);
+      setTestWhatsappStatus({ type: 'success', message: `Test WhatsApp message sent to ${testWhatsappPhone.trim()} successfully!` });
+    } catch (err: any) {
+      console.error(err);
+      setTestWhatsappStatus({ type: 'error', message: `Delivery failed: ${err.message || String(err)}` });
+    } finally {
+      setIsSendingTestWhatsapp(false);
     }
   };
 
@@ -3095,6 +3128,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                   <button
                     type="button"
+                    className={`wp-admin-menu-item ${settingsSubTab === 'sms' ? 'active' : ''}`}
+                    onClick={() => navigate('/dashboard/settings/sms')}
+                    style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'sms' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'sms' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
+                  >
+                    SMS & WhatsApp Settings
+                  </button>
+
+                  <button
+                    type="button"
                     className={`wp-admin-menu-item ${settingsSubTab === 'receipt' ? 'active' : ''}`}
                     onClick={() => navigate('/dashboard/settings/receipt')}
                     style={{ textAlign: 'left', padding: '10px 15px', border: 'none', background: settingsSubTab === 'receipt' ? '#f0f0f1' : 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'block', width: '100%', borderRadius: 0, borderLeft: settingsSubTab === 'receipt' ? '4px solid #2271b1' : '4px solid transparent', color: 'var(--color-ink)' }}
@@ -4024,6 +4066,267 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                           <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
                           <button type="submit" className="wp-button-primary">Save SMTP & Template Settings</button>
+                        </form>
+                      );
+                    })()}
+
+                    {/* SUB-TAB: SMS & WhatsApp Settings */}
+                    {settingsSubTab === 'sms' && (() => {
+                      const mockOrderForPreview: Order = {
+                        id: 'ord-8294',
+                        customerName: 'Samuel Wambui',
+                        customerPhone: '0712345678',
+                        customerAddress: 'Flat 4, Palms Court, Kilimani, Nairobi, Kenya',
+                        items: [
+                          { productId: 'prod-cane', name: 'GC-01 Carbon Fiber Walking Staff', variantDetails: 'Handle Grip: Premium Cork, Color: Stealth Black', price: 18500, quantity: 1 },
+                          { productId: 'prod-magnify', name: 'GC-04 Ultra-Thin LED Page Reader', variantDetails: 'Standard Option', price: 8500, quantity: 1 }
+                        ],
+                        totalAmount: 27000,
+                        paymentStatus: 'Paid',
+                        paymentMethod: 'Paystack',
+                        shippingFee: 0,
+                        taxAmount: 0,
+                        orderStatus: 'processing',
+                        createdAt: new Date().toISOString(),
+                      };
+
+                      const defaultCreatedTemplate = `Hello {{customerName}},\n\nYour order #{{orderId}} at {{shopName}} has been placed successfully! 🎉\n\n*Order Summary:*\n{{items}}\n\n*Total Amount:* {{totalAmount}}\n*Shipping Address:* {{customerAddress}}\n\nThank you for shopping with us!`;
+
+                      const defaultUpdatedTemplate = `Hello {{customerName}},\n\nThe status of your order #{{orderId}} at {{shopName}} has been updated to: *{{orderStatus}}*.\n\n*Total Amount:* {{totalAmount}}\n\nIf you have any questions, feel free to reply to this message.`;
+
+                      const createdTemplate = localSettings.whatsappTemplateOrderCreated || defaultCreatedTemplate;
+                      const updatedTemplate = localSettings.whatsappTemplateStatusUpdated || defaultUpdatedTemplate;
+
+                      const compiledCreated = compileWhatsappMessage(createdTemplate, mockOrderForPreview, localSettings);
+                      const compiledUpdated = compileWhatsappMessage(updatedTemplate, mockOrderForPreview, localSettings);
+
+                      return (
+                        <form onSubmit={handleSaveSettingsSubmit}>
+                          <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase' }}>WhatsApp & SMS Settings</h2>
+                          <p style={{ fontSize: '13px', color: '#50575e', margin: '0 0 20px' }}>
+                            Configure your Meta WhatsApp Cloud API credentials to automatically deliver order receipts and status updates directly to your customer's WhatsApp numbers.
+                          </p>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px', alignItems: 'start' }}>
+                            {/* LEFT COLUMN: Meta API Credentials */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              
+                              <div style={{ background: '#f6f7f7', padding: '16px', border: '1px solid #c3c4c7', borderRadius: '4px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
+                                  <input 
+                                    type="checkbox"
+                                    checked={!!localSettings.whatsappEnabled}
+                                    onChange={e => setLocalSettings({ ...localSettings, whatsappEnabled: e.target.checked })}
+                                    style={{ margin: 0, width: '18px', height: '18px' }}
+                                  />
+                                  <span>Enable WhatsApp Order Notifications</span>
+                                </label>
+                                <p style={{ margin: '8px 0 0 28px', fontSize: '12px', color: '#646970' }}>
+                                  When enabled, clients will receive automated WhatsApp messages upon checkout completion and status updates.
+                                </p>
+                              </div>
+
+                              <div className="form-group">
+                                <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+                                  Meta API Access Token (Permanent Token)
+                                </label>
+                                <input 
+                                  type="password"
+                                  placeholder="EAAG..."
+                                  value={localSettings.whatsappAccessToken || ''}
+                                  onChange={e => setLocalSettings({ ...localSettings, whatsappAccessToken: e.target.value })}
+                                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #c3c4c7', borderRadius: '0px' }}
+                                />
+                                <span className="description" style={{ fontSize: '12px', color: '#646970', marginTop: '4px', display: 'block' }}>
+                                  Meta Graph API System User Token with <code>whatsapp_business_messaging</code> permission.
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                <div className="form-group">
+                                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+                                    WhatsApp Phone Number ID
+                                  </label>
+                                  <input 
+                                    type="text"
+                                    placeholder="e.g. 109283478129384"
+                                    value={localSettings.whatsappPhoneNumberId || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, whatsappPhoneNumberId: e.target.value })}
+                                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #c3c4c7', borderRadius: '0px' }}
+                                  />
+                                  <span className="description" style={{ fontSize: '12px', color: '#646970', marginTop: '4px', display: 'block' }}>
+                                    Found in Meta Developer App WhatsApp Getting Started tab.
+                                  </span>
+                                </div>
+                                <div className="form-group">
+                                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+                                    WhatsApp Business Account ID
+                                  </label>
+                                  <input 
+                                    type="text"
+                                    placeholder="e.g. 293847102938471"
+                                    value={localSettings.whatsappBusinessAccountId || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, whatsappBusinessAccountId: e.target.value })}
+                                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #c3c4c7', borderRadius: '0px' }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div style={{ borderTop: '1px solid #c3c4c7', paddingTop: '20px', marginTop: '10px' }}>
+                                <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 16px', color: '#1d2327', textTransform: 'uppercase' }}>
+                                  Message Templates
+                                </h3>
+                                
+                                <div className="form-group" style={{ marginBottom: '20px' }}>
+                                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+                                    Order Created WhatsApp Template
+                                  </label>
+                                  <textarea 
+                                    rows={8}
+                                    value={localSettings.whatsappTemplateOrderCreated || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, whatsappTemplateOrderCreated: e.target.value })}
+                                    placeholder={defaultCreatedTemplate}
+                                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #c3c4c7', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.5 }}
+                                  />
+                                  <span style={{ fontSize: '12px', color: '#646970', marginTop: '4px', display: 'block' }}>
+                                    Supported Tags: <code>{"{{shopName}}"}</code>, <code>{"{{orderId}}"}</code>, <code>{"{{customerName}}"}</code>, <code>{"{{items}}"}</code>, <code>{"{{totalAmount}}"}</code>, <code>{"{{customerAddress}}"}</code>, <code>{"{{customerPhone}}"}</code>
+                                  </span>
+                                </div>
+
+                                <div className="form-group">
+                                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>
+                                    Order Status Updated WhatsApp Template
+                                  </label>
+                                  <textarea 
+                                    rows={6}
+                                    value={localSettings.whatsappTemplateStatusUpdated || ''}
+                                    onChange={e => setLocalSettings({ ...localSettings, whatsappTemplateStatusUpdated: e.target.value })}
+                                    placeholder={defaultUpdatedTemplate}
+                                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #c3c4c7', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.5 }}
+                                  />
+                                  <span style={{ fontSize: '12px', color: '#646970', marginTop: '4px', display: 'block' }}>
+                                    Supported Tags: <code>{"{{shopName}}"}</code>, <code>{"{{orderId}}"}</code>, <code>{"{{customerName}}"}</code>, <code>{"{{orderStatus}}"}</code>, <code>{"{{totalAmount}}"}</code>, <code>{"{{customerPhone}}"}</code>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Test WhatsApp Section */}
+                              <div style={{ marginTop: '20px', borderTop: '1px solid #c3c4c7', paddingTop: '20px' }}>
+                                <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 10px', color: '#1d2327', textTransform: 'uppercase' }}>
+                                  Test WhatsApp Notification
+                                </h3>
+                                <p style={{ fontSize: '12px', color: '#646970', margin: '0 0 15px' }}>
+                                  Send a test connection message to verify your Meta Cloud API setup. Make sure the recipient number includes the country code (e.g. 254712345678).
+                                </p>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', maxWidth: '500px' }}>
+                                  <input 
+                                    type="text"
+                                    placeholder="e.g. +254712345678"
+                                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #c3c4c7', fontSize: '13px' }}
+                                    value={testWhatsappPhone}
+                                    onChange={e => setTestWhatsappPhone(e.target.value)}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="wp-button-secondary"
+                                    disabled={isSendingTestWhatsapp}
+                                    onClick={handleSendTestWhatsappClick}
+                                    style={{ padding: '8px 16px', fontSize: '13px', minHeight: '36px', height: '36px', display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                  >
+                                    <Send size={14} />
+                                    {isSendingTestWhatsapp ? 'Sending...' : 'Send Test Msg'}
+                                  </button>
+                                </div>
+                                {testWhatsappStatus && (
+                                  <div style={{ 
+                                    marginTop: '10px', 
+                                    padding: '10px 14px', 
+                                    borderRadius: '4px', 
+                                    fontSize: '13px', 
+                                    borderLeft: '4px solid',
+                                    borderColor: testWhatsappStatus.type === 'success' ? '#46b450' : '#d63638',
+                                    background: testWhatsappStatus.type === 'success' ? '#ecf7ed' : '#fcf0f1',
+                                    color: testWhatsappStatus.type === 'success' ? '#2e6b33' : '#a02622'
+                                  }}>
+                                    {testWhatsappStatus.message}
+                                  </div>
+                                )}
+                              </div>
+
+                            </div>
+
+                            {/* RIGHT COLUMN: Live WhatsApp Message Previews */}
+                            <div style={{ position: 'sticky', top: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              
+                              {/* Order Created Preview */}
+                              <div>
+                                <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#646970', margin: '0 0 8px' }}>
+                                  Order Placed Message Preview
+                                </h4>
+                                <div style={{ 
+                                  background: '#efeae2', 
+                                  backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
+                                  padding: '20px', 
+                                  borderRadius: '8px', 
+                                  border: '1px solid #d3d3d3',
+                                  fontFamily: 'sans-serif'
+                                }}>
+                                  <div style={{ 
+                                    background: '#ffffff', 
+                                    padding: '12px', 
+                                    borderRadius: '8px', 
+                                    boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
+                                    maxWidth: '90%',
+                                    fontSize: '13px',
+                                    lineHeight: '1.4',
+                                    whiteSpace: 'pre-wrap',
+                                    color: '#303030'
+                                  }}>
+                                    {compiledCreated}
+                                    <div style={{ textAlign: 'right', fontSize: '10px', color: '#909090', marginTop: '4px' }}>
+                                      10:00 AM
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Order Status Update Preview */}
+                              <div>
+                                <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#646970', margin: '0 0 8px' }}>
+                                  Status Update Message Preview
+                                </h4>
+                                <div style={{ 
+                                  background: '#efeae2', 
+                                  backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
+                                  padding: '20px', 
+                                  borderRadius: '8px', 
+                                  border: '1px solid #d3d3d3',
+                                  fontFamily: 'sans-serif'
+                                }}>
+                                  <div style={{ 
+                                    background: '#ffffff', 
+                                    padding: '12px', 
+                                    borderRadius: '8px', 
+                                    boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
+                                    maxWidth: '90%',
+                                    fontSize: '13px',
+                                    lineHeight: '1.4',
+                                    whiteSpace: 'pre-wrap',
+                                    color: '#303030'
+                                  }}>
+                                    {compiledUpdated}
+                                    <div style={{ textAlign: 'right', fontSize: '10px', color: '#909090', marginTop: '4px' }}>
+                                      10:05 AM
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
+                          </div>
+
+                          <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                          <button type="submit" className="wp-button-primary">Save WhatsApp & SMS Settings</button>
                         </form>
                       );
                     })()}

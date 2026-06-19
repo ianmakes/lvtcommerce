@@ -192,6 +192,14 @@ export interface ShopSettings {
   emailTemplateStatusColor?: string;
   emailTemplateStatusIncludeItems?: boolean;
 
+  // WhatsApp Meta Settings
+  whatsappEnabled?: boolean;
+  whatsappAccessToken?: string;
+  whatsappPhoneNumberId?: string;
+  whatsappBusinessAccountId?: string;
+  whatsappTemplateOrderCreated?: string;
+  whatsappTemplateStatusUpdated?: string;
+
   // CMS Homepage
   cmsBadge1Title?: string;
   cmsBadge1Desc?: string;

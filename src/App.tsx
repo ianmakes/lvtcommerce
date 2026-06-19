@@ -25,6 +25,7 @@ import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as User
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass, CustomPage } from './types';
 import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist, migrateSettings, getCustomPage } from './db';
 import { sendOrderEmails } from './utils/emailService';
+import { sendWhatsappMessage } from './utils/whatsappService';
 
 import './App.css';
 
@@ -708,11 +709,16 @@ function App() {
     try {
       await addOrder(order);
       
-      // Dispatch order confirmation and alert emails
+      // Dispatch order confirmation and alert emails and WhatsApp message
       try {
         await sendOrderEmails(order, settings);
       } catch (mailErr) {
         console.error("Failed to send order confirmation emails:", mailErr);
+      }
+      try {
+        await sendWhatsappMessage(order, settings, 'created');
+      } catch (waErr) {
+        console.error("Failed to send order WhatsApp notification:", waErr);
       }
 
       setActiveOrder(order);
