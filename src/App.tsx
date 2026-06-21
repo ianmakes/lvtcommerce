@@ -135,12 +135,12 @@ function App() {
   const [roleLoading, setRoleLoading] = useState(false);
   const [currentUserAvatarUrl, setCurrentUserAvatarUrl] = useState<string | null>(null);
 
-  const isAdminAuthenticated = currentUser !== null && 
+  const isAdminAuthenticated = !!(currentUser !== null && 
     (currentUser.uid === SUPER_ADMIN_UID || 
      currentUserRole === 'admin' || 
      currentUserRole === 'shop_manager' || 
      currentUserRole === 'contributor' ||
-     (currentUserRole && settings?.customRoles && settings.customRoles[currentUserRole] !== undefined));
+     (!!currentUserRole && !!settings?.customRoles && settings.customRoles[currentUserRole] !== undefined)));
 
   // Wishlist and UI states
   const [wishlist, setWishlist] = useState<string[]>(() => {
