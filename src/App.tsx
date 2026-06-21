@@ -20,7 +20,7 @@ import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { HomePage } from './components/HomePage';
 import { useLocation, navigate, Link } from './Router';
-import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon, Heart } from 'lucide-react';
+import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon, Heart, ShoppingBag, Smartphone, X } from 'lucide-react';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass, CustomPage } from './types';
 import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist, migrateSettings, getCustomPage } from './db';

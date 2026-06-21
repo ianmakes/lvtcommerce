@@ -3,7 +3,7 @@ import { User as FirebaseUser, updateProfile, updatePassword, reauthenticateWith
 import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X, Printer, User } from 'lucide-react';
 import { Order, BuyerProfile, Product, CartItem, ShopSettings } from '../types';
 import { getOrders, getBuyerProfile, saveBuyerProfile, subscribeToNewsletter, deleteNewsletterSubscriber, getNewsletterSubscribers } from '../db';
-import { navigate } from '../Router';
+import { navigate, Link } from '../Router';
 import { db } from '../firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { QRCodeSVG } from 'qrcode.react';
