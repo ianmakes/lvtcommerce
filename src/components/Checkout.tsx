@@ -67,6 +67,13 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [demoOtpValue, setDemoOtpValue] = useState('');
   const [demoOtpError, setDemoOtpError] = useState('');
   const [demoRefCode, setDemoRefCode] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 767);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Prefill buyer details from profile when logged in
   useEffect(() => {
@@ -745,22 +752,24 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </div>
           </div>
 
-          <button 
-            type="button" 
-            onClick={handlePlaceOrder}
-            disabled={paystackLoading || (!codEnabled && !paystackEnabled)}
-            className="btn btn-primary btn-full" 
-            style={{ marginTop: '32px', height: '48px', minHeight: '48px', fontSize: '15px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-          >
-            {paystackLoading ? (
-              <>
-                <Loader2 className="spinner" size={18} />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <span>Place Order</span>
-            )}
-          </button>
+          {!isMobile && (
+            <button 
+              type="button" 
+              onClick={handlePlaceOrder}
+              disabled={paystackLoading || (!codEnabled && !paystackEnabled)}
+              className="btn btn-primary btn-full" 
+              style={{ marginTop: '32px', height: '48px', minHeight: '48px', fontSize: '15px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            >
+              {paystackLoading ? (
+                <>
+                  <Loader2 className="spinner" size={18} />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <span>Place Order</span>
+              )}
+            </button>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--text-mute)', fontSize: '12px', marginTop: '16px' }}>
             <ShieldAlert size={14} />
@@ -980,6 +989,30 @@ export const Checkout: React.FC<CheckoutProps> = ({
             </div>
 
           </div>
+        </div>
+      )}
+
+      {isMobile && (
+        <div className="mobile-sticky-checkout-bar">
+          <div className="mobile-sticky-checkout-bar-details">
+            <span style={{ color: 'var(--text-mute)', fontSize: '13px' }}>Estimated Total:</span>
+            <span className="mobile-sticky-checkout-bar-total">KSh {grandTotal.toLocaleString()}</span>
+          </div>
+          <button 
+            type="button" 
+            onClick={handlePlaceOrder}
+            disabled={paystackLoading || (!codEnabled && !paystackEnabled)}
+            className="btn btn-primary btn-full" 
+          >
+            {paystackLoading ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <Loader2 className="spinner" size={16} />
+                <span>Processing...</span>
+              </span>
+            ) : (
+              <span>Confirm Order</span>
+            )}
+          </button>
         </div>
       )}
 

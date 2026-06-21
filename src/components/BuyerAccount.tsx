@@ -660,6 +660,33 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
               <span>{tab.label}</span>
             </button>
           ))}
+          
+          <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: '1px solid var(--color-hairline-soft)' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-mute)', paddingLeft: '16px', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>
+              More Information
+            </span>
+            <Link 
+              to="/about"
+              className="admin-nav-item"
+              style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+            >
+              <span>About GoldenCare</span>
+            </Link>
+            <Link 
+              to="/policy"
+              className="admin-nav-item"
+              style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+            >
+              <span>Return Policy</span>
+            </Link>
+            <Link 
+              to="/terms"
+              className="admin-nav-item"
+              style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+            >
+              <span>Terms of Use</span>
+            </Link>
+          </div>
         </aside>
 
         {/* Content Panel */}

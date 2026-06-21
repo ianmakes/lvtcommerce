@@ -20,7 +20,7 @@ import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { HomePage } from './components/HomePage';
 import { useLocation, navigate, Link } from './Router';
-import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon } from 'lucide-react';
+import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon, Heart } from 'lucide-react';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass, CustomPage } from './types';
 import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist, migrateSettings, getCustomPage } from './db';
@@ -189,6 +189,7 @@ function App() {
   const [dbShippingZones, setDbShippingZones] = useState<ShippingZone[]>([]);
   const [dbTaxClasses, setDbTaxClasses] = useState<TaxClass[]>([]);
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false);
 
   const handleShowToast = (message: string, type: 'success' | 'warning' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -867,21 +868,154 @@ function App() {
         {/* VIEW A: Storefront */}
         {(path === '/shop' || (path === '/' && isMobile)) && (
           <div>
+            {/* Mobile Homepage Hero & Categories & Banners */}
+            {isMobile && path === '/' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '8px' }}>
+                {/* 1. Mobile Hero Slider */}
+                {slides.length > 0 && (
+                  <div className="homepage-hero-section" style={{ padding: '0', margin: '0 0 8px' }}>
+                    <div className="homepage-slider-container" style={{ height: '180px', borderRadius: '8px', overflow: 'hidden', margin: '0 16px', position: 'relative' }}>
+                      {slides.map((slide, idx) => (
+                        <div
+                          key={slide.id}
+                          className={`homepage-slide ${idx === activeSlide ? 'active' : ''}`}
+                          style={{
+                            display: idx === activeSlide ? 'block' : 'none',
+                            height: '100%',
+                            position: 'relative',
+                            backgroundImage: slide.mediaType !== 'video' ? `linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%), url(${slide.image})` : 'none',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            if (slide.buttonLink.startsWith('http')) {
+                              window.open(slide.buttonLink, '_blank');
+                            } else {
+                              navigate(slide.buttonLink);
+                            }
+                          }}
+                        >
+                          {slide.mediaType === 'video' && slide.videoUrl && (
+                            <div className="slide-video-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', overflow: 'hidden', zIndex: 1 }}>
+                              {getVideoEmbedUrl(slide.videoUrl) ? (
+                                <iframe
+                                  src={getVideoEmbedUrl(slide.videoUrl) || ''}
+                                  className="slide-video-iframe"
+                                  style={{ width: '100%', height: '100%', border: 'none' }}
+                                  allow="autoplay; fullscreen"
+                                  title="slide video"
+                                />
+                              ) : (
+                                <video src={slide.videoUrl} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              )}
+                            </div>
+                          )}
+                          <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px', zIndex: 10, color: '#ffffff' }}>
+                            <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 4px', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>{slide.title}</h2>
+                            <p style={{ fontSize: '11px', margin: '0', opacity: 0.9, textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{slide.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {slides.length > 1 && (
+                        <div className="slider-nav-dots" style={{ bottom: '8px', zIndex: 12, position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px' }}>
+                          {slides.map((_, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              className={`slider-nav-dot ${idx === activeSlide ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); setActiveSlide(idx); }}
+                              style={{ width: '6px', height: '6px', borderRadius: '50%', border: 'none', background: idx === activeSlide ? '#ffffff' : 'rgba(255,255,255,0.4)', padding: 0 }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Categories Circular Row */}
+                <div className="mobile-categories-circle-row">
+                  <div 
+                    className={`mobile-category-circle-item ${selectedCategory === 'All' ? 'active' : ''}`}
+                    onClick={() => { setSelectedCategory('All'); }}
+                  >
+                    <div className="mobile-category-circle-icon">
+                      <Store size={20} />
+                    </div>
+                    <span className="mobile-category-circle-label">All Items</span>
+                  </div>
+                  {dbCategories.map(cat => {
+                    const name = cat.name.toLowerCase();
+                    let icon = <ShoppingBag size={20} />;
+                    if (name.includes('care') || name.includes('health') || name.includes('wellness')) icon = <Heart size={20} />;
+                    else if (name.includes('phone') || name.includes('electronic') || name.includes('accessory')) icon = <Smartphone size={20} />;
+                    else if (name.includes('home')) icon = <Home size={20} />;
+                    
+                    return (
+                      <div 
+                        key={cat.id} 
+                        className={`mobile-category-circle-item ${selectedCategory === cat.name ? 'active' : ''}`}
+                        onClick={() => { setSelectedCategory(cat.name); }}
+                      >
+                        <div className="mobile-category-circle-icon">
+                          {icon}
+                        </div>
+                        <span className="mobile-category-circle-label">{cat.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 3. Sleek Mobile Promo Banner */}
+                {settings.cmsPromoBannerVisible !== false && (
+                  <div style={{ margin: '4px 16px 8px' }}>
+                    <div 
+                      style={{ 
+                        borderRadius: '8px', 
+                        padding: '16px', 
+                        backgroundImage: settings.cmsPromoBannerBgImage ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url(${settings.cmsPromoBannerBgImage})` : 'none',
+                        backgroundColor: settings.cmsPromoBannerBgImage ? 'transparent' : (settings.cmsPromoBannerBgColor || 'var(--color-ink)'),
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        color: settings.cmsPromoBannerTextColor || '#ffffff',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => navigate(settings.cmsPromoBannerBtn1Link || '/shop')}
+                    >
+                      <h3 style={{ fontSize: '13px', fontWeight: 800, margin: '0 0 6px', maxWidth: '85%', lineHeight: 1.4 }}>
+                        {settings.cmsPromoBannerTitle || "Celebrate with Discounts on Selected Accessories!"}
+                      </h3>
+                      <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>{settings.cmsPromoBannerBtn1Text || "Shop Now"}</span>
+                        <span>&rarr;</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Grid Container */}
-            <section className="container section-block" id="products-section">
+            <section className="container section-block" id="products-section" style={{ paddingTop: isMobile && path === '/' ? '0' : undefined }}>
               {/* Breadcrumb */}
-              <nav className="shop-breadcrumb">
-                <Link to="/">Home</Link>
-                <ChevronRight size={12} className="breadcrumb-separator" />
-                <span className="breadcrumb-current">Shop</span>
-              </nav>
+              {!(isMobile && path === '/') && (
+                <nav className="shop-breadcrumb">
+                  <Link to="/">Home</Link>
+                  <ChevronRight size={12} className="breadcrumb-separator" />
+                  <span className="breadcrumb-current">Shop</span>
+                </nav>
+              )}
 
               {/* Page Header */}
-              <div className="shop-page-header">
-                <h1 className="shop-page-title">{settings.cmsShopTitle || "Shop All"}</h1>
-                <p className="shop-page-subtitle">{settings.cmsShopSubtitle || "Explore our curated collection of engineered wellness products."}</p>
-              </div>
+              {!(isMobile && path === '/') && (
+                <div className="shop-page-header">
+                  <h1 className="shop-page-title">{settings.cmsShopTitle || "Shop All"}</h1>
+                  <p className="shop-page-subtitle">{settings.cmsShopSubtitle || "Explore our curated collection of engineered wellness products."}</p>
+                </div>
+              )}
 
               {/* Controls Bar */}
               <div className="store-controls-bar">
@@ -1183,6 +1317,9 @@ function App() {
             orderNote={orderNote}
             onUpdateOrderNote={setOrderNote}
             onShowToast={handleShowToast}
+            wishlist={wishlist}
+            products={products}
+            onAddToCart={handleAddToCart}
           />
         )}
 
@@ -1194,7 +1331,7 @@ function App() {
       </main>
 
       {/* Nike Premium Footer */}
-      {!isDashboardRoute && derivedView !== 'auth' && derivedView !== 'checkout' && derivedView !== 'success' && (
+      {!isMobile && !isDashboardRoute && derivedView !== 'auth' && derivedView !== 'checkout' && derivedView !== 'success' && (
         <footer className="footer">
           <div className="container">
             <div className="footer-columns">
@@ -1244,23 +1381,23 @@ function App() {
         <nav className="mobile-bottom-nav" aria-label="Mobile bottom navigation">
           <button
             type="button"
-            className={`mobile-bottom-nav-item ${derivedView === 'landing' ? 'active' : ''}`}
-            onClick={() => navigate('/')}
+            className={`mobile-bottom-nav-item ${path === '/' ? 'active' : ''}`}
+            onClick={() => { setSelectedCategory('All'); navigate('/'); }}
           >
             <Home size={22} />
             <span className="mobile-bottom-nav-label">Home</span>
           </button>
           <button
             type="button"
-            className={`mobile-bottom-nav-item ${derivedView === 'store' || derivedView === 'product-details' ? 'active' : ''}`}
-            onClick={() => navigate('/shop')}
+            className={`mobile-bottom-nav-item ${categoryDrawerOpen ? 'active' : ''}`}
+            onClick={() => setCategoryDrawerOpen(true)}
           >
-            <Store size={22} />
-            <span className="mobile-bottom-nav-label">Shop</span>
+            <List size={22} />
+            <span className="mobile-bottom-nav-label">Categories</span>
           </button>
           <button
             type="button"
-            className={`mobile-bottom-nav-item ${path === '/cart' || derivedView === 'checkout' ? 'active' : ''}`}
+            className={`mobile-bottom-nav-item ${path === '/cart' ? 'active' : ''}`}
             onClick={() => navigate('/cart')}
             style={{ position: 'relative' }}
           >
@@ -1274,13 +1411,99 @@ function App() {
           </button>
           <button
             type="button"
-            className={`mobile-bottom-nav-item ${derivedView === 'account' || derivedView === 'auth' ? 'active' : ''}`}
+            className={`mobile-bottom-nav-item ${path.includes('/wishlist') ? 'active' : ''}`}
+            onClick={() => navigate(currentUser ? '/account/wishlist' : '/auth')}
+          >
+            <Heart size={22} />
+            <span className="mobile-bottom-nav-label">Wishlist</span>
+          </button>
+          <button
+            type="button"
+            className={`mobile-bottom-nav-item ${derivedView === 'account' && !path.includes('/wishlist') ? 'active' : ''}`}
             onClick={() => navigate(currentUser ? '/account' : '/auth')}
           >
             <UserIcon size={22} />
             <span className="mobile-bottom-nav-label">Account</span>
           </button>
         </nav>
+      )}
+
+      {/* Mobile Categories Slide-up Drawer */}
+      {categoryDrawerOpen && (
+        <>
+          <div 
+            className="mobile-drawer-overlay open" 
+            onClick={() => setCategoryDrawerOpen(false)}
+            style={{ zIndex: 3000, display: 'block', opacity: 1, visibility: 'visible' }}
+          />
+          <div 
+            className="mobile-drawer open" 
+            style={{ 
+              zIndex: 3100, 
+              height: 'auto', 
+              maxHeight: '70vh', 
+              bottom: 0, 
+              top: 'auto', 
+              borderTopLeftRadius: '16px', 
+              borderTopRightRadius: '16px',
+              paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+              transform: 'translateY(0)',
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              backgroundColor: '#ffffff',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 -4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            <div className="mobile-drawer-header" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <LayoutGrid size={18} />
+                <span style={{ fontSize: '15px', fontWeight: 800, textTransform: 'uppercase' }}>Categories</span>
+              </div>
+              <button 
+                type="button" 
+                className="mobile-drawer-close"
+                onClick={() => setCategoryDrawerOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                className={`mobile-drawer-link ${selectedCategory === 'All' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedCategory('All');
+                  setCategoryDrawerOpen(false);
+                  navigate('/shop');
+                }}
+                style={{ padding: '12px 16px', borderRadius: '8px', textAlign: 'left', background: selectedCategory === 'All' ? 'var(--color-ink)' : 'var(--color-soft-cloud)', color: selectedCategory === 'All' ? '#ffffff' : 'var(--color-ink)', border: 'none', fontWeight: 600, fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+              >
+                <Store size={18} />
+                <span>All Products</span>
+              </button>
+              {dbCategories.map(cat => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={`mobile-drawer-link ${selectedCategory === cat.name ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedCategory(cat.name);
+                    setCategoryDrawerOpen(false);
+                    navigate('/shop');
+                  }}
+                  style={{ padding: '12px 16px', borderRadius: '8px', textAlign: 'left', background: selectedCategory === cat.name ? 'var(--color-ink)' : 'var(--color-soft-cloud)', color: selectedCategory === cat.name ? '#ffffff' : 'var(--color-ink)', border: 'none', fontWeight: 600, fontSize: '14px', width: '100%', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+                >
+                  <ShoppingBag size={18} />
+                  <span>{cat.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Sleek Custom Toast Notifications Overlay */}

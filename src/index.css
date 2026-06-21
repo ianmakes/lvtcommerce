@@ -4619,3 +4619,311 @@ tr:hover .row-actions {
   transform: scale(1.05) !important;
 }
 
+
+/* ==========================================================================
+   Premium Mobile App Layout & Responsiveness Overrides
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  /* Ensure 2-column grid for products display on mobile */
+  .product-grid,
+  .explore-products-grid,
+  .deals-products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    padding: 8px !important;
+  }
+
+  /* Compress cards for mobile view */
+  .explore-product-card, .prod-card {
+    border-radius: 6px !important;
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+
+  .explore-img-container {
+    aspect-ratio: 1 !important;
+    border-radius: 4px !important;
+  }
+
+  .explore-metadata, .prod-card-metadata {
+    padding: 4px !important;
+  }
+
+  .explore-title, .prod-card-title {
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+    margin: 4px 0 !important;
+    height: 32px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    white-space: normal !important;
+  }
+
+  .explore-price, .explore-price-sale, .price-regular, .price-sale {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+  }
+
+  .explore-price-original, .price-original {
+    font-size: 11px !important;
+    margin-left: 4px !important;
+  }
+
+  .explore-product-card .swatch-dots,
+  .deal-product-card .swatch-dots,
+  .prod-card .swatch-dots {
+    display: none !important; /* Hide on mobile to save vertical space */
+  }
+
+  .prod-card-category, .prod-card-description, .prod-card-view-link {
+    display: none !important; /* Hide extra info to compress card */
+  }
+
+  /* Hide desktop footers on the mobile app */
+  footer.footer {
+    display: none !important;
+  }
+
+  /* Notch aware mobile header */
+  header {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    background-color: #ffffff !important;
+  }
+
+  .primary-nav {
+    height: 56px !important;
+    padding-top: 0 !important;
+  }
+
+  /* Bottom sticky menu notches safe area */
+  .mobile-bottom-nav {
+    height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    background-color: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05) !important;
+    align-items: center !important;
+    display: flex !important;
+  }
+
+  .mobile-bottom-nav-item {
+    padding: 4px 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .mobile-bottom-nav-badge {
+    top: 4px !important;
+    right: 20% !important;
+    background-color: var(--color-sale) !important;
+    color: #ffffff !important;
+    font-size: 9px !important;
+    padding: 1px 4px !important;
+    min-width: 12px !important;
+    height: 12px !important;
+    border-radius: 6px !important;
+  }
+
+  /* Safe Area margins for general view containers */
+  main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Premium mobile custom header components */
+  .mobile-app-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 56px;
+    padding: 0 16px;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--color-hairline-soft);
+    background-color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 1200;
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(56px + env(safe-area-inset-top, 0px));
+  }
+
+  .mobile-app-header-back {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-ink);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-app-header-search-wrap {
+    flex-grow: 1;
+    margin: 0 12px;
+    position: relative;
+  }
+
+  .mobile-app-header-search-input {
+    width: 100%;
+    height: 36px;
+    background-color: var(--color-soft-cloud);
+    border: 1px solid transparent;
+    border-radius: 18px;
+    padding: 0 16px 0 36px;
+    font-size: 13px;
+    color: var(--color-ink);
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .mobile-app-header-search-input:focus {
+    background-color: #ffffff;
+    border-color: var(--color-hairline);
+  }
+
+  .mobile-app-header-right-icon {
+    position: relative;
+    color: var(--color-ink);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+  }
+
+  /* Categories circular row scrollable */
+  .mobile-categories-circle-row {
+    display: flex !important;
+    gap: 16px;
+    overflow-x: auto;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-categories-circle-row::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-category-circle-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 64px;
+    cursor: pointer;
+  }
+  .mobile-category-circle-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: var(--color-soft-cloud);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+    border: 1px solid var(--color-hairline-soft);
+    color: var(--color-ink);
+  }
+  .mobile-category-circle-item.active .mobile-category-circle-icon {
+    background-color: var(--color-ink);
+    color: #ffffff;
+    border-color: var(--color-ink);
+  }
+  .mobile-category-circle-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--color-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+  }
+
+  /* Horizontal scrolling sections */
+  .mobile-horizontal-scroll-list {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 8px 16px 16px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-horizontal-scroll-list::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-horizontal-scroll-list .explore-product-card,
+  .mobile-horizontal-scroll-list .deal-product-card {
+    width: 140px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Compress other pages on mobile */
+  .cart-page-layout.responsive-grid-main {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .cart-page-layout.responsive-grid-main aside {
+    order: -1 !important;
+    position: static !important;
+    padding: 20px !important;
+  }
+
+  /* Collapsible address / delivery sections */
+  .mobile-flat-card {
+    background: #ffffff;
+    border: 1px solid var(--color-hairline-soft) !important;
+    border-radius: 8px !important;
+    padding: 16px !important;
+    margin-bottom: 12px;
+  }
+
+  /* Sticky orange confirm order button on mobile checkout */
+  .mobile-sticky-checkout-bar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background-color: #ffffff !important;
+    border-top: 1px solid var(--color-hairline-soft) !important;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 2000 !important;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.08) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .mobile-sticky-checkout-bar-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .mobile-sticky-checkout-bar-total {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-sale);
+  }
+
+  .mobile-sticky-checkout-bar .btn-primary {
+    background-color: #f68b1e !important; /* Orange confirm order color */
+    border-color: #f68b1e !important;
+    color: #ffffff !important;
+    height: 48px !important;
+    font-weight: 700 !important;
+    border-radius: 4px !important;
+    text-transform: uppercase;
+  }
+}

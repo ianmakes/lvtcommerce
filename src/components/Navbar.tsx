@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ShoppingCart, ShoppingBag, Search, Heart, Menu, X, Home, Store, Info, User, LogOut, Shield, LayoutDashboard } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, Search, Heart, Menu, X, Home, Store, Info, User, LogOut, Shield, LayoutDashboard, ArrowLeft } from 'lucide-react';
 import { ShopSettings, CartItem, Product, Category } from '../types';
 import { Link, navigate } from '../Router';
 
@@ -37,6 +37,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 767);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Suggestions filtering
   const getSuggestions = () => {
@@ -90,198 +97,344 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       <header style={{ width: '100%' }}>
-        {/* 1. Nike Utility Bar */}
-        <div className="utility-bar">
-          <div className="nav-inner-container">
-            <span style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
-              FREE SHIPPING ON ORDERS OVER KSh 30,000
-            </span>
-            <div className="utility-bar-links">
-              <Link to="/shop">Shop</Link>
-              <span className="divider">|</span>
-              <Link to="/about">About</Link>
-              <span className="divider">|</span>
-              {currentUser ? (
-                <>
-                  <span style={{ fontWeight: 600, color: 'var(--text-ink)' }}>
-                    Hi, {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email?.split('@')[0])}
-                  </span>
-                  <span className="divider">|</span>
-                  <a href="#" onClick={(e) => { e.preventDefault(); onSignOut(); }} style={{ color: 'var(--color-sale)' }}>Sign Out</a>
-                </>
-              ) : (
-                <Link to="/auth">Sign In</Link>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Nike Primary Nav */}
-        <div className="primary-nav">
-          <div className="nav-inner-container">
-            {/* Mobile: Hamburger button */}
-            <button
-              type="button"
-              className="mobile-menu-toggle"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Open navigation menu"
-            >
-              <Menu size={24} />
-            </button>
-
-            {/* Left: Logo */}
-            <Link to="/" className="logo" onClick={handleLogoClick} aria-label={`${settings.shopName} home`}>
-              <ShoppingBag size={22} strokeWidth={2.5} />
-              <span style={{ fontSize: '18px', fontWeight: 800 }}>{settings.shopName}</span>
-            </Link>
-
-            {/* Center: Navigation Links */}
-            <nav className="nav-center-links">
-            </nav>
-
-            {/* Right side: Search, Wishlist, Cart */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {/* Search Pill */}
-              {(currentView === 'store' || currentView === 'product-details' || currentView === 'landing') && (
-                <div className="search-pill-container">
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={e => onSearchChange(e.target.value)}
-                    className="search-pill"
-                  />
-                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => onSearchChange('')}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', padding: 0 }}
-                      aria-label="Clear search"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  {suggestions.length > 0 && (
-                    <div className="search-suggestions-dropdown">
-                      {suggestions.map((item, idx) => (
-                        <div 
-                          key={idx} 
-                          className="search-suggestion-item"
-                          onClick={() => {
-                            if (item.type === 'category') {
-                              if (onSelectCategory) onSelectCategory(item.name);
-                            } else {
-                              navigate(`/product/${item.id}`);
-                            }
-                            onSearchChange('');
-                          }}
-                        >
-                          {item.type === 'product' && item.image && (
-                            <img src={item.image} alt={item.name} className="suggestion-thumb" />
-                          )}
-                          <div className="suggestion-details">
-                            <span className="suggestion-name">{item.name}</span>
-                            <span className="suggestion-badge">{item.type}</span>
-                          </div>
+        {isMobile ? (
+          currentView === 'product-details' ? (
+            <div className="mobile-app-header-container">
+              <button 
+                type="button" 
+                className="mobile-app-header-back" 
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    window.history.back();
+                  } else {
+                    navigate('/shop');
+                  }
+                }}
+                aria-label="Back"
+              >
+                <ArrowLeft size={22} />
+              </button>
+              
+              <div className="mobile-app-header-search-wrap">
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder="Search GoldenCare..."
+                  value={searchQuery}
+                  onChange={e => onSearchChange(e.target.value)}
+                  className="mobile-app-header-search-input"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange('')}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', padding: 0 }}
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+                {suggestions.length > 0 && (
+                  <div className="search-suggestions-dropdown">
+                    {suggestions.map((item, idx) => (
+                      <div 
+                        key={idx} 
+                        className="search-suggestion-item"
+                        onClick={() => {
+                          if (item.type === 'category') {
+                            if (onSelectCategory) onSelectCategory(item.name);
+                          } else {
+                            navigate(`/product/${item.id}`);
+                          }
+                          onSearchChange('');
+                        }}
+                      >
+                        {item.type === 'product' && item.image && (
+                          <img src={item.image} alt={item.name} className="suggestion-thumb" />
+                        )}
+                        <div className="suggestion-details">
+                          <span className="suggestion-name">{item.name}</span>
+                          <span className="suggestion-badge">{item.type}</span>
                         </div>
-                      ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Link to="/cart" className="mobile-app-header-right-icon" aria-label="Cart">
+                <ShoppingCart size={22} />
+                {totalItems > 0 && (
+                  <span className="mobile-bottom-nav-badge" style={{ position: 'absolute', top: '-2px', right: '-2px' }}>
+                    {totalItems}
+                  </span>
+                )}
+              </Link>
+            </div>
+          ) : (
+            <div className="mobile-app-header-container">
+              <button
+                type="button"
+                className="mobile-app-header-back"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="Open navigation menu"
+              >
+                <Menu size={22} />
+              </button>
+
+              <div className="mobile-app-header-search-wrap">
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder={`Search ${settings.shopName}...`}
+                  value={searchQuery}
+                  onChange={e => onSearchChange(e.target.value)}
+                  className="mobile-app-header-search-input"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange('')}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', padding: 0 }}
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+                {suggestions.length > 0 && (
+                  <div className="search-suggestions-dropdown">
+                    {suggestions.map((item, idx) => (
+                      <div 
+                        key={idx} 
+                        className="search-suggestion-item"
+                        onClick={() => {
+                          if (item.type === 'category') {
+                            if (onSelectCategory) onSelectCategory(item.name);
+                          } else {
+                            navigate(`/product/${item.id}`);
+                          }
+                          onSearchChange('');
+                        }}
+                      >
+                        {item.type === 'product' && item.image && (
+                          <img src={item.image} alt={item.name} className="suggestion-thumb" />
+                        )}
+                        <div className="suggestion-details">
+                          <span className="suggestion-name">{item.name}</span>
+                          <span className="suggestion-badge">{item.type}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Link to="/cart" className="mobile-app-header-right-icon" aria-label="Cart">
+                <ShoppingCart size={22} />
+                {totalItems > 0 && (
+                  <span className="mobile-bottom-nav-badge" style={{ position: 'absolute', top: '-2px', right: '-2px' }}>
+                    {totalItems}
+                  </span>
+                )}
+              </Link>
+            </div>
+          )
+        ) : (
+          <>
+            {/* 1. Nike Utility Bar */}
+            <div className="utility-bar">
+              <div className="nav-inner-container">
+                <span style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
+                  FREE SHIPPING ON ORDERS OVER KSh 30,000
+                </span>
+                <div className="utility-bar-links">
+                  <Link to="/shop">Shop</Link>
+                  <span className="divider">|</span>
+                  <Link to="/about">About</Link>
+                  <span className="divider">|</span>
+                  {currentUser ? (
+                    <>
+                      <span style={{ fontWeight: 600, color: 'var(--text-ink)' }}>
+                        Hi, {isAdminAuthenticated ? "Admin" : (currentUser.displayName || currentUser.email?.split('@')[0])}
+                      </span>
+                      <span className="divider">|</span>
+                      <a href="#" onClick={(e) => { e.preventDefault(); onSignOut(); }} style={{ color: 'var(--color-sale)' }}>Sign Out</a>
+                    </>
+                  ) : (
+                    <Link to="/auth">Sign In</Link>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Nike Primary Nav */}
+            <div className="primary-nav">
+              <div className="nav-inner-container">
+                {/* Mobile: Hamburger button */}
+                <button
+                  type="button"
+                  className="mobile-menu-toggle"
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="Open navigation menu"
+                >
+                  <Menu size={24} />
+                </button>
+
+                {/* Left: Logo */}
+                <Link to="/" className="logo" onClick={handleLogoClick} aria-label={`${settings.shopName} home`}>
+                  <ShoppingBag size={22} strokeWidth={2.5} />
+                  <span style={{ fontSize: '18px', fontWeight: 800 }}>{settings.shopName}</span>
+                </Link>
+
+                {/* Center: Navigation Links */}
+                <nav className="nav-center-links">
+                </nav>
+
+                {/* Right side: Search, Wishlist, Cart */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {/* Search Pill */}
+                  {(currentView === 'store' || currentView === 'product-details' || currentView === 'landing') && (
+                    <div className="search-pill-container">
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchQuery}
+                        onChange={e => onSearchChange(e.target.value)}
+                        className="search-pill"
+                      />
+                      <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => onSearchChange('')}
+                          style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', padding: 0 }}
+                          aria-label="Clear search"
+                        >
+                          ✕
+                        </button>
+                      )}
+                      {suggestions.length > 0 && (
+                        <div className="search-suggestions-dropdown">
+                          {suggestions.map((item, idx) => (
+                            <div 
+                              key={idx} 
+                              className="search-suggestion-item"
+                              onClick={() => {
+                                if (item.type === 'category') {
+                                  if (onSelectCategory) onSelectCategory(item.name);
+                                } else {
+                                  navigate(`/product/${item.id}`);
+                                }
+                                onSearchChange('');
+                              }}
+                            >
+                              {item.type === 'product' && item.image && (
+                                <img src={item.image} alt={item.name} className="suggestion-thumb" />
+                              )}
+                              <div className="suggestion-details">
+                                <span className="suggestion-name">{item.name}</span>
+                                <span className="suggestion-badge">{item.type}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* Expandable Navigation Icons */}
-              <Link to="/" className="expandable-nav-item" title="Home">
-                <Home size={20} />
-                <span className="expandable-nav-label">Home</span>
-              </Link>
-
-              <Link to="/shop" className="expandable-nav-item" title="Shop">
-                <Store size={20} />
-                <span className="expandable-nav-label">Shop</span>
-              </Link>
-
-              {currentUser ? (
-                isAdminAuthenticated ? (
-                  <>
-                    <Link to="/dashboard/home" className="expandable-nav-item" title="Admin Panel">
-                      <Shield size={20} />
-                      <span className="expandable-nav-label">Admin Panel</span>
-                    </Link>
-                    <Link to="/account" className="expandable-nav-item" title="My Account">
-                      {currentUserAvatarUrl ? (
-                        <img src={currentUserAvatarUrl} alt="Avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
-                      ) : (
-                        <User size={20} />
-                      )}
-                      <span className="expandable-nav-label">{getAccountLabel()}</span>
-                    </Link>
-                  </>
-                ) : (
-                  <Link to="/account" className="expandable-nav-item" title="My Account">
-                    {currentUserAvatarUrl ? (
-                      <img src={currentUserAvatarUrl} alt="Avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
-                    ) : (
-                      <User size={20} />
-                    )}
-                    <span className="expandable-nav-label">{getAccountLabel()}</span>
+                  {/* Expandable Navigation Icons */}
+                  <Link to="/" className="expandable-nav-item" title="Home">
+                    <Home size={20} />
+                    <span className="expandable-nav-label">Home</span>
                   </Link>
-                )
-              ) : (
-                <Link to="/auth" className="expandable-nav-item" title="Sign In">
-                  <User size={20} />
-                  <span className="expandable-nav-label">Sign In</span>
-                </Link>
-              )}
 
-              {/* Wishlist Button (Expandable Nav Item) */}
-              {currentUser && (
-                <Link
-                  to="/account?tab=wishlist"
-                  className="expandable-nav-item"
-                  title="Wishlist"
-                >
-                  <Heart size={20} fill={wishlistCount > 0 ? "var(--color-sale)" : "none"} style={{ color: wishlistCount > 0 ? "var(--color-sale)" : "var(--color-ink)" }} />
-                  <span className="expandable-nav-label">Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}</span>
-                </Link>
-              )}
+                  <Link to="/shop" className="expandable-nav-item" title="Shop">
+                    <Store size={20} />
+                    <span className="expandable-nav-label">Shop</span>
+                  </Link>
 
-              {/* Cart Bag Icon Button (Expandable Nav Item) */}
-              <Link
-                to="/cart"
-                className="expandable-nav-item"
-                title={`View Cart (${totalItems})`}
-                style={{ position: 'relative' }}
-              >
-                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <ShoppingCart size={20} />
-                  {totalItems > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '-6px',
-                      right: '-6px',
-                      backgroundColor: 'var(--color-ink)',
-                      color: 'var(--color-canvas)',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      borderRadius: '50%',
-                      width: '14px',
-                      height: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid var(--color-canvas)'
-                    }}>
-                      {totalItems}
-                    </span>
+                  {currentUser ? (
+                    isAdminAuthenticated ? (
+                      <>
+                        <Link to="/dashboard/home" className="expandable-nav-item" title="Admin Panel">
+                          <Shield size={20} />
+                          <span className="expandable-nav-label">Admin Panel</span>
+                        </Link>
+                        <Link to="/account" className="expandable-nav-item" title="My Account">
+                          {currentUserAvatarUrl ? (
+                            <img src={currentUserAvatarUrl} alt="Avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <User size={20} />
+                          )}
+                          <span className="expandable-nav-label">{getAccountLabel()}</span>
+                        </Link>
+                      </>
+                    ) : (
+                      <Link to="/account" className="expandable-nav-item" title="My Account">
+                        {currentUserAvatarUrl ? (
+                          <img src={currentUserAvatarUrl} alt="Avatar" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <User size={20} />
+                        )}
+                        <span className="expandable-nav-label">{getAccountLabel()}</span>
+                      </Link>
+                    )
+                  ) : (
+                    <Link to="/auth" className="expandable-nav-item" title="Sign In">
+                      <User size={20} />
+                      <span className="expandable-nav-label">Sign In</span>
+                    </Link>
                   )}
+
+                  {/* Wishlist Button (Expandable Nav Item) */}
+                  {currentUser && (
+                    <Link
+                      to="/account?tab=wishlist"
+                      className="expandable-nav-item"
+                      title="Wishlist"
+                    >
+                      <Heart size={20} fill={wishlistCount > 0 ? "var(--color-sale)" : "none"} style={{ color: wishlistCount > 0 ? "var(--color-sale)" : "var(--color-ink)" }} />
+                      <span className="expandable-nav-label">Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}</span>
+                    </Link>
+                  )}
+
+                  {/* Cart Bag Icon Button (Expandable Nav Item) */}
+                  <Link
+                    to="/cart"
+                    className="expandable-nav-item"
+                    title={`View Cart (${totalItems})`}
+                    style={{ position: 'relative' }}
+                  >
+                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <ShoppingCart size={20} />
+                      {totalItems > 0 && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-6px',
+                          right: '-6px',
+                          backgroundColor: 'var(--color-ink)',
+                          color: 'var(--color-canvas)',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          borderRadius: '50%',
+                          width: '14px',
+                          height: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--color-canvas)'
+                        }}>
+                          {totalItems}
+                        </span>
+                      )}
+                    </div>
+                    <span className="expandable-nav-label">Cart</span>
+                  </Link>
                 </div>
-                <span className="expandable-nav-label">Cart</span>
-              </Link>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </header>
 
       {/* Mobile Navigation Drawer */}

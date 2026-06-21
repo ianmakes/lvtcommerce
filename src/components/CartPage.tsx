@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, ShoppingBag } from 'lucide-react';
-import { CartItem } from '../types';
+import { CartItem, Product } from '../types';
 import { Link, navigate } from '../Router';
 
 interface CartPageProps {
@@ -14,6 +14,9 @@ interface CartPageProps {
   orderNote: string;
   onUpdateOrderNote: (note: string) => void;
   onShowToast: (msg: string, type?: 'success' | 'warning') => void;
+  wishlist?: string[];
+  products?: Product[];
+  onAddToCart?: (item: CartItem) => void;
 }
 
 export const CartPage: React.FC<CartPageProps> = ({
@@ -27,6 +30,9 @@ export const CartPage: React.FC<CartPageProps> = ({
   orderNote,
   onUpdateOrderNote,
   onShowToast,
+  wishlist,
+  products,
+  onAddToCart,
 }) => {
   const [couponInput, setCouponInput] = useState(promoCode);
 
@@ -276,6 +282,62 @@ export const CartPage: React.FC<CartPageProps> = ({
             </div>
           </aside>
 
+        </div>
+      )}
+
+      {/* Wishlist Section (Jumia Style) */}
+      {wishlist && wishlist.length > 0 && products && (
+        <div style={{ marginTop: '48px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '0 8px' }}>
+            <h2 className="font-heading-lg" style={{ margin: 0, textTransform: 'uppercase', fontSize: '16px', letterSpacing: '0.5px' }}>
+              Wishlist ({wishlist.length})
+            </h2>
+            <Link to="/account/wishlist" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-sale)', textDecoration: 'none' }}>
+              SEE ALL
+            </Link>
+          </div>
+          <div className="mobile-horizontal-scroll-list">
+            {products
+              .filter(p => wishlist.includes(p.id))
+              .map(prod => (
+                <div 
+                  key={prod.id} 
+                  className="explore-product-card" 
+                  onClick={() => navigate(`/product/${prod.id}`)}
+                  style={{ width: '150px', flexShrink: 0, cursor: 'pointer', border: '1px solid var(--color-hairline-soft)', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#ffffff', position: 'relative' }}
+                >
+                  <div style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', backgroundColor: 'var(--color-soft-cloud)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img src={prod.image} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h4 style={{ fontSize: '11px', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-ink)' }}>
+                      {prod.name}
+                    </h4>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-ink)' }}>
+                      KSh {prod.basePrice.toLocaleString()}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-small btn-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onAddToCart) {
+                          onAddToCart({
+                            id: `${prod.id}-base`,
+                            product: prod,
+                            selectedVariant: null,
+                            quantity: 1
+                          });
+                        }
+                      }}
+                      style={{ fontSize: '10px', height: '28px', minHeight: '28px', marginTop: '6px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
       )}
     </div>
