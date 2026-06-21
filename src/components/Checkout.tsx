@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { ArrowLeft, User, MapPin, CreditCard, Smartphone, CheckCircle, ShieldAlert, Loader2, Lock } from 'lucide-react';
+import { ArrowLeft, User, MapPin, CreditCard, Smartphone, CheckCircle, ShieldAlert, Loader2, Lock, Tag, ChevronRight } from 'lucide-react';
 import { CartItem, ShopSettings, Order, OrderItem, ShippingZone, TaxClass, showToast } from '../types';
 import { getBuyerProfile } from '../db';
-import { navigate } from '../Router';
+import { navigate, Link } from '../Router';
 import { BuyerAuth } from './BuyerAuth';
 
 interface CheckoutProps {
@@ -17,6 +17,8 @@ interface CheckoutProps {
   onChangeOrderNote: (note: string) => void;
   shippingZones: ShippingZone[];
   taxClasses: TaxClass[];
+  promoCode?: string;
+  onApplyPromo?: (code: string) => void | Promise<void>;
 }
 
 function generateOrderId(): string {
@@ -38,6 +40,8 @@ export const Checkout: React.FC<CheckoutProps> = ({
   onChangeOrderNote,
   shippingZones,
   taxClasses,
+  promoCode,
+  onApplyPromo,
 }) => {
   // Input states
   const [name, setName] = useState('');
@@ -68,12 +72,27 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const [demoOtpError, setDemoOtpError] = useState('');
   const [demoRefCode, setDemoRefCode] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [couponVal, setCouponVal] = useState(promoCode || '');
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 767);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (promoCode) {
+      setCouponVal(promoCode);
+    }
+  }, [promoCode]);
+
+  useEffect(() => {
+    if (!name || !address || !phone) {
+      setShowAddressForm(true);
+    }
+  }, [name, address, phone]);
 
   // Prefill buyer details from profile when logged in
   useEffect(() => {
@@ -458,6 +477,535 @@ export const Checkout: React.FC<CheckoutProps> = ({
   const codEnabled = settings.codActive !== false;
   const paystackEnabled = settings.paystackActive !== false && !!settings.paystackPublicKey;
 
+  // ─── MOBILE CHECKOUT VIEW ─────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div className="mobile-checkout-container" style={{ padding: '16px 12px 100px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+        
+        {/* Mobile Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+          <button 
+            type="button"
+            onClick={() => navigate('/cart')} 
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+            aria-label="Back to Cart"
+          >
+            <ArrowLeft size={22} />
+          </button>
+          <h1 className="font-heading-lg" style={{ margin: 0, fontWeight: 700, fontSize: '18px' }}>Place your order</h1>
+        </div>
+
+        {/* T&C banner */}
+        <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '12px', marginBottom: '16px', fontSize: '12px', color: '#1e40af', lineHeight: '1.4' }}>
+          If you proceed, you are automatically accepting our <Link to="/terms" style={{ textDecoration: 'underline', color: '#1e40af', fontWeight: 600 }}>Terms & Conditions</Link>
+        </div>
+
+        {errorMsg && (
+          <div style={{ color: 'var(--color-sale)', backgroundColor: '#fff5f5', padding: '12px', border: '1px solid var(--color-sale)', marginBottom: '16px', fontWeight: 500, fontSize: '13px', borderRadius: '6px' }}>
+            {errorMsg}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          
+          {/* ORDER SUMMARY */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', padding: '16px', border: '1px solid var(--color-hairline-soft)' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+              Order Summary
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-mute)' }}>Item's total ({totalItems})</span>
+                <span>KSh {itemsSubtotal.toLocaleString()}</span>
+              </div>
+              
+              {discountAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a', fontWeight: 600 }}>
+                  <span>Promo Discount:</span>
+                  <span>-KSh {discountAmount.toLocaleString()}</span>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-mute)' }}>Delivery fees</span>
+                <span>{deliveryFee === 0 ? "FREE" : `KSh ${deliveryFee.toLocaleString()}`}</span>
+              </div>
+
+              {taxAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-mute)' }}>VAT Tax</span>
+                  <span>KSh {taxAmount.toLocaleString()}</span>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '15px', borderTop: '1px solid #f3f4f6', paddingTop: '8px', marginTop: '4px' }}>
+                <span>Total</span>
+                <span>KSh {grandTotal.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Coupon Code Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '4px 12px' }}>
+              <Tag size={16} style={{ color: 'var(--text-stone)' }} />
+              <input 
+                type="text" 
+                placeholder="Enter code here"
+                value={couponVal}
+                onChange={e => setCouponVal(e.target.value)}
+                style={{ flexGrow: 1, border: 'none', outline: 'none', fontSize: '13px', padding: '8px 0', backgroundColor: 'transparent' }}
+              />
+              <button 
+                type="button"
+                onClick={() => onApplyPromo && onApplyPromo(couponVal.trim().toUpperCase())}
+                style={{ background: 'none', border: 'none', color: '#f97316', fontWeight: 700, fontSize: '12px', cursor: 'pointer', padding: '4px' }}
+              >
+                APPLY
+              </button>
+            </div>
+          </div>
+
+          {/* PAYMENT METHOD */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', padding: '16px', border: '1px solid var(--color-hairline-soft)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Payment Method
+              </span>
+              <button 
+                type="button"
+                onClick={() => setShowPaymentForm(!showPaymentForm)}
+                style={{ background: 'none', border: 'none', color: '#f97316', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+              >
+                {showPaymentForm ? 'CLOSE' : 'CHANGE'}
+              </button>
+            </div>
+
+            {!showPaymentForm ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                <CreditCard size={18} style={{ color: 'var(--text-mute)' }} />
+                <span style={{ fontWeight: 600 }}>
+                  {paymentMethod === 'cod' 
+                    ? 'Pay on delivery with Mobile Money and Bank Cards' 
+                    : 'Pay online securely with Paystack Gateway'}
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                {codEnabled && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer', padding: '8px 0' }}>
+                    <input 
+                      type="radio" 
+                      name="pay-method-mobile"
+                      checked={paymentMethod === 'cod'} 
+                      onChange={() => { setPaymentMethod('cod'); setShowPaymentForm(false); }}
+                      style={{ accentColor: '#f97316' }}
+                    />
+                    <span>Pay on Delivery (COD / M-Pesa Transfer)</span>
+                  </label>
+                )}
+                {paystackEnabled && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer', padding: '8px 0' }}>
+                    <input 
+                      type="radio" 
+                      name="pay-method-mobile"
+                      checked={paymentMethod === 'paystack'} 
+                      onChange={() => { setPaymentMethod('paystack'); setShowPaymentForm(false); }}
+                      style={{ accentColor: '#f97316' }}
+                    />
+                    <span>Pay Online (Cards, M-Pesa STK push)</span>
+                  </label>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ADDRESS */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', padding: '16px', border: '1px solid var(--color-hairline-soft)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Address
+              </span>
+              <button 
+                type="button"
+                onClick={() => setShowAddressForm(!showAddressForm)}
+                style={{ background: 'none', border: 'none', color: '#f97316', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+              >
+                {showAddressForm ? 'CLOSE' : 'CHANGE YOUR ADDRESS'}
+              </button>
+            </div>
+
+            {!showAddressForm ? (
+              <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontWeight: 600 }}>{name || 'No name added'}</span>
+                <span style={{ color: 'var(--text-mute)' }}>{address || 'No address added'}</span>
+                <span style={{ color: 'var(--text-mute)' }}>Phone: {phone || 'No phone added'}</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '12px' }}>Full Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="Full name"
+                    style={{ borderRadius: '6px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '12px' }}>Phone Number</label>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    value={phone}
+                    onChange={handlePhoneChange}
+                    placeholder="Phone number"
+                    style={{ borderRadius: '6px' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '12px' }}>Delivery Address</label>
+                  <textarea
+                    className="form-input"
+                    value={address}
+                    onChange={e => setAddress(e.target.value)}
+                    placeholder="Full delivery address"
+                    style={{ minHeight: '60px', borderRadius: '6px', resize: 'vertical' }}
+                  />
+                </div>
+
+                <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '12px', marginTop: '4px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={billingSameAsShipping} 
+                      onChange={e => setBillingSameAsShipping(e.target.checked)}
+                      style={{ accentColor: '#f97316' }}
+                    />
+                    <span>Billing Same as Delivery</span>
+                  </label>
+                  
+                  {!billingSameAsShipping && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Billing name"
+                        value={billingName}
+                        onChange={e => setBillingName(e.target.value)}
+                        style={{ borderRadius: '6px' }}
+                      />
+                      <input
+                        type="tel"
+                        className="form-input"
+                        placeholder="Billing phone"
+                        value={billingPhone}
+                        onChange={handleBillingPhoneChange}
+                        style={{ borderRadius: '6px' }}
+                      />
+                      <textarea
+                        className="form-input"
+                        placeholder="Billing address"
+                        value={billingAddress}
+                        onChange={e => setBillingAddress(e.target.value)}
+                        style={{ minHeight: '60px', borderRadius: '6px', resize: 'vertical' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddressForm(false)} 
+                  className="btn btn-secondary btn-small"
+                  style={{ alignSelf: 'flex-end', height: '32px', minHeight: '32px', fontSize: '11px', marginTop: '4px' }}
+                >
+                  SAVE DETAILS
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* DELIVERY */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', padding: '16px', border: '1px solid var(--color-hairline-soft)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Delivery
+              </span>
+            </div>
+            
+            <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontWeight: 600 }}>Home Delivery / Pickup Station</span>
+              <span style={{ color: '#f97316', fontWeight: 600 }}>
+                Delivery estimated between {new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })} and {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+              </span>
+              <span style={{ color: 'var(--text-mute)', fontSize: '12px', marginTop: '4px' }}>
+                Fulfilled by GoldenCare Express
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Demo payment modal overlay */}
+        {demoState !== 'none' && (
+          <div className="modal-overlay" style={{ zIndex: 10000 }}>
+            <div className="paystack-iframe-mock" style={{ width: '100%', maxWidth: '440px', border: '1px solid var(--color-ink)', borderRadius: '12px', boxSizing: 'border-box' }}>
+              
+              <div className="paystack-header" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-hairline-soft)', backgroundColor: '#fff' }}>
+                <div className="paystack-merchant" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <img 
+                    src={settings.logoUrl || "https://res.cloudinary.com/dhvnbtkgw/image/upload/v1781035261/main-sample.png"} 
+                    alt={settings.shopName} 
+                    style={{ width: '36px', height: '36px', objectFit: 'contain' }} 
+                  />
+                  <div>
+                    <span className="paystack-merchant-name" style={{ fontSize: '14px', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>{settings.shopName}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>{name} ({phone})</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span className="paystack-amount" style={{ fontSize: '16px', fontWeight: 700 }}>KSh {grandTotal.toLocaleString()}</span>
+                  <div style={{ fontSize: '9px', color: 'var(--color-sale)', fontWeight: 700, textTransform: 'uppercase', marginTop: '2px' }}>
+                    DEMO GATEWAY
+                  </div>
+                </div>
+              </div>
+
+              <div className="paystack-body" style={{ padding: '24px', backgroundColor: '#fff' }}>
+                {demoState === 'input' && (
+                  <div>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                      <button 
+                        type="button" 
+                        className={`paystack-channel ${demoPayChannel === 'mobile_money' ? 'active' : ''}`}
+                        onClick={() => setDemoPayChannel('mobile_money')}
+                        style={{ padding: '12px', border: `1px solid ${demoPayChannel === 'mobile_money' ? '#f97316' : '#e5e7eb'}`, borderRadius: '6px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
+                      >
+                        <Smartphone size={16} />
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>M-Pesa</span>
+                      </button>
+
+                      <button 
+                        type="button" 
+                        className={`paystack-channel ${demoPayChannel === 'card' ? 'active' : ''}`}
+                        onClick={() => setDemoPayChannel('card')}
+                        style={{ padding: '12px', border: `1px solid ${demoPayChannel === 'card' ? '#f97316' : '#e5e7eb'}`, borderRadius: '6px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: 'none' }}
+                      >
+                        <CreditCard size={16} />
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>Card</span>
+                      </button>
+                    </div>
+
+                    {demoPayChannel === 'mobile_money' ? (
+                      <form onSubmit={handleDemoMpesaSubmit}>
+                        <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px', borderRadius: '6px' }}>
+                          <span style={{ fontWeight: 600 }}>Simulated M-Pesa STK Push:</span><br />
+                          Enter your M-Pesa number. Use mock PIN <strong>1234</strong> to authorize.
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: '20px' }}>
+                          <label className="form-label" style={{ fontSize: '12px' }}>M-PESA MOBILE NUMBER</label>
+                          <input 
+                            type="tel" 
+                            className="form-input" 
+                            placeholder="e.g. 0712345678"
+                            value={demoMpesaNumber}
+                            onChange={e => setDemoMpesaNumber(e.target.value)}
+                            style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '6px' }}
+                            required
+                          />
+                        </div>
+
+                        <button type="submit" className="btn btn-primary btn-full" style={{ height: '44px', minHeight: '44px', backgroundColor: '#f97316', border: 'none', borderRadius: '6px' }}>
+                          Send STK Push
+                        </button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleDemoCardPaySubmit}>
+                        <div style={{ backgroundColor: '#f0fbf5', border: '1px solid var(--color-success)', padding: '12px', fontSize: '13px', color: 'var(--color-success)', marginBottom: '16px', borderRadius: '6px' }}>
+                          <span style={{ fontWeight: 600 }}>Simulated Card Pay:</span><br />
+                          Fill in mock details. Use mock OTP <strong>1234</strong> on the next screen.
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: '12px' }}>
+                          <label className="form-label" style={{ fontSize: '12px' }}>CARD NUMBER</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="4000 1234 5678 9010"
+                            value={demoCardNumber}
+                            onChange={handleDemoCardNumberChange}
+                            style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '6px' }}
+                            required
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                          <div className="form-group">
+                            <label className="form-label" style={{ fontSize: '12px' }}>EXPIRY</label>
+                            <input 
+                              type="text" 
+                              className="form-input" 
+                              placeholder="MM/YY"
+                              value={demoCardExpiry}
+                              onChange={handleDemoExpiryChange}
+                              style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '6px' }}
+                              required
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label" style={{ fontSize: '12px' }}>CVV</label>
+                            <input 
+                              type="password" 
+                              className="form-input" 
+                              placeholder="123"
+                              maxLength={4}
+                              value={demoCardCvv}
+                              onChange={e => setDemoCardCvv(e.target.value.replace(/\D/g, '').substring(0, 3))}
+                              style={{ minHeight: '44px', padding: '10px', fontSize: '15px', borderRadius: '6px' }}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <button type="submit" className="btn btn-primary btn-full" style={{ height: '44px', minHeight: '44px', backgroundColor: '#f97316', border: 'none', borderRadius: '6px' }}>
+                          Pay Card
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+
+                {demoState === 'processing' && (
+                  <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                    <Loader2 style={{ animation: 'spin 1.5s linear infinite', color: '#f97316', margin: '0 auto 20px' }} size={40} />
+                    <p style={{ fontWeight: 600, fontSize: '15px', margin: 0 }}>
+                      {demoPayChannel === 'mobile_money' 
+                        ? "Sending STK push prompt request..." 
+                        : "Verifying secure card data..."}
+                    </p>
+                  </div>
+                )}
+
+                {demoState === 'otp' && (
+                  <form onSubmit={handleDemoOtpSubmit}>
+                    <div style={{ backgroundColor: '#fffbe6', border: '1px solid #ffe58f', padding: '12px', fontSize: '13px', color: '#d48806', marginBottom: '16px', borderRadius: '6px' }}>
+                      <strong>Demo Security Verification</strong><br />
+                      Please enter the authorization PIN or OTP: <strong>1234</strong>
+                    </div>
+
+                    {demoOtpError && (
+                      <div style={{ color: 'var(--color-sale)', fontSize: '13px', marginBottom: '12px', fontWeight: 500 }}>
+                        {demoOtpError}
+                      </div>
+                    )}
+
+                    <div className="form-group" style={{ marginBottom: '20px' }}>
+                      <label className="form-label" style={{ fontSize: '12px' }}>
+                        {demoPayChannel === 'mobile_money' ? "ENTER M-PESA 4-DIGIT PIN" : "ENTER SECURE CARD OTP CODE"}
+                      </label>
+                      <input 
+                        type="password" 
+                        className="form-input" 
+                        placeholder="••••"
+                        maxLength={6}
+                        value={demoOtpValue}
+                        onChange={e => setDemoOtpValue(e.target.value)}
+                        style={{ minHeight: '44px', padding: '10px', fontSize: '18px', textAlign: 'center', letterSpacing: '8px', borderRadius: '6px' }}
+                        required
+                      />
+                    </div>
+
+                    <button type="submit" className="btn btn-primary btn-full" style={{ height: '44px', minHeight: '44px', backgroundColor: '#f97316', border: 'none', borderRadius: '6px' }}>
+                      Verify & Pay
+                    </button>
+                  </form>
+                )}
+
+                {demoState === 'verifying' && (
+                  <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                    <Loader2 style={{ animation: 'spin 1.5s linear infinite', color: '#f97316', margin: '0 auto 20px' }} size={40} />
+                    <p style={{ fontWeight: 600, fontSize: '15px', margin: 0 }}>Confirming transaction settlement with bank...</p>
+                  </div>
+                )}
+
+                {demoState === 'success' && (
+                  <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-success)' }}>
+                    <CheckCircle size={48} style={{ margin: '0 auto 16px' }} />
+                    <h3 className="font-heading-md" style={{ margin: '0 0 8px', textTransform: 'uppercase' }}>Payment Authorized</h3>
+                    <p style={{ color: 'var(--text-mute)', fontSize: '14px', margin: 0 }}>Reference: {demoRefCode}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="paystack-footer" style={{ padding: '16px 20px', borderTop: '1px solid var(--color-hairline-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff' }}>
+                <button 
+                  type="button" 
+                  onClick={handleDemoCancel}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-mute)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  Cancel Payment
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-mute)', fontWeight: 600 }}>
+                  <Lock size={12} />
+                  <span>Secured by Paystack Demo</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Sticky Bottom Confirm Order Button */}
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '76px',
+          backgroundColor: '#ffffff',
+          borderTop: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          zIndex: 999
+        }}>
+          <button 
+            type="button" 
+            onClick={handlePlaceOrder}
+            disabled={paystackLoading || (!codEnabled && !paystackEnabled)}
+            style={{
+              width: '100%',
+              height: '48px',
+              backgroundColor: '#f97316',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '15px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {paystackLoading ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Loader2 className="spinner" size={16} />
+                <span>Processing...</span>
+              </span>
+            ) : (
+              <span>CONFIRM ORDER</span>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── DESKTOP CHECKOUT VIEW ────────────────────────────────────────
   return (
     <div className="container" style={{ maxWidth: '1200px', padding: '40px 16px' }}>
       <button 

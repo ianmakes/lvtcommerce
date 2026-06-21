@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification, multiFactor, TotpMultiFactorGenerator, TotpSecret } from 'firebase/auth';
-import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X, Printer, User } from 'lucide-react';
+import { ShoppingBag, MapPin, CheckCircle, Loader2, Calendar, Heart, Trash2, ShoppingCart, Activity, Lock, X, Printer, User, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Order, BuyerProfile, Product, CartItem, ShopSettings } from '../types';
 import { getOrders, getBuyerProfile, saveBuyerProfile, subscribeToNewsletter, deleteNewsletterSubscriber, getNewsletterSubscribers } from '../db';
 import { navigate, Link } from '../Router';
@@ -19,6 +19,7 @@ interface BuyerAccountProps {
   initialTab?: string;
   settings: ShopSettings;
   onProfileUpdate?: (avatarUrl: string | null) => void;
+  onSignOut?: () => void;
 }
 
 export const BuyerAccount: React.FC<BuyerAccountProps> = ({
@@ -31,8 +32,16 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   initialTab,
   settings,
   onProfileUpdate,
+  onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security'>('overview');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 767);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [orders, setOrders] = useState<Order[]>([]);
   const [profile, setProfile] = useState<BuyerProfile>({
     uid: currentUser.uid,
@@ -513,6 +522,481 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     { id: 'profile', label: 'Profile Settings', icon: <User size={18} /> },
     { id: 'security', label: 'Security', icon: <Lock size={18} /> }
   ] as const;
+
+  const path = window.location.pathname;
+
+  if (isMobile) {
+    const isLanding = path === '/account' || path === '/account/';
+    
+    if (isLanding) {
+      return (
+        <div className="mobile-account-menu-page" style={{ padding: '16px 12px 100px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+          {/* Top Banner */}
+          <div style={{ backgroundColor: 'var(--color-ink)', padding: '24px 16px', borderRadius: '12px', color: '#ffffff', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {profile.avatarUrl ? (
+                <img 
+                  src={profile.avatarUrl} 
+                  alt={profile.fullName || 'Avatar'} 
+                  style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }} 
+                />
+              ) : (
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700 }}>
+                  {getInitials()}
+                </div>
+              )}
+              <div>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.7, display: 'block', fontWeight: 600 }}>Member</span>
+                <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700, textTransform: 'uppercase' }}>
+                  {profile.fullName || currentUser.displayName || 'Shopper'}
+                </h1>
+                <span style={{ fontSize: '12px', opacity: 0.8, display: 'block', marginTop: '2px' }}>
+                  {profile.email}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--color-hairline-soft)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '18px', fontWeight: 700 }}>{orders.length}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)', textTransform: 'uppercase' }}>Purchases</span>
+            </div>
+            <div style={{ backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--color-hairline-soft)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '18px', fontWeight: 700 }}>KSh {totalSpent.toLocaleString()}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)', textTransform: 'uppercase' }}>Spent</span>
+            </div>
+            <div style={{ backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--color-hairline-soft)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '18px', fontWeight: 700 }}>{wishlist.length}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)', textTransform: 'uppercase' }}>Saved Items</span>
+            </div>
+            <div style={{ backgroundColor: '#ffffff', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--color-hairline-soft)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '18px', fontWeight: 700 }}>{activeDeliveriesCount}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-mute)', textTransform: 'uppercase' }}>Active Deliveries</span>
+            </div>
+          </div>
+
+          {/* Menu Options List */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid var(--color-hairline-soft)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => { navigate('/account/' + tab.id); setActiveTab(tab.id); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '16px',
+                  border: 'none',
+                  borderBottom: '1px solid #f3f4f6',
+                  background: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left',
+                  color: 'var(--color-ink)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ color: 'var(--text-stone)', display: 'flex', alignItems: 'center' }}>{tab.icon}</span>
+                  <span style={{ fontSize: '14px', fontWeight: 500 }}>{tab.label}</span>
+                </div>
+                <ChevronRight size={18} style={{ color: 'var(--text-stone)' }} />
+              </button>
+            ))}
+          </div>
+
+          {/* More Info links */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid var(--color-hairline-soft)', overflow: 'hidden', display: 'flex', flexDirection: 'column', marginTop: '16px' }}>
+            <Link 
+              to="/about"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', textDecoration: 'none', color: 'var(--color-ink)', borderBottom: '1px solid #f3f4f6' }}
+            >
+              <span style={{ fontSize: '13px', fontWeight: 500 }}>About GoldenCare</span>
+              <ChevronRight size={16} style={{ color: 'var(--text-stone)' }} />
+            </Link>
+            <Link 
+              to="/policy"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', textDecoration: 'none', color: 'var(--color-ink)', borderBottom: '1px solid #f3f4f6' }}
+            >
+              <span style={{ fontSize: '13px', fontWeight: 500 }}>Return Policy</span>
+              <ChevronRight size={16} style={{ color: 'var(--text-stone)' }} />
+            </Link>
+            <Link 
+              to="/terms"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', textDecoration: 'none', color: 'var(--color-ink)' }}
+            >
+              <span style={{ fontSize: '13px', fontWeight: 500 }}>Terms of Use</span>
+              <ChevronRight size={16} style={{ color: 'var(--text-stone)' }} />
+            </Link>
+          </div>
+
+          {/* Logout Button */}
+          <button
+            type="button"
+            onClick={() => onSignOut && onSignOut()}
+            style={{
+              marginTop: '24px',
+              width: '100%',
+              height: '48px',
+              backgroundColor: '#fff',
+              border: '1px solid #e5e7eb',
+              color: 'var(--color-sale)',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+      );
+    } else {
+      // Sub-page view (render activeTab content only)
+      const tabMeta = tabs.find(t => t.id === activeTab);
+      const pageTitle = tabMeta ? tabMeta.label.split(' (')[0] : 'Account';
+
+      return (
+        <div className="mobile-account-subpage" style={{ padding: '16px 12px 100px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+            <button 
+              type="button"
+              onClick={() => navigate('/account')} 
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+              aria-label="Back to Account"
+            >
+              <ArrowLeft size={22} />
+            </button>
+            <h1 className="font-heading-lg" style={{ margin: 0, fontWeight: 700, fontSize: '18px' }}>{pageTitle}</h1>
+          </div>
+
+          {/* Subpage Content Container */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', padding: '20px', border: '1px solid var(--color-hairline-soft)' }}>
+            {activeTab === 'overview' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <h3 className="font-heading-md" style={{ textTransform: 'uppercase', margin: '0 0 8px 0', fontSize: '16px' }}>Welcome, {profile.fullName || currentUser.displayName || 'Member'}!</h3>
+                  <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '13px', margin: 0 }}>
+                    Manage your recent orders, addresses, security profile, and saved wishlist items.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Recent Order */}
+                  <div>
+                    <h4 className="font-heading-xs" style={{ textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px', fontSize: '11px', fontWeight: 700, color: 'var(--text-mute)' }}>Recent Order</h4>
+                    {orders.length === 0 ? (
+                      <div style={{ padding: '24px 16px', border: '1px solid var(--color-hairline-soft)', textAlign: 'center', color: 'var(--text-mute)', borderRadius: '6px' }}>
+                        <ShoppingBag size={24} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                        <p style={{ fontSize: '12px', margin: 0 }}>No orders placed yet.</p>
+                      </div>
+                    ) : (
+                      (() => {
+                        const recentOrder = orders[0];
+                        return (
+                          <div style={{ border: '1px solid var(--color-hairline-soft)', padding: '16px', borderRadius: '6px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '12px' }}>
+                              <div>
+                                <span style={{ color: 'var(--text-mute)', display: 'block', fontSize: '9px', fontWeight: 600 }}>ORDER ID</span>
+                                <span style={{ fontWeight: 600 }}>{recentOrder.id}</span>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <span style={{ color: 'var(--text-mute)', display: 'block', fontSize: '9px', fontWeight: 600 }}>STATUS</span>
+                                <span className={`status-badge ${recentOrder.orderStatus.toLowerCase()}`} style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                  {recentOrder.orderStatus}
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ margin: '12px 0', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '12px', fontSize: '12px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-mute)' }}>Total:</span>
+                                <span style={{ fontWeight: 600 }}>KSh {recentOrder.totalAmount.toLocaleString()}</span>
+                              </div>
+                            </div>
+                            <button 
+                              type="button"
+                              className="btn btn-secondary btn-small" 
+                              onClick={() => { navigate('/account/orders'); setActiveTab('orders'); }} 
+                              style={{ width: '100%', textTransform: 'uppercase', fontSize: '10px', fontWeight: 600, height: '32px' }}
+                            >
+                              View Timeline
+                            </button>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+
+                  {/* Saved Items */}
+                  <div>
+                    <h4 className="font-heading-xs" style={{ textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.5px', fontSize: '11px', fontWeight: 700, color: 'var(--text-mute)' }}>Saved Items Preview</h4>
+                    {wishlist.length === 0 ? (
+                      <div style={{ padding: '24px 16px', border: '1px solid var(--color-hairline-soft)', textAlign: 'center', color: 'var(--text-mute)', borderRadius: '6px' }}>
+                        <Heart size={24} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                        <p style={{ fontSize: '12px', margin: 0 }}>Your wishlist is empty.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {wishlist.slice(0, 3).map(prodId => {
+                          const prod = products.find(p => p.id === prodId);
+                          if (!prod) return null;
+                          return (
+                            <div key={prod.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', border: '1px solid var(--color-hairline-soft)', padding: '8px', borderRadius: '6px' }}>
+                              <img src={prod.image} alt={prod.name} style={{ width: '40px', height: '40px', objectFit: 'cover' }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <h5 style={{ margin: 0, fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.name}</h5>
+                                <span style={{ fontSize: '11px', color: 'var(--text-mute)', fontWeight: 600 }}>KSh {prod.basePrice.toLocaleString()}</span>
+                              </div>
+                              <button type="button" className="btn btn-secondary btn-small" onClick={() => { navigate('/account/wishlist'); setActiveTab('wishlist'); }} style={{ padding: '2px 6px', fontSize: '10px', height: '24px', minHeight: '24px' }}>
+                                View
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'orders' && (
+              <div>
+                <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '13px', marginBottom: '20px' }}>Track shipment progress and inspect purchase invoice receipts.</p>
+
+                {orders.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-mute)', border: '1px solid var(--color-hairline-soft)', borderRadius: '6px' }}>
+                    <ShoppingBag size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                    <h3 className="font-heading-md" style={{ fontSize: '15px' }}>No Orders Found</h3>
+                    <p style={{ fontSize: '13px' }}>You haven't purchased any items yet.</p>
+                    <button type="button" className="btn btn-primary btn-small mt-16" onClick={() => navigate('/shop')}>
+                      Start Shopping
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {orders.map(order => (
+                      <div key={order.id} style={{ border: '1px solid var(--color-hairline-soft)', padding: 0, borderRadius: '6px', overflow: 'hidden' }}>
+                        
+                        <div style={{ backgroundColor: 'var(--color-soft-cloud)', padding: '12px 16px', borderBottom: '1px solid var(--color-hairline-soft)', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontWeight: 600 }}>ID: {order.id}</span>
+                              <span className={`status-badge ${order.orderStatus.toLowerCase()}`} style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                {order.orderStatus}
+                              </span>
+                            </div>
+                            <div style={{ color: 'var(--text-mute)' }}>Date: {new Date(order.createdAt).toLocaleDateString()}</div>
+                            <div style={{ fontWeight: 600 }}>Total: KSh {order.totalAmount.toLocaleString()}</div>
+                          </div>
+                        </div>
+
+                        {/* Timeline */}
+                        <div style={{ padding: '16px 16px 8px' }}>
+                          {order.orderStatus === 'Cancelled' ? (
+                            <div style={{ padding: '8px 12px', backgroundColor: '#fff5f5', color: 'var(--color-sale)', border: '1px solid #ffe3e3', fontSize: '12px', fontWeight: 600 }}>
+                              This order has been cancelled.
+                            </div>
+                          ) : (
+                            <div className="order-timeline" style={{ padding: '0 10px' }}>
+                              <div className="order-timeline-line"></div>
+                              <div className="order-timeline-progress" style={{ width: `${getProgressWidth(order.orderStatus)}%` }}></div>
+                              
+                              <div className={`order-timeline-step ${['Pending', 'Paid', 'Dispatched', 'Delivered'].includes(order.orderStatus) ? 'completed' : ''}`}>
+                                <div className="order-timeline-bubble" style={{ width: '20px', height: '20px', fontSize: '10px' }}>✓</div>
+                                <span className="order-timeline-label" style={{ fontSize: '9px' }}>Placed</span>
+                              </div>
+                              <div className={`order-timeline-step ${order.orderStatus === 'Paid' ? 'active' : ['Dispatched', 'Delivered'].includes(order.orderStatus) ? 'completed' : ''}`}>
+                                <div className="order-timeline-bubble" style={{ width: '20px', height: '20px', fontSize: '10px' }}>✓</div>
+                                <span className="order-timeline-label" style={{ fontSize: '9px' }}>Processing</span>
+                              </div>
+                              <div className={`order-timeline-step ${order.orderStatus === 'Dispatched' ? 'active' : order.orderStatus === 'Delivered' ? 'completed' : ''}`}>
+                                <div className="order-timeline-bubble" style={{ width: '20px', height: '20px', fontSize: '10px' }}>✓</div>
+                                <span className="order-timeline-label" style={{ fontSize: '9px' }}>Dispatched</span>
+                              </div>
+                              <div className={`order-timeline-step ${order.orderStatus === 'Delivered' ? 'completed' : ''}`}>
+                                <div className="order-timeline-bubble" style={{ width: '20px', height: '20px', fontSize: '10px' }}>4</div>
+                                <span className="order-timeline-label" style={{ fontSize: '9px' }}>Delivered</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Items */}
+                        <div style={{ padding: '16px', fontSize: '13px', borderTop: '1px solid var(--color-hairline-soft)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {order.items.map((item, idx) => {
+                              const prod = products.find(p => p.id === item.productId);
+                              const imageSrc = prod ? prod.image : 'https://placehold.co/100';
+                              return (
+                                <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                  <img src={imageSrc} alt={item.name} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '4px' }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <h5 style={{ margin: 0, fontWeight: 600, fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</h5>
+                                    <span style={{ color: 'var(--text-mute)', fontSize: '11px' }}>Qty: {item.quantity} &bull; KSh {item.price.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Wishlist */}
+            {activeTab === 'wishlist' && (
+              <div>
+                <p className="font-body-md" style={{ color: 'var(--text-mute)', fontSize: '13px', marginBottom: '20px' }}>Your saved items. You can quickly add them to your shopping cart.</p>
+
+                {wishlist.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-mute)', border: '1px solid var(--color-hairline-soft)', borderRadius: '6px' }}>
+                    <Heart size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                    <h3 className="font-heading-md" style={{ fontSize: '15px' }}>Your Wishlist is Empty</h3>
+                    <button className="btn btn-primary btn-small mt-16" onClick={() => navigate('/shop')}>
+                      Browse Products
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {wishlist.map(prodId => {
+                      const prod = products.find(p => p.id === prodId);
+                      if (!prod) return null;
+                      const isOnSale = !!(prod.salePrice && prod.salePrice > 0 && prod.salePrice < prod.basePrice);
+
+                      const handleAddWishItemToCart = () => {
+                        const hasVars = prod.attributes && prod.attributes.length > 0;
+                        const matchedVar = hasVars && prod.variants && prod.variants.length > 0 ? prod.variants[0] : null;
+                        const item: CartItem = {
+                          id: matchedVar ? `${prod.id}-${matchedVar.id}` : `${prod.id}-base`,
+                          product: prod,
+                          selectedVariant: matchedVar,
+                          quantity: 1
+                        };
+                        onAddToCart(item);
+                        onShowToast(`Added 1 of ${prod.name} to cart.`, 'success');
+                      };
+
+                      return (
+                        <div key={prod.id} style={{ border: '1px solid var(--color-hairline-soft)', borderRadius: '6px', overflow: 'hidden', display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
+                          <img src={prod.image} alt={prod.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }} />
+                          <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', flexGrow: 1, justifyContent: 'space-between' }}>
+                            <div>
+                              <h4 style={{ fontSize: '11px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.name}</h4>
+                              <span style={{ fontSize: '11px', fontWeight: 700 }}>KSh {(isOnSale ? prod.salePrice! : prod.basePrice).toLocaleString()}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+                              <button type="button" className="btn btn-primary" onClick={handleAddWishItemToCart} style={{ flex: 1, height: '28px', minHeight: '28px', fontSize: '9px', padding: 0 }}>
+                                + Cart
+                              </button>
+                              <button type="button" className="btn btn-secondary" onClick={() => { onRemoveWishlist(prod.id); onShowToast(`Removed ${prod.name} from wishlist.`, 'success'); }} style={{ width: '28px', height: '28px', minHeight: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                                <Trash2 size={12} style={{ color: 'var(--color-sale)' }} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Address */}
+            {activeTab === 'address' && (
+              <form onSubmit={handleSaveShipping} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="ship-phone-mobile" style={{ fontSize: '12px' }}>Contact Phone</label>
+                  <input id="ship-phone-mobile" type="tel" className="form-input" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} style={{ borderRadius: '6px' }} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="ship-address-mobile" style={{ fontSize: '12px' }}>Default Address</label>
+                  <textarea id="ship-address-mobile" className="form-input" value={profile.address} onChange={e => setProfile({ ...profile, address: e.target.value })} style={{ minHeight: '80px', borderRadius: '6px', resize: 'vertical' }} />
+                </div>
+                <button type="submit" className="btn btn-primary btn-full" style={{ height: '40px', minHeight: '40px', fontSize: '13px' }}>
+                  Save Address
+                </button>
+              </form>
+            )}
+
+            {/* Profile Settings */}
+            {activeTab === 'profile' && (
+              <form onSubmit={handleSaveProfileOnly} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '12px' }}>First Name</label>
+                    <input type="text" className="form-input" value={profile.firstName || ''} onChange={e => setProfile({ ...profile, firstName: e.target.value, fullName: `${e.target.value} ${profile.lastName || ''}`.trim() })} style={{ borderRadius: '6px' }} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: '12px' }}>Last Name</label>
+                    <input type="text" className="form-input" value={profile.lastName || ''} onChange={e => setProfile({ ...profile, lastName: e.target.value, fullName: `${profile.firstName || ''} ${e.target.value}`.trim() })} style={{ borderRadius: '6px' }} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '12px' }}>Shopper Full Name</label>
+                  <input type="text" className="form-input" value={profile.fullName} onChange={e => setProfile({ ...profile, fullName: e.target.value })} required style={{ borderRadius: '6px' }} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '12px' }}>Username</label>
+                  <input type="text" className="form-input" value={profile.username || ''} onChange={e => setProfile({ ...profile, username: e.target.value })} style={{ borderRadius: '6px' }} />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: '12px' }}>Communication Preferences</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <input type="checkbox" checked={profile.notifyEmail} onChange={e => setProfile({ ...profile, notifyEmail: e.target.checked })} style={{ accentColor: '#f97316' }} />
+                      <span>Email Updates</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <input type="checkbox" checked={profile.notifySms} onChange={e => setProfile({ ...profile, notifySms: e.target.checked })} style={{ accentColor: '#f97316' }} />
+                      <span>SMS Alerts</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <input type="checkbox" checked={profile.notifyNewsletter} onChange={e => setProfile({ ...profile, notifyNewsletter: e.target.checked })} style={{ accentColor: '#f97316' }} />
+                      <span>Weekly Newsletter</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button type="submit" className="btn btn-primary btn-full" style={{ height: '40px', minHeight: '40px', fontSize: '13px' }}>
+                  Save Settings
+                </button>
+              </form>
+            )}
+
+            {/* Security */}
+            {activeTab === 'security' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ borderBottom: '1px solid #f3f4f6', paddingBottom: '16px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Two-Factor Auth</span>
+                  <button type="button" onClick={handleToggle2FA} className="btn btn-primary btn-full" style={{ height: '36px', fontSize: '12px', backgroundColor: is2FAEnabled ? '#d30005' : 'var(--color-ink)', border: 'none' }}>
+                    {is2FAEnabled ? 'Disable 2FA' : 'Enable 2FA'}
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveSecurityOnly} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, display: 'block' }}>Update Password</span>
+                  <input type="password" className="form-input" placeholder="New password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={{ borderRadius: '6px' }} required />
+                  <input type="password" className="form-input" placeholder="Confirm password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={{ borderRadius: '6px' }} required />
+                  <button type="submit" className="btn btn-primary btn-full" style={{ height: '36px', fontSize: '12px' }}>
+                    Change Password
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="container" style={{ padding: '40px 0' }}>

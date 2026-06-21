@@ -1254,6 +1254,8 @@ function App() {
             onChangeOrderNote={setOrderNote}
             shippingZones={dbShippingZones}
             taxClasses={dbTaxClasses}
+            promoCode={promoCode}
+            onApplyPromo={handleApplyPromo}
           />
         )}
 
@@ -1318,6 +1320,7 @@ function App() {
             initialTab={accountTab}
             settings={settings}
             onProfileUpdate={setCurrentUserAvatarUrl}
+            onSignOut={handleSignOut}
           />
         )}
 
