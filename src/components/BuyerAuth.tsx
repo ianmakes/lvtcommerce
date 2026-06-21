@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -63,6 +63,15 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState('');
   const [mfaChallengeType, setMfaChallengeType] = useState<'totp' | 'recovery'>('totp');
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 767);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const [mobileAuthView, setMobileAuthView] = useState<'options' | 'email' | 'phone' | 'forgot'>('options');
 
   // Helper to verify duplicates
   const checkDuplicateUser = async (emailToCheck?: string, phoneToCheck?: string) => {
@@ -425,6 +434,317 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
     { title: "Express Checkouts", desc: "Securely save your shipping details for next-day dispatch." }
   ];
 
+  const emailForm = (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {isSignUp && (
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="buyer-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+            <User size={16} />
+            <span>Full Name</span>
+          </label>
+          <input 
+            id="buyer-name"
+            type="text" 
+            className="form-input" 
+            placeholder="e.g. Samuel Wambui"
+            value={fullName}
+            onChange={e => setFullName(e.target.value)}
+            required
+            disabled={loading}
+            style={{ borderRadius: 8 }}
+          />
+        </div>
+      )}
+
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label" htmlFor="buyer-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+          <Mail size={16} />
+          <span>Email Address</span>
+        </label>
+        <input 
+          id="buyer-email"
+          type="email" 
+          className="form-input" 
+          placeholder="name@email.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          disabled={loading}
+          style={{ borderRadius: 8 }}
+        />
+      </div>
+
+      <div className="form-group" style={{ margin: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label className="form-label" htmlFor="buyer-password" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, margin: 0 }}>
+            <Lock size={16} />
+            <span>Password</span>
+          </label>
+          {!isSignUp && (
+            <button
+              type="button"
+              onClick={() => { 
+                if (isMobile) {
+                  setMobileAuthView('forgot');
+                }
+                setAuthMethod('forgot'); 
+                setErrorMsg(''); 
+                setResetEmailSent(false); 
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-mute)', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+            >
+              Forgot Password?
+            </button>
+          )}
+        </div>
+        <input 
+          id="buyer-password"
+          type="password" 
+          className="form-input" 
+          placeholder="••••••••"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          disabled={loading}
+          style={{ borderRadius: 8, marginTop: '8px' }}
+        />
+      </div>
+
+      {isSignUp && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+          <input 
+            id="joinNewsletter"
+            type="checkbox" 
+            checked={joinNewsletter}
+            onChange={e => setJoinNewsletter(e.target.checked)}
+            disabled={loading}
+            style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
+          />
+          <label htmlFor="joinNewsletter" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
+            Join our newsletter to receive updates & offers
+          </label>
+        </div>
+      )}
+
+      <button 
+        type="submit" 
+        className="btn btn-primary"
+        disabled={loading}
+        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 8 }}
+      >
+        {loading ? (
+          <>
+            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+            <span>Please wait...</span>
+          </>
+        ) : (
+          <>
+            <span>{isSignUp ? "Join Membership" : "Sign In"}</span>
+            <ArrowRight size={16} />
+          </>
+        )}
+      </button>
+    </form>
+  );
+
+  const phoneForm = (
+    <div>
+      {!confirmationResult ? (
+        <form onSubmit={handlePhoneSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {isSignUp && (
+            <>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="buyer-name-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                  <User size={16} />
+                  <span>Full Name</span>
+                </label>
+                <input 
+                  id="buyer-name-phone"
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. Samuel Wambui"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  disabled={loading}
+                  style={{ borderRadius: 8 }}
+                />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="buyer-email-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                  <Mail size={16} />
+                  <span>Email Address (Optional)</span>
+                </label>
+                <input 
+                  id="buyer-email-phone"
+                  type="email" 
+                  className="form-input" 
+                  placeholder="e.g. samuel@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  disabled={loading}
+                  style={{ borderRadius: 8 }}
+                />
+              </div>
+            </>
+          )}
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="buyer-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+              <Phone size={16} />
+              <span>Phone Number (with country code)</span>
+            </label>
+            <input 
+              id="buyer-phone"
+              type="tel" 
+              className="form-input" 
+              placeholder="e.g. +254712345678"
+              value={phoneVal}
+              onChange={e => setPhoneVal(e.target.value)}
+              required
+              disabled={loading}
+              style={{ borderRadius: 8 }}
+            />
+          </div>
+
+          {isSignUp && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <input 
+                id="joinNewsletterPhone"
+                type="checkbox" 
+                checked={joinNewsletter}
+                onChange={e => setJoinNewsletter(e.target.checked)}
+                disabled={loading}
+                style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
+              />
+              <label htmlFor="joinNewsletterPhone" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
+                Join our newsletter to receive updates & offers
+              </label>
+            </div>
+          )}
+
+          <button 
+            id="sign-in-button"
+            type="submit" 
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 8 }}
+          >
+            {loading ? (
+              <>
+                <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+                <span>Sending OTP...</span>
+              </>
+            ) : (
+              <>
+                <span>Send Verification Code</span>
+                <ArrowRight size={16} />
+              </>
+            )}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="verification-code" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+              <Lock size={16} />
+              <span>Enter 6-Digit SMS OTP Code</span>
+            </label>
+            <input 
+              id="verification-code"
+              type="text" 
+              maxLength={6}
+              pattern="[0-9]*"
+              inputMode="numeric"
+              className="form-input" 
+              placeholder="000000"
+              value={verificationCode}
+              onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+              required
+              disabled={loading}
+              style={{ borderRadius: 8 }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+              disabled={loading || verificationCode.length !== 6}
+              style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 8 }}
+            >
+              {loading ? (
+                <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+              ) : (
+                <span>Verify Code</span>
+              )}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setConfirmationResult(null)}
+              style={{ height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 8, backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', border: 'none', padding: '0 20px' }}
+            >
+              Back
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+
+  const forgotForm = (
+    <form onSubmit={handleForgotPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label" htmlFor="reset-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+          <Mail size={16} />
+          <span>Email Address</span>
+        </label>
+        <input 
+          id="reset-email"
+          type="email" 
+          className="form-input" 
+          placeholder="name@email.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          disabled={loading}
+          style={{ borderRadius: 8 }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <button 
+          type="submit" 
+          className="btn btn-primary"
+          disabled={loading}
+          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 8 }}
+        >
+          {loading ? (
+            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
+          ) : (
+            <span>Send Recovery Link</span>
+          )}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => { 
+            if (isMobile) {
+              setMobileAuthView('email');
+            }
+            setAuthMethod('email'); 
+            setErrorMsg(''); 
+            setResetEmailSent(false); 
+          }}
+          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 8, backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', border: 'none' }}
+        >
+          Back to Sign In
+        </button>
+      </div>
+    </form>
+  );
+
   return (
     <div className="auth-wrapper">
       <div id="recaptcha-container"></div>
@@ -622,6 +942,143 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                 </form>
               )}
             </div>
+          ) : isMobile ? (
+            <div>
+              {mobileAuthView === 'options' ? (
+                <div>
+                  <h3 className="auth-form-title">
+                    {isSignUp ? "Create Account" : "Welcome Back"}
+                  </h3>
+                  <p className="auth-form-subtitle">
+                    {isSignUp 
+                      ? "Join GoldenCare Co. to unlock express checkouts, live tracking, and more." 
+                      : "Sign in to your GoldenCare account to manage orders."}
+                  </p>
+
+                  {errorMsg && (
+                    <div className="auth-error-alert">
+                      <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '24px' }}>
+                    <button
+                      type="button"
+                      className="google-btn"
+                      onClick={() => { setMobileAuthView('email'); setAuthMethod('email'); setErrorMsg(''); }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', height: '48px', border: '1px solid var(--color-hairline-soft)', backgroundColor: '#ffffff', color: 'var(--color-ink)', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', borderRadius: '8px' }}
+                    >
+                      <Mail size={18} />
+                      <span>Continue with Email</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="google-btn"
+                      onClick={() => { setMobileAuthView('phone'); setAuthMethod('phone'); setErrorMsg(''); }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', height: '48px', border: '1px solid var(--color-hairline-soft)', backgroundColor: '#ffffff', color: 'var(--color-ink)', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', borderRadius: '8px' }}
+                    >
+                      <Phone size={18} />
+                      <span>Continue with Phone</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      className="google-btn"
+                      disabled={loading}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', height: '48px', border: '1px solid var(--color-hairline-soft)', backgroundColor: '#ffffff', color: 'var(--color-ink)', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', borderRadius: '8px' }}
+                    >
+                      <svg className="google-icon" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+                        <path fill="#EA4335" d="M12 5.04c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 1.84 14.93 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.85 3C6.31 7.55 8.94 5.04 12 5.04z" />
+                        <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.48-1.11 2.73-2.37 3.58l3.68 2.85c2.15-1.98 3.74-4.9 3.74-8.53z" />
+                        <path fill="#FBBC05" d="M5.35 14.73c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28l-3.85-3C.72 8.79 0 10.31 0 12s.72 3.21 1.5 4.82l3.85-3.09z" />
+                        <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.02.68-2.33 1.09-4.28 1.09-3.06 0-5.69-2.51-6.65-5.46l-3.85 3C3.4 20.35 7.35 23 12 23z" />
+                      </svg>
+                      <span>Continue with Google</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleFacebookSignIn}
+                      className="facebook-btn"
+                      disabled={loading}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', height: '48px', border: '1px solid var(--color-hairline-soft)', backgroundColor: '#ffffff', color: 'var(--color-ink)', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer', borderRadius: '8px' }}
+                    >
+                      <svg viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+                        <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                      </svg>
+                      <span>Continue with Facebook</span>
+                    </button>
+                  </div>
+
+                  <div style={{ textAlign: 'center', marginTop: '24px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '16px' }}>
+                    <span style={{ fontSize: '13px', color: 'var(--text-mute)' }}>
+                      {isSignUp ? "Already a member? " : "New to GoldenCare? "}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { setIsSignUp(!isSignUp); setErrorMsg(''); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-ink)', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', fontSize: '13px', padding: 0 }}
+                    >
+                      {isSignUp ? "Sign In" : "Join Us"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="auth-form-title">
+                    {mobileAuthView === 'forgot' ? "Reset Password" : isSignUp ? "Create Account" : "Welcome Back"}
+                  </h3>
+                  <p className="auth-form-subtitle" style={{ marginBottom: '16px' }}>
+                    {mobileAuthView === 'forgot' 
+                      ? "Enter your email address and we'll send you a recovery link." 
+                      : isSignUp 
+                      ? "Fill in your details to create an account." 
+                      : `Log in using your ${mobileAuthView === 'email' ? 'email' : 'phone'}.`
+                    }
+                  </p>
+
+                  {errorMsg && (
+                    <div className="auth-error-alert">
+                      <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+
+                  {resetEmailSent && (
+                    <div className="auth-success-alert">
+                      <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+                      <span>Reset link sent! Please check your email inbox.</span>
+                    </div>
+                  )}
+
+                  {mobileAuthView === 'email' && emailForm}
+                  {mobileAuthView === 'phone' && phoneForm}
+                  {mobileAuthView === 'forgot' && forgotForm}
+
+                  <div style={{ textAlign: 'center', marginTop: '24px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '16px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mobileAuthView === 'forgot') {
+                          setMobileAuthView('email');
+                          setAuthMethod('email');
+                        } else {
+                          setMobileAuthView('options');
+                        }
+                        setErrorMsg('');
+                        setResetEmailSent(false);
+                      }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-mute)', textDecoration: 'underline', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                    >
+                      {mobileAuthView === 'forgot' ? "← Back to Email Sign In" : "← Back to other options"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div>
               {/* Custom Minimalist Tab Header */}
@@ -688,305 +1145,9 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                 </div>
               )}
 
-              {/* Email / Password Form */}
-              {authMethod === 'email' && (
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {isSignUp && (
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" htmlFor="buyer-name" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                        <User size={16} />
-                        <span>Full Name</span>
-                      </label>
-                      <input 
-                        id="buyer-name"
-                        type="text" 
-                        className="form-input" 
-                        placeholder="e.g. Samuel Wambui"
-                        value={fullName}
-                        onChange={e => setFullName(e.target.value)}
-                        required
-                        disabled={loading}
-                        style={{ borderRadius: 0 }}
-                      />
-                    </div>
-                  )}
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" htmlFor="buyer-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                      <Mail size={16} />
-                      <span>Email Address</span>
-                    </label>
-                    <input 
-                      id="buyer-email"
-                      type="email" 
-                      className="form-input" 
-                      placeholder="name@email.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                      disabled={loading}
-                      style={{ borderRadius: 0 }}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label className="form-label" htmlFor="buyer-password" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, margin: 0 }}>
-                        <Lock size={16} />
-                        <span>Password</span>
-                      </label>
-                      {!isSignUp && (
-                        <button
-                          type="button"
-                          onClick={() => { setAuthMethod('forgot'); setErrorMsg(''); setResetEmailSent(false); }}
-                          style={{ background: 'none', border: 'none', color: 'var(--text-mute)', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
-                        >
-                          Forgot Password?
-                        </button>
-                      )}
-                    </div>
-                    <input 
-                      id="buyer-password"
-                      type="password" 
-                      className="form-input" 
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                      disabled={loading}
-                      style={{ borderRadius: 0, marginTop: '8px' }}
-                    />
-                  </div>
-
-                  {isSignUp && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                      <input 
-                        id="joinNewsletter"
-                        type="checkbox" 
-                        checked={joinNewsletter}
-                        onChange={e => setJoinNewsletter(e.target.checked)}
-                        disabled={loading}
-                        style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
-                      />
-                      <label htmlFor="joinNewsletter" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
-                        Join our newsletter to receive updates & offers
-                      </label>
-                    </div>
-                  )}
-
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary"
-                    disabled={loading}
-                    style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
-                        <span>Please wait...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{isSignUp ? "Join Membership" : "Sign In"}</span>
-                        <ArrowRight size={16} />
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-
-              {/* Phone Login Form */}
-              {authMethod === 'phone' && (
-                <div>
-                  {!confirmationResult ? (
-                    <form onSubmit={handlePhoneSignIn} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      {isSignUp && (
-                        <>
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label" htmlFor="buyer-name-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                              <User size={16} />
-                              <span>Full Name</span>
-                            </label>
-                            <input 
-                              id="buyer-name-phone"
-                              type="text" 
-                              className="form-input" 
-                              placeholder="e.g. Samuel Wambui"
-                              value={fullName}
-                              onChange={e => setFullName(e.target.value)}
-                              required
-                              disabled={loading}
-                              style={{ borderRadius: 0 }}
-                            />
-                          </div>
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label" htmlFor="buyer-email-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                              <Mail size={16} />
-                              <span>Email Address (Optional)</span>
-                            </label>
-                            <input 
-                              id="buyer-email-phone"
-                              type="email" 
-                              className="form-input" 
-                              placeholder="e.g. samuel@example.com"
-                              value={email}
-                              onChange={e => setEmail(e.target.value)}
-                              disabled={loading}
-                              style={{ borderRadius: 0 }}
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label" htmlFor="buyer-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                          <Phone size={16} />
-                          <span>Phone Number (with country code)</span>
-                        </label>
-                        <input 
-                          id="buyer-phone"
-                          type="tel" 
-                          className="form-input" 
-                          placeholder="e.g. +254712345678"
-                          value={phoneVal}
-                          onChange={e => setPhoneVal(e.target.value)}
-                          required
-                          disabled={loading}
-                          style={{ borderRadius: 0 }}
-                        />
-                      </div>
-
-                      {isSignUp && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                          <input 
-                            id="joinNewsletterPhone"
-                            type="checkbox" 
-                            checked={joinNewsletter}
-                            onChange={e => setJoinNewsletter(e.target.checked)}
-                            disabled={loading}
-                            style={{ width: 'auto', margin: 0, cursor: 'pointer' }}
-                          />
-                          <label htmlFor="joinNewsletterPhone" style={{ cursor: 'pointer', fontSize: '13px', color: 'var(--text-charcoal)', fontWeight: 500, userSelect: 'none' }}>
-                            Join our newsletter to receive updates & offers
-                          </label>
-                        </div>
-                      )}
-
-                      <button 
-                        id="sign-in-button"
-                        type="submit" 
-                        className="btn btn-primary"
-                        disabled={loading}
-                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', marginTop: '8px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
-                            <span>Sending OTP...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Send Verification Code</span>
-                            <ArrowRight size={16} />
-                          </>
-                        )}
-                      </button>
-                    </form>
-                  ) : (
-                    <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label" htmlFor="verification-code" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                          <Lock size={16} />
-                          <span>Enter 6-Digit SMS OTP Code</span>
-                        </label>
-                        <input 
-                          id="verification-code"
-                          type="text" 
-                          maxLength={6}
-                          pattern="[0-9]*"
-                          inputMode="numeric"
-                          className="form-input" 
-                          placeholder="000000"
-                          value={verificationCode}
-                          onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                          required
-                          disabled={loading}
-                          style={{ borderRadius: 0 }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <button 
-                          type="submit" 
-                          className="btn btn-primary"
-                          disabled={loading || verificationCode.length !== 6}
-                          style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
-                        >
-                          {loading ? (
-                            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
-                          ) : (
-                            <span>Verify Code</span>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => setConfirmationResult(null)}
-                          style={{ height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0, backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', border: 'none', padding: '0 20px' }}
-                        >
-                          Back
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              )}
-
-              {/* Forgot Password Form */}
-              {authMethod === 'forgot' && (
-                <form onSubmit={handleForgotPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" htmlFor="reset-email" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                      <Mail size={16} />
-                      <span>Email Address</span>
-                    </label>
-                    <input 
-                      id="reset-email"
-                      type="email" 
-                      className="form-input" 
-                      placeholder="name@email.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                      disabled={loading}
-                      style={{ borderRadius: 0 }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <button 
-                      type="submit" 
-                      className="btn btn-primary"
-                      disabled={loading}
-                      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0 }}
-                    >
-                      {loading ? (
-                        <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={18} />
-                      ) : (
-                        <span>Send Recovery Link</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => { setAuthMethod('email'); setErrorMsg(''); setResetEmailSent(false); }}
-                      style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '48px', textTransform: 'uppercase', fontWeight: 600, fontSize: '14px', borderRadius: 0, backgroundColor: 'var(--color-soft-cloud)', color: 'var(--color-ink)', border: 'none' }}
-                    >
-                      Back to Sign In
-                    </button>
-                  </div>
-                </form>
-              )}
+              {authMethod === 'email' && emailForm}
+              {authMethod === 'phone' && phoneForm}
+              {authMethod === 'forgot' && forgotForm}
 
               {/* Premium Google & Facebook Sign-In Buttons */}
               {authMethod !== 'forgot' && (

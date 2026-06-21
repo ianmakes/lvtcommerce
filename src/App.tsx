@@ -20,7 +20,7 @@ import { CartPage } from './components/CartPage';
 import { ComingSoonPage } from './components/ComingSoonPage';
 import { HomePage } from './components/HomePage';
 import { useLocation, navigate, Link } from './Router';
-import { LayoutGrid, List, ChevronRight, Home, Store, ShoppingCart, User as UserIcon, Heart, ShoppingBag, Smartphone, X } from 'lucide-react';
+import { LayoutGrid, List, ChevronRight, ChevronLeft, Home, Store, ShoppingCart, User as UserIcon, Heart, ShoppingBag, Smartphone, X } from 'lucide-react';
 
 import { Product, CartItem, Order, ShopSettings, HomeSlide, Category, Coupon, ShippingZone, TaxClass, CustomPage } from './types';
 import { initDb, getProducts, getSettings, addOrder, getHomeSlides, getCategories, getCoupons, getOrders, getShippingZones, getTaxClasses, getBuyerProfile, getWishlist, saveWishlist, migrateSettings, getCustomPage } from './db';
@@ -791,7 +791,7 @@ function App() {
   // Derive currentView from path for Navbar tab activation and UI highlights
   let derivedView: 'landing' | 'store' | 'admin' | 'checkout' | 'success' | 'product-details' | 'account' | 'about' | 'policy' | 'terms' | 'auth' | 'custom-page' = 'landing';
   if (path === '/') derivedView = isMobile ? 'store' : 'landing';
-  else if (path === '/shop') derivedView = 'store';
+  else if (path === '/shop' || path === '/categories') derivedView = 'store';
   else if (path.startsWith('/product/')) derivedView = 'product-details';
   else if (path === '/checkout') derivedView = 'checkout';
   else if (path === '/success') derivedView = 'success';
@@ -874,7 +874,7 @@ function App() {
                 {/* 1. Mobile Hero Slider */}
                 {slides.length > 0 && (
                   <div className="homepage-hero-section" style={{ padding: '0', margin: '0 0 8px' }}>
-                    <div className="homepage-slider-container" style={{ height: '180px', borderRadius: '8px', overflow: 'hidden', margin: '0 16px', position: 'relative' }}>
+                    <div className="homepage-slider-container" style={{ aspectRatio: '16/9', height: 'auto', borderRadius: '8px', overflow: 'hidden', margin: '0 16px', position: 'relative' }}>
                       {slides.map((slide, idx) => (
                         <div
                           key={slide.id}
@@ -883,7 +883,7 @@ function App() {
                             display: idx === activeSlide ? 'block' : 'none',
                             height: '100%',
                             position: 'relative',
-                            backgroundImage: slide.mediaType !== 'video' ? `linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%), url(${slide.image})` : 'none',
+                            backgroundImage: slide.mediaType !== 'video' ? `linear-gradient(180deg, rgba(0,0,0,0) 20%, rgba(0,0,0,0.8) 100%), url(${slide.image})` : 'none',
                             backgroundSize: 'cover',
                             backgroundPosition: 'center',
                             cursor: 'pointer'
@@ -912,23 +912,76 @@ function App() {
                             </div>
                           )}
                           <div style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px', zIndex: 10, color: '#ffffff' }}>
-                            <h2 style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 4px', textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>{slide.title}</h2>
-                            <p style={{ fontSize: '11px', margin: '0', opacity: 0.9, textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{slide.description}</p>
+                            <h2 style={{ fontSize: '17px', fontWeight: 800, margin: '0 0 6px', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>{slide.title}</h2>
+                            <p style={{ fontSize: '12px', margin: '0', opacity: 0.95, fontWeight: 500, textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>{slide.description}</p>
                           </div>
                         </div>
                       ))}
                       {slides.length > 1 && (
-                        <div className="slider-nav-dots" style={{ bottom: '8px', zIndex: 12, position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '6px' }}>
-                          {slides.map((_, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              className={`slider-nav-dot ${idx === activeSlide ? 'active' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); setActiveSlide(idx); }}
-                              style={{ width: '6px', height: '6px', borderRadius: '50%', border: 'none', background: idx === activeSlide ? '#ffffff' : 'rgba(255,255,255,0.4)', padding: 0 }}
-                            />
-                          ))}
-                        </div>
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveSlide(prev => (prev === 0 ? slides.length - 1 : prev - 1));
+                            }}
+                            style={{
+                              position: 'absolute',
+                              left: '12px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              zIndex: 15,
+                              background: 'rgba(255, 255, 255, 0.25)',
+                              backdropFilter: 'blur(8px)',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#ffffff',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                              transition: 'all 0.2s ease',
+                              padding: 0
+                            }}
+                            aria-label="Previous slide"
+                          >
+                            <ChevronLeft size={16} strokeWidth={2.5} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveSlide(prev => (prev === slides.length - 1 ? 0 : prev + 1));
+                            }}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              zIndex: 15,
+                              background: 'rgba(255, 255, 255, 0.25)',
+                              backdropFilter: 'blur(8px)',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#ffffff',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                              transition: 'all 0.2s ease',
+                              padding: 0
+                            }}
+                            aria-label="Next slide"
+                          >
+                            <ChevronRight size={16} strokeWidth={2.5} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1304,6 +1357,89 @@ function App() {
           <CmsCustomPageView path={path} />
         )}
 
+        {/* VIEW: Categories Page */}
+        {path === '/categories' && (
+          <div className="categories-page-container container" style={{ padding: '24px 16px', minHeight: '60vh' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+              <LayoutGrid size={24} />
+              <h1 style={{ fontSize: '22px', fontWeight: 800, textTransform: 'uppercase', margin: 0 }}>All Categories</h1>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+              <div 
+                className="category-card-premium"
+                onClick={() => {
+                  setSelectedCategory('All');
+                  navigate('/shop');
+                }}
+                style={{ 
+                  background: 'var(--color-ink)', 
+                  color: '#ffffff', 
+                  padding: '24px 16px', 
+                  borderRadius: '12px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: 'space-between',
+                  height: '140px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease',
+                  border: '1px solid var(--color-ink)'
+                }}
+              >
+                <div style={{ background: 'rgba(255,255,255,0.15)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Store size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px' }}>All Products</h3>
+                  <span style={{ fontSize: '11px', opacity: 0.8 }}>Explore everything</span>
+                </div>
+              </div>
+
+              {dbCategories.map(cat => {
+                const name = cat.name.toLowerCase();
+                let icon = <ShoppingBag size={20} />;
+                if (name.includes('care') || name.includes('health') || name.includes('wellness')) icon = <Heart size={20} />;
+                else if (name.includes('phone') || name.includes('electronic') || name.includes('accessory')) icon = <Smartphone size={20} />;
+                else if (name.includes('home')) icon = <Home size={20} />;
+
+                return (
+                  <div 
+                    key={cat.id}
+                    className="category-card-premium"
+                    onClick={() => {
+                      setSelectedCategory(cat.name);
+                      navigate('/shop');
+                    }}
+                    style={{ 
+                      background: 'var(--color-soft-cloud)', 
+                      color: 'var(--color-ink)', 
+                      padding: '24px 16px', 
+                      borderRadius: '12px', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'space-between',
+                      height: '140px',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid var(--color-hairline-soft)'
+                    }}
+                  >
+                    <div style={{ background: 'rgba(0,0,0,0.05)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {icon}
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px' }}>{cat.name}</h3>
+                      <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>Shop Category</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* VIEW L: Cart Page */}
         {path === '/cart' && (
           <CartPage
@@ -1389,8 +1525,8 @@ function App() {
           </button>
           <button
             type="button"
-            className={`mobile-bottom-nav-item ${categoryDrawerOpen ? 'active' : ''}`}
-            onClick={() => setCategoryDrawerOpen(true)}
+            className={`mobile-bottom-nav-item ${path === '/categories' ? 'active' : ''}`}
+            onClick={() => navigate('/categories')}
           >
             <List size={22} />
             <span className="mobile-bottom-nav-label">Categories</span>

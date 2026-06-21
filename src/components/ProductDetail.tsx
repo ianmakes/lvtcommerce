@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
-import { Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp, X, Zap, Share2, Phone, Home, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Product, ProductVariant, CartItem, ProductReview } from '../types';
 import { getProductReviews, addProductReview, checkIfUserPurchasedProduct } from '../db';
-import { Link } from '../Router';
+import { Link, navigate } from '../Router';
 
 interface ProductDetailProps {
   product: Product;
@@ -74,10 +74,41 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   const [formComment, setFormComment] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState('');
 
+  // Mobile viewport detection
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 767);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Image index tracking for mobile carousel
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Flash Sale Timer State
+  const [timeLeft, setTimeLeft] = useState({ hours: 14, minutes: 32, seconds: 45 });
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev.seconds > 0) {
+          return { ...prev, seconds: prev.seconds - 1 };
+        } else if (prev.minutes > 0) {
+          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+        } else if (prev.hours > 0) {
+          return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        } else {
+          return { hours: 14, minutes: 32, seconds: 45 };
+        }
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Sync image when product changes
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveImage(product.image);
+    setActiveImageIndex(0);
     setDetailsOpen(true);
     setShippingOpen(false);
     setReviewsOpen(false);
@@ -323,6 +354,531 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
       default: return '#f5f5f5';
     }
   };
+
+  const getBrand = () => {
+    if (product.specifications) {
+      const brandKey = Object.keys(product.specifications).find(k => k.toLowerCase() === 'brand');
+      if (brandKey) return product.specifications[brandKey];
+    }
+    const firstWord = product.name.trim().split(/\s+/)[0];
+    return firstWord || 'GoldenCare';
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft;
+    const width = e.currentTarget.offsetWidth;
+    if (width > 0) {
+      const index = Math.round(scrollLeft / width);
+      setActiveImageIndex(index);
+    }
+  };
+
+  if (isMobile) {
+    return (
+      <div className="mobile-pdp-container" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', backgroundColor: '#f5f5f5' }}>
+        {/* Gallery Carousel */}
+        <div style={{ position: 'relative', backgroundColor: '#ffffff', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+          {product.badge && (
+            <span className="badge-promo" style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10 }}>{product.badge}</span>
+          )}
+          <div 
+            onScroll={handleScroll}
+            style={{ 
+              display: 'flex', 
+              overflowX: 'auto', 
+              scrollSnapType: 'x mandatory', 
+              scrollBehavior: 'smooth',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+            className="mobile-pdp-carousel"
+          >
+            {galleryImages.map((imgUrl, idx) => (
+              <div 
+                key={idx}
+                onClick={() => setIsLightboxOpen(true)}
+                style={{ 
+                  flex: '0 0 100%', 
+                  width: '100%', 
+                  scrollSnapAlign: 'start', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  aspectRatio: '1/1',
+                  backgroundColor: '#ffffff'
+                }}
+              >
+                {isVideoUrl(imgUrl) ? (
+                  getVideoEmbedUrl(imgUrl) ? (
+                    <iframe
+                      src={getVideoEmbedUrl(imgUrl) || ''}
+                      style={{ width: '100%', height: '100%', border: 'none' }}
+                      allow="autoplay; fullscreen"
+                      title="product video"
+                    />
+                  ) : (
+                    <video src={imgUrl} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  )
+                ) : (
+                  <img src={imgUrl} alt={`${product.name}-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Dots Indicator */}
+          {galleryImages.length > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', padding: '12px 0 16px' }}>
+              {galleryImages.map((_, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: idx === activeImageIndex ? 'var(--color-ink)' : '#dcdcdc',
+                    transition: 'all 0.2s ease'
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Product Meta Section */}
+        <div style={{ backgroundColor: '#ffffff', padding: '16px', marginBottom: '8px', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ backgroundColor: '#0f3b73', color: '#ffffff', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', padding: '3px 8px', borderRadius: '2px' }}>Official Store</span>
+            <span style={{ backgroundColor: '#fcd34d', color: '#000000', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', padding: '3px 8px', borderRadius: '2px' }}>1 Year Warranty</span>
+          </div>
+
+          <h1 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-ink)', lineHeight: 1.4, margin: '0 0 8px' }}>
+            {product.name}
+          </h1>
+
+          <div style={{ fontSize: '13px', color: 'var(--text-mute)', marginBottom: '12px' }}>
+            <span>Brand: </span>
+            <span style={{ color: '#0f3b73', fontWeight: 600 }}>{getBrand()}</span>
+            <span style={{ color: 'var(--color-hairline-soft)', margin: '0 8px' }}>|</span>
+            <span style={{ color: '#0f3b73', cursor: 'pointer' }} onClick={() => navigate('/shop')}>Similar products from {getBrand()}</span>
+          </div>
+
+          {/* Flash Sales Ticker */}
+          <div style={{ 
+            background: 'linear-gradient(90deg, #e61a23 0%, #ff4e00 100%)', 
+            color: '#ffffff', 
+            padding: '10px 12px', 
+            borderRadius: '6px', 
+            marginBottom: '12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '13px' }}>
+              <Zap size={14} fill="#ffffff" />
+              <span>Flash Sales</span>
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 600 }}>
+              Time Left: {String(timeLeft.hours).padStart(2, '0')}h : {String(timeLeft.minutes).padStart(2, '0')}m : {String(timeLeft.seconds).padStart(2, '0')}s
+            </div>
+          </div>
+
+          {/* Price Block */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+            <span style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-ink)' }}>KSh {activePrice.toLocaleString()}</span>
+            {!currentVariant && product.salePrice && product.salePrice > 0 && product.salePrice < product.basePrice && (
+              <>
+                <span style={{ textDecoration: 'line-through', color: 'var(--text-mute)', fontSize: '14px' }}>KSh {product.basePrice.toLocaleString()}</span>
+                <span style={{ color: '#ff6600', backgroundColor: '#fff0e6', fontSize: '11px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
+                  -{Math.round(((product.basePrice - product.salePrice) / product.basePrice) * 100)}%
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Stock Progress Bar */}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-charcoal)', marginBottom: '4px', fontWeight: 500 }}>
+              <span>{activeStock !== null ? `${activeStock} items left` : '37 items left'}</span>
+            </div>
+            <div style={{ width: '100%', height: '6px', backgroundColor: '#e9ecef', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ width: activeStock !== null ? `${Math.min(100, (activeStock / 20) * 100)}%` : '65%', height: '100%', background: 'linear-gradient(90deg, #f5af19, #f12711)', borderRadius: '3px' }} />
+            </div>
+          </div>
+
+          {/* Shipping Estimate */}
+          <div style={{ fontSize: '12px', color: 'var(--text-charcoal)', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '12px' }}>
+            <span>+ shipping from KSh 120 to Nairobi CBD </span>
+            <span style={{ color: '#ff6600', fontWeight: 600, cursor: 'pointer' }}>See options</span>
+          </div>
+        </div>
+
+        {/* Ratings, Share, Wishlist line */}
+        <div style={{ backgroundColor: '#ffffff', padding: '12px 16px', marginBottom: '8px', borderBottom: '1px solid var(--color-hairline-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', gap: '1px', color: '#dba617' }}>
+              {[1, 2, 3, 4, 5].map(starNum => {
+                const averageRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+                return (
+                  <Star 
+                    key={starNum} 
+                    size={14} 
+                    fill={starNum <= Math.round(averageRating) ? '#dba617' : 'none'} 
+                    style={{ color: '#dba617' }} 
+                  />
+                );
+              })}
+            </div>
+            <span style={{ fontSize: '12px', color: 'var(--text-mute)', fontWeight: 600 }}>
+              {reviews.length} ratings
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <button 
+              type="button" 
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: product.name,
+                    text: product.shortDescription || product.description,
+                    url: window.location.href
+                  }).catch(console.error);
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  setSuccessMsg("Product link copied to clipboard!");
+                }
+              }}
+              style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', color: 'var(--color-ink)' }}
+            >
+              <Share2 size={20} />
+            </button>
+            <button 
+              type="button" 
+              onClick={(e) => onToggleWishlist(product.id, e)}
+              style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', color: isWishlisted ? 'var(--color-sale)' : 'var(--color-ink)' }}
+            >
+              <Heart size={20} fill={isWishlisted ? 'var(--color-sale)' : 'none'} />
+            </button>
+          </div>
+        </div>
+
+        {/* Variants Selection (if any) */}
+        {hasVariants && (
+          <div style={{ backgroundColor: '#ffffff', padding: '16px', marginBottom: '8px', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+            {product.attributes.map(attr => {
+              const isColorAttr = attr.name.toLowerCase() === 'color';
+              return (
+                <div key={attr.name} style={{ marginBottom: '12px' }}>
+                  <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--color-ink)' }}>
+                    Select {attr.name}:
+                  </span>
+                  {isColorAttr ? (
+                    <div className="swatch-dots" style={{ gap: '10px' }}>
+                      {attr.options.map(opt => {
+                        const isSelected = selectedOptions[attr.name] === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`swatch-dot ${opt.toLowerCase() === 'cyber silver' ? 'has-light-border' : ''} ${isSelected ? 'active' : ''}`}
+                            style={{ backgroundColor: getColorHex(opt), width: '28px', height: '28px' }}
+                            onClick={() => handleSelectOption(attr.name, opt)}
+                            title={opt}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {attr.options.map(opt => {
+                        const isSelected = selectedOptions[attr.name] === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={`filter-chip ${isSelected ? 'active' : ''}`}
+                            onClick={() => handleSelectOption(attr.name, opt)}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Description & Specs collapsed accordions / tabs */}
+        <div style={{ backgroundColor: '#ffffff', padding: '16px', marginBottom: '8px', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+          <div 
+            onClick={() => setDetailsOpen(!detailsOpen)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '12px 0', borderBottom: detailsOpen ? '1px solid var(--color-hairline-soft)' : 'none' }}
+          >
+            <span style={{ fontWeight: 600, fontSize: '14px' }}>Product Details</span>
+            {detailsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </div>
+          {detailsOpen && (
+            <div style={{ padding: '12px 0 0', fontSize: '13px', color: 'var(--text-charcoal)', lineHeight: 1.6 }}>
+              <p style={{ whiteSpace: 'pre-line', margin: '0 0 12px' }}>
+                {product.longDescription || product.description}
+              </p>
+              {product.specifications && Object.keys(product.specifications).length > 0 && (
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '12px' }}>
+                  <tbody>
+                    {Object.entries(product.specifications).map(([key, val]) => (
+                      <tr key={key} style={{ borderBottom: '1px solid var(--color-hairline-soft)' }}>
+                        <td style={{ padding: '8px 0', fontWeight: 600, color: 'var(--text-charcoal)', fontSize: '13px' }}>{key}</td>
+                        <td style={{ padding: '8px 0', color: 'var(--text-ink)', fontSize: '13px' }}>{val}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Reviews Section */}
+        <div style={{ backgroundColor: '#ffffff', padding: '16px', marginBottom: '8px', borderBottom: '1px solid var(--color-hairline-soft)' }}>
+          <div 
+            onClick={() => setReviewsOpen(!reviewsOpen)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '12px 0' }}
+          >
+            <span style={{ fontWeight: 600, fontSize: '14px' }}>Customer Reviews ({reviews.length})</span>
+            {reviewsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </div>
+          {reviewsOpen && (
+            <div style={{ paddingTop: '12px' }}>
+              {/* Ratings Summary */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '32px', fontWeight: 700 }}>{product.rating || '0.0'}</span>
+                <div>
+                  <div style={{ display: 'flex', gap: '2px', color: '#dba617' }}>
+                    {[1, 2, 3, 4, 5].map(starNum => (
+                      <Star key={starNum} size={14} fill={starNum <= Math.round(product.rating || 0) ? '#dba617' : 'none'} style={{ color: '#dba617' }} />
+                    ))}
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-mute)' }}>Based on {reviews.length} reviews</span>
+                </div>
+              </div>
+
+              {/* Reviews List */}
+              {loadingReviews ? (
+                <div>Loading...</div>
+              ) : reviews.length === 0 ? (
+                <div style={{ fontStyle: 'italic', color: 'var(--text-mute)', fontSize: '13px' }}>No reviews yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {reviews.map(rev => (
+                    <div key={rev.id} style={{ borderBottom: '1px solid var(--color-hairline-soft)', paddingBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 600 }}>{rev.buyerName}</span>
+                        <span style={{ color: 'var(--text-mute)' }}>{new Date(rev.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '1px', marginBottom: '6px', color: '#dba617' }}>
+                        {[1, 2, 3, 4, 5].map(starNum => (
+                          <Star key={starNum} size={10} fill={starNum <= rev.rating ? '#dba617' : 'none'} style={{ color: '#dba617' }} />
+                        ))}
+                      </div>
+                      <p style={{ fontSize: '13px', color: 'var(--text-charcoal)', margin: 0 }}>{rev.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Related Products Scroller */}
+        {relatedProducts.length > 0 && (
+          <div style={{ backgroundColor: '#ffffff', padding: '16px', marginBottom: '8px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px' }}>You Might Also Like</h3>
+            <div style={{ display: 'flex', overflowX: 'auto', gap: '12px', paddingBottom: '8px' }}>
+              {relatedProducts.map(prod => (
+                <div 
+                  key={prod.id}
+                  onClick={() => {
+                    onSelectProduct(prod);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  style={{ flex: '0 0 140px', width: '140px', cursor: 'pointer' }}
+                >
+                  <div style={{ aspectRatio: '1/1', backgroundColor: 'var(--color-soft-cloud)', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--color-hairline-soft)', position: 'relative', marginBottom: '6px' }}>
+                    <img src={prod.image} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <h4 style={{ fontSize: '12px', fontWeight: 500, margin: '0 0 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prod.name}</h4>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>KSh {prod.basePrice.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Sticky Action Bar */}
+        <div style={{ 
+          position: 'fixed', 
+          bottom: 0, 
+          left: 0, 
+          right: 0, 
+          height: '64px', 
+          backgroundColor: '#ffffff', 
+          borderTop: '1px solid var(--color-hairline-soft)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          padding: '0 16px calc(env(safe-area-inset-bottom, 0px))', 
+          boxSizing: 'content-box',
+          gap: '12px',
+          zIndex: 2000,
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.06)'
+        }}>
+          <button 
+            type="button" 
+            onClick={() => navigate('/')}
+            style={{ 
+              width: '44px', 
+              height: '44px', 
+              border: '1px solid #dcdcdc', 
+              borderRadius: '8px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              color: 'var(--color-ink)', 
+              cursor: 'pointer', 
+              backgroundColor: '#ffffff' 
+            }}
+            aria-label="Go Home"
+          >
+            <Home size={20} />
+          </button>
+          <button 
+            type="button" 
+            onClick={() => window.location.href = 'tel:+254712345678'}
+            style={{ 
+              width: '44px', 
+              height: '44px', 
+              border: '1px solid #dcdcdc', 
+              borderRadius: '8px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              color: 'var(--color-ink)', 
+              cursor: 'pointer', 
+              backgroundColor: '#ffffff' 
+            }}
+            aria-label="Call Support"
+          >
+            <Phone size={20} />
+          </button>
+          <button 
+            type="button" 
+            className="btn-add-to-cart-mobile"
+            onClick={handleAddToCartClick}
+            disabled={isOutOfStock}
+            style={{ 
+              flex: 1, 
+              height: '44px', 
+              backgroundColor: '#f68b1e', 
+              color: '#ffffff', 
+              border: 'none', 
+              borderRadius: '8px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '8px', 
+              fontWeight: 'bold', 
+              fontSize: '15px', 
+              cursor: 'pointer',
+              opacity: isOutOfStock ? 0.5 : 1
+            }}
+          >
+            <ShoppingCart size={18} />
+            <span>ADD TO CART</span>
+          </button>
+        </div>
+
+        {/* Lightbox Overlay */}
+        {isLightboxOpen && (
+          <div 
+            className="modal-overlay" 
+            onClick={() => setIsLightboxOpen(false)}
+            style={{ 
+              zIndex: 4000, 
+              backgroundColor: 'rgba(0, 0, 0, 0.9)', 
+              cursor: 'zoom-out',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px',
+              position: 'fixed',
+              top: 0,
+              bottom: 0,
+              left: 0,
+              right: 0
+            }}
+          >
+            <button 
+              type="button" 
+              onClick={() => setIsLightboxOpen(false)}
+              style={{ 
+                position: 'absolute', 
+                top: '24px', 
+                right: '24px', 
+                background: 'none', 
+                border: 'none', 
+                color: '#ffffff', 
+                cursor: 'pointer',
+                padding: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              aria-label="Close Lightbox"
+            >
+              <X size={32} />
+            </button>
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              style={{ 
+                position: 'relative', 
+                maxWidth: '90%', 
+                maxHeight: '90%', 
+                backgroundColor: 'transparent',
+                overflow: 'hidden'
+              }}
+            >
+              {isVideoUrl(galleryImages[activeImageIndex]) ? (
+                getVideoEmbedUrl(galleryImages[activeImageIndex]) ? (
+                  <iframe
+                    src={getVideoEmbedUrl(galleryImages[activeImageIndex]) || ''}
+                    style={{ width: '80vw', height: '80vh', border: 'none' }}
+                    allow="autoplay; fullscreen"
+                    title="product video lightbox"
+                  />
+                ) : (
+                  <video src={galleryImages[activeImageIndex]} controls autoPlay playsInline style={{ maxWidth: '100%', maxHeight: '85vh', objectFit: 'contain' }} />
+                )
+              ) : (
+                <img 
+                  src={galleryImages[activeImageIndex]} 
+                  alt={product.name} 
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '85vh', 
+                    objectFit: 'contain', 
+                    border: '1px solid rgba(255,255,255,0.1)' 
+                  }} 
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="container" style={{ padding: '30px 0' }}>
