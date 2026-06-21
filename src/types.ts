@@ -168,6 +168,7 @@ export interface ShopSettings {
   paystackTestSecretKey?: string;
   codActive?: boolean;
   rolesConfig?: Record<string, Record<string, boolean>>;
+  customRoles?: Record<string, string>;
   shopPageDefaultView?: 'grid' | 'list';
   emailFromAddress?: string;
   emailTemplateCustomerSubject?: string;

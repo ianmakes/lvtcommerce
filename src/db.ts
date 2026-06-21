@@ -658,6 +658,123 @@ export function migrateSettings(data: ShopSettings): ShopSettings {
   migrated.receiptShowPaymentMethod = migrated.receiptShowPaymentMethod !== undefined ? migrated.receiptShowPaymentMethod : true;
   migrated.receiptShowCustomerDetails = migrated.receiptShowCustomerDetails !== undefined ? migrated.receiptShowCustomerDetails : true;
 
+  // Initialize rolesConfig and customRoles
+  if (!migrated.rolesConfig) {
+    migrated.rolesConfig = {};
+  }
+  if (!migrated.customRoles) {
+    migrated.customRoles = {};
+  }
+
+  const defaultRolesConfig: Record<string, Record<string, boolean>> = {
+    shop_manager: {
+      products_view: true, products_create: true, products_edit: true, products_delete: true,
+      categories_view: true, categories_create: true, categories_edit: true, categories_delete: true,
+      orders_view: true, orders_edit: true, orders_delete: true,
+      inventory_view: true, inventory_edit: true,
+      users_view: true, users_create: false, users_edit: false, users_delete: false,
+      reports_view: true,
+      promos_view: true, promos_create: true, promos_edit: true, promos_delete: true,
+      media_view: true, media_upload: true, media_delete: true,
+      slides_view: true, slides_manage: true,
+      reviews_view: true, reviews_approve: true, reviews_delete: true,
+      cms_view: true, cms_edit: false,
+      newsletter_view: true, newsletter_send: false,
+      settings_view: true, settings_edit: false, settings_rbac: false,
+    },
+    contributor: {
+      products_view: true, products_create: true, products_edit: true, products_delete: false,
+      categories_view: true, categories_create: true, categories_edit: true, categories_delete: false,
+      orders_view: false, orders_edit: false, orders_delete: false,
+      inventory_view: true, inventory_edit: false,
+      users_view: false, users_create: false, users_edit: false, users_delete: false,
+      reports_view: false,
+      promos_view: false, promos_create: false, promos_edit: false, promos_delete: false,
+      media_view: true, media_upload: true, media_delete: false,
+      slides_view: true, slides_manage: false,
+      reviews_view: true, reviews_approve: false, reviews_delete: false,
+      cms_view: false, cms_edit: false,
+      newsletter_view: false, newsletter_send: false,
+      settings_view: false, settings_edit: false, settings_rbac: false,
+    },
+    customer: {
+      products_view: false, products_create: false, products_edit: false, products_delete: false,
+      categories_view: false, categories_create: false, categories_edit: false, categories_delete: false,
+      orders_view: false, orders_edit: false, orders_delete: false,
+      inventory_view: false, inventory_edit: false,
+      users_view: false, users_create: false, users_edit: false, users_delete: false,
+      reports_view: false,
+      promos_view: false, promos_create: false, promos_edit: false, promos_delete: false,
+      media_view: false, media_upload: false, media_delete: false,
+      slides_view: false, slides_manage: false,
+      reviews_view: false, reviews_approve: false, reviews_delete: false,
+      cms_view: false, cms_edit: false,
+      newsletter_view: false, newsletter_send: false,
+      settings_view: false, settings_edit: false, settings_rbac: false,
+    }
+  };
+
+  const presets = ['shop_manager', 'contributor', 'customer'];
+  presets.forEach(preset => {
+    if (!migrated.rolesConfig![preset]) {
+      migrated.rolesConfig![preset] = { ...defaultRolesConfig[preset] };
+    } else {
+      const existing = migrated.rolesConfig![preset] as Record<string, boolean>;
+      const merged = { ...defaultRolesConfig[preset], ...existing };
+      
+      if (existing.manageProducts !== undefined) {
+        const val = existing.manageProducts;
+        merged.products_view = val;
+        merged.products_create = val;
+        merged.products_edit = val;
+        merged.products_delete = val;
+        merged.categories_view = val;
+        merged.categories_create = val;
+        merged.categories_edit = val;
+        merged.categories_delete = val;
+        merged.media_view = val;
+        merged.media_upload = val;
+        merged.media_delete = val;
+        merged.slides_view = val;
+        merged.slides_manage = val;
+        merged.reviews_view = val;
+        merged.reviews_approve = val;
+        merged.reviews_delete = val;
+        merged.promos_view = val;
+        merged.promos_create = val;
+        merged.promos_edit = val;
+        merged.promos_delete = val;
+      }
+      if (existing.manageOrders !== undefined) {
+        const val = existing.manageOrders;
+        merged.orders_view = val;
+        merged.orders_edit = val;
+        merged.orders_delete = val;
+      }
+      if (existing.manageUsers !== undefined) {
+        const val = existing.manageUsers;
+        merged.users_view = val;
+        merged.users_create = val;
+        merged.users_edit = val;
+        merged.users_delete = val;
+      }
+      if (existing.viewReports !== undefined) {
+        merged.reports_view = existing.viewReports;
+      }
+      if (existing.manageSettings !== undefined) {
+        const val = existing.manageSettings;
+        merged.settings_view = val;
+        merged.settings_edit = val;
+        merged.settings_rbac = val;
+        merged.cms_view = val;
+        merged.cms_edit = val;
+        merged.newsletter_view = val;
+        merged.newsletter_send = val;
+      }
+      migrated.rolesConfig![preset] = merged;
+    }
+  });
+
   return migrated;
 }
 

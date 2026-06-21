@@ -144,29 +144,40 @@ export async function sendTestWhatsapp(
     recipientPhone = '254' + recipientPhone.substring(1);
   }
 
-  const messageContent = `Test message from ${settings.shopName || 'GoldenCare Market'}. Your WhatsApp credentials are correctly configured! 🚀`;
+  const logMessage = `Sent test connection template 'hello_world'`;
 
-  const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: recipientPhone,
-      type: "text",
-      text: {
-        preview_url: false,
-        body: messageContent
-      }
-    })
-  });
+  try {
+    const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: recipientPhone,
+        type: "template",
+        template: {
+          name: "hello_world",
+          language: {
+            code: "en_US"
+          }
+        }
+      })
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error?.message || response.statusText || 'Unknown Meta API error');
+    const data = await response.json();
+    if (!response.ok) {
+      const errorMsg = data?.error?.message || response.statusText || 'Unknown Meta API error';
+      await logWhatsappDelivery('test-connection', testPhone, 'failed', `Error: ${errorMsg}`, data);
+      throw new Error(errorMsg);
+    }
+
+    await logWhatsappDelivery('test-connection', testPhone, 'success', logMessage, data);
+  } catch (err: any) {
+    const errorMsg = err?.message || String(err);
+    await logWhatsappDelivery('test-connection', testPhone, 'failed', `Exception: ${errorMsg}`, { error: errorMsg });
+    throw err;
   }
 }
 

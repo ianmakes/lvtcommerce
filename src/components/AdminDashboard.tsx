@@ -128,6 +128,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [orders, setOrders] = useState<Order[]>([]);
   const [localSettings, setLocalSettings] = useState<ShopSettings>(settings);
   
+  // RBAC Sub-tab state
+  const [selectedRbacRole, setSelectedRbacRole] = useState<string>('shop_manager');
+  const [newCustomRoleId, setNewCustomRoleId] = useState<string>('');
+  const [newCustomRoleName, setNewCustomRoleName] = useState<string>('');
+  
   // CMS Custom Pages states
   const [customPages, setCustomPages] = useState<CustomPage[]>([]);
   const [loadingCustomPages, setLoadingCustomPages] = useState(false);
@@ -353,7 +358,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Selected user for Edit view
   const [selectedUser, setSelectedUser] = useState<(BuyerProfile & { orderCount?: number; spent?: number; isGuest?: boolean; orders?: Order[] }) | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'shop_manager' | 'contributor' | 'customer'>('all');
+  const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
 
   const getUserOrderStats = (u: BuyerProfile & { isGuest?: boolean }) => {
     const email = u.email?.trim().toLowerCase();
@@ -904,6 +909,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
     }
 
+    if (!hasPermission('products_create')) {
+      alert("You do not have permission to create products.");
+      return;
+    }
+
     setIsLoading(true);
     let successCount = 0;
     try {
@@ -959,6 +969,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     if (!currentUserRole) return false;
 
+    // Backwards-compatible legacy permission mapping
+    if (permission === 'manageProducts') {
+      return hasPermission('products_view') || 
+             hasPermission('categories_view') || 
+             hasPermission('promos_view') || 
+             hasPermission('media_view') || 
+             hasPermission('slides_view') || 
+             hasPermission('reviews_view');
+    }
+    if (permission === 'manageOrders') {
+      return hasPermission('orders_view');
+    }
+    if (permission === 'manageUsers') {
+      return hasPermission('users_view');
+    }
+    if (permission === 'viewReports') {
+      return hasPermission('reports_view');
+    }
+    if (permission === 'manageSettings') {
+      return hasPermission('settings_view') || 
+             hasPermission('cms_view') || 
+             hasPermission('newsletter_view');
+    }
+
     // Load custom configuration from settings if it exists
     if (localSettings.rolesConfig && localSettings.rolesConfig[currentUserRole]) {
       const perms = localSettings.rolesConfig[currentUserRole] as Record<string, boolean>;
@@ -968,25 +1002,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Default Fallbacks
     const defaultRolesConfig: Record<string, Record<string, boolean>> = {
       shop_manager: {
-        manageProducts: true,
-        manageOrders: true,
-        manageSettings: false,
-        manageUsers: false,
-        viewReports: true
+        products_view: true, products_create: true, products_edit: true, products_delete: true,
+        categories_view: true, categories_create: true, categories_edit: true, categories_delete: true,
+        orders_view: true, orders_edit: true, orders_delete: true,
+        inventory_view: true, inventory_edit: true,
+        users_view: true, users_create: false, users_edit: false, users_delete: false,
+        reports_view: true,
+        promos_view: true, promos_create: true, promos_edit: true, promos_delete: true,
+        media_view: true, media_upload: true, media_delete: true,
+        slides_view: true, slides_manage: true,
+        reviews_view: true, reviews_approve: true, reviews_delete: true,
+        cms_view: true, cms_edit: false,
+        newsletter_view: true, newsletter_send: false,
+        settings_view: true, settings_edit: false, settings_rbac: false,
       },
       contributor: {
-        manageProducts: true,
-        manageOrders: false,
-        manageSettings: false,
-        manageUsers: false,
-        viewReports: true
+        products_view: true, products_create: true, products_edit: true, products_delete: false,
+        categories_view: true, categories_create: true, categories_edit: true, categories_delete: false,
+        orders_view: false, orders_edit: false, orders_delete: false,
+        inventory_view: true, inventory_edit: false,
+        users_view: false, users_create: false, users_edit: false, users_delete: false,
+        reports_view: false,
+        promos_view: false, promos_create: false, promos_edit: false, promos_delete: false,
+        media_view: true, media_upload: true, media_delete: false,
+        slides_view: true, slides_manage: false,
+        reviews_view: true, reviews_approve: false, reviews_delete: false,
+        cms_view: false, cms_edit: false,
+        newsletter_view: false, newsletter_send: false,
+        settings_view: false, settings_edit: false, settings_rbac: false,
       },
       customer: {
-        manageProducts: false,
-        manageOrders: false,
-        manageSettings: false,
-        manageUsers: false,
-        viewReports: false
+        products_view: false, products_create: false, products_edit: false, products_delete: false,
+        categories_view: false, categories_create: false, categories_edit: false, categories_delete: false,
+        orders_view: false, orders_edit: false, orders_delete: false,
+        inventory_view: false, inventory_edit: false,
+        users_view: false, users_create: false, users_edit: false, users_delete: false,
+        reports_view: false,
+        promos_view: false, promos_create: false, promos_edit: false, promos_delete: false,
+        media_view: false, media_upload: false, media_delete: false,
+        slides_view: false, slides_manage: false,
+        reviews_view: false, reviews_approve: false, reviews_delete: false,
+        cms_view: false, cms_edit: false,
+        newsletter_view: false, newsletter_send: false,
+        settings_view: false, settings_edit: false, settings_rbac: false,
       }
     };
 
@@ -1004,6 +1062,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Direct Signed Upload to Cloudinary
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!hasPermission('media_upload') && !hasPermission('products_edit') && !hasPermission('products_create') && !hasPermission('settings_edit')) {
+      alert("You do not have permission to upload files.");
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1100,6 +1162,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Centralized media library and slideshow actions
   const handleMediaLibraryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!hasPermission('media_upload')) {
+      alert("You do not have permission to upload media.");
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1171,6 +1237,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleAddMediaUrl = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission('media_upload')) {
+      alert("You do not have permission to upload/add media.");
+      return;
+    }
     if (!newMediaUrl.trim() || !newMediaName.trim()) {
       alert("Please enter a name and a valid URL.");
       return;
@@ -1201,6 +1271,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteMedia = async (id: string) => {
+    if (!hasPermission('media_delete')) {
+      alert("You do not have permission to delete media.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to permanently delete this media asset?")) return;
 
     try {
@@ -1256,6 +1330,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleSaveSlideSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission('slides_manage')) {
+      alert("You do not have permission to manage slides.");
+      return;
+    }
     if (!slideImage.trim() || !slideTitle.trim()) {
       alert("Slide background image and title are required.");
       return;
@@ -1289,6 +1367,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteSlide = async (id: string) => {
+    if (!hasPermission('slides_manage')) {
+      alert("You do not have permission to manage slides.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to delete this slide?")) return;
 
     try {
@@ -1409,6 +1491,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Save/Create Product in Firestore
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isEditing = !!editingProduct;
+    if (isEditing && !hasPermission('products_edit')) {
+      alert("You do not have permission to edit products.");
+      return;
+    }
+    if (!isEditing && !hasPermission('products_create')) {
+      alert("You do not have permission to create products.");
+      return;
+    }
+
     if (!prodName.trim() || prodCats.length === 0 || prodPrice <= 0) {
       alert("Please fill in Name, at least one Category, and Base Price.");
       return;
@@ -1457,6 +1549,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleApproveReview = async (reviewId: string, approved: boolean) => {
+    if (!hasPermission('reviews_approve')) {
+      alert("You do not have permission to approve reviews.");
+      return;
+    }
     setIsLoading(true);
     try {
       await approveReview(reviewId, approved);
@@ -1472,6 +1568,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteReview = async (reviewId: string) => {
+    if (!hasPermission('reviews_delete')) {
+      alert("You do not have permission to delete reviews.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to delete this review permanently?")) return;
     setIsLoading(true);
     try {
@@ -1547,6 +1647,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteNewsletterSubscriber = async (email: string) => {
+    if (!hasPermission('newsletter_send')) {
+      alert("You do not have permission to manage newsletter subscribers.");
+      return;
+    }
     if (!confirm(`Are you sure you want to remove subscriber "${email}"?`)) return;
     setIsLoading(true);
     try {
@@ -1617,6 +1721,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleToggleFeatured = async (prod: Product) => {
+    if (!hasPermission('products_edit')) {
+      alert("You do not have permission to edit products.");
+      return;
+    }
     setIsLoading(true);
     try {
       const updatedProduct: Product = { ...prod, isFeatured: !prod.isFeatured };
@@ -1632,6 +1740,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteProductClick = async (id: string, name: string) => {
+    if (!hasPermission('products_delete')) {
+      alert("You do not have permission to delete products.");
+      return;
+    }
     if (confirm(`Are you sure you want to delete ${name}?`)) {
       setIsLoading(true);
       try {
@@ -1649,6 +1761,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Save Stock Adjustment
   const handleSaveStockAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission('inventory_edit')) {
+      alert("You do not have permission to adjust inventory stock.");
+      return;
+    }
     if (!selectedProcurementVariant) return;
 
     const { product, variant } = selectedProcurementVariant;
@@ -1808,6 +1924,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Categories Save/Delete Actions
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isEditing = !!editingCategory;
+    if (isEditing && !hasPermission('categories_edit')) {
+      alert("You do not have permission to edit categories.");
+      return;
+    }
+    if (!isEditing && !hasPermission('categories_create')) {
+      alert("You do not have permission to create categories.");
+      return;
+    }
     if (!catName.trim()) {
       alert("Category name is required.");
       return;
@@ -1841,6 +1966,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteCategory = async (id: string, name: string) => {
+    if (!hasPermission('categories_delete')) {
+      alert("You do not have permission to delete categories.");
+      return;
+    }
     if (!window.confirm(`Are you sure you want to delete the category "${name}"?`)) return;
     setIsLoading(true);
     try {
@@ -1863,6 +1992,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Coupons Save/Delete Actions
   const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isEditing = !!editingCoupon;
+    if (isEditing && !hasPermission('promos_edit')) {
+      alert("You do not have permission to edit promos.");
+      return;
+    }
+    if (!isEditing && !hasPermission('promos_create')) {
+      alert("You do not have permission to create promos.");
+      return;
+    }
     const formattedCode = couponCode.trim().toUpperCase();
     if (!formattedCode) {
       alert("Promo code is required.");
@@ -1917,6 +2055,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteCoupon = async (code: string) => {
+    if (!hasPermission('promos_delete')) {
+      alert("You do not have permission to delete promos.");
+      return;
+    }
     if (!window.confirm(`Are you sure you want to delete the promo code "${code}"?`)) return;
     setIsLoading(true);
     try {
@@ -1964,6 +2106,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Update Order Status in Firestore
   const handleUpdateOrderStatusClick = async (orderId: string, status: Order['orderStatus'], paymentStatus: Order['paymentStatus']) => {
+    if (status === 'Cancelled') {
+      if (!hasPermission('orders_delete') && !hasPermission('orders_edit')) {
+        alert("You do not have permission to cancel orders.");
+        return;
+      }
+    } else {
+      if (!hasPermission('orders_edit')) {
+        alert("You do not have permission to edit orders.");
+        return;
+      }
+    }
     setIsLoading(true);
     try {
       await updateOrderStatus(orderId, status, paymentStatus);
@@ -2061,6 +2214,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Save Settings to Firestore
   const handleSaveSettingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeTab === 'cms') {
+      if (!hasPermission('cms_edit')) {
+        alert("You do not have permission to edit CMS content.");
+        return;
+      }
+    } else if (activeTab === 'settings') {
+      if (settingsSubTab === 'rbac') {
+        if (!hasPermission('settings_rbac')) {
+          alert("You do not have permission to manage roles & permissions.");
+          return;
+        }
+      } else {
+        if (!hasPermission('settings_edit')) {
+          alert("You do not have permission to edit settings.");
+          return;
+        }
+      }
+    }
     setIsLoading(true);
     try {
       // Synchronize key properties based on mode directly (allowing clearing keys if edited on the Payment tab)
@@ -2130,6 +2301,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // User CRUD Handlers
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission('users_create')) {
+      alert("You do not have permission to create users.");
+      return;
+    }
     if (!userFormUsername || !userFormEmail || !userFormPassword) {
       alert("Please fill in Username, Email, and Password.");
       return;
@@ -2190,6 +2365,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleEditUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasPermission('users_edit')) {
+      alert("You do not have permission to edit users.");
+      return;
+    }
     if (!selectedUser) return;
     setIsLoading(true);
     try {
@@ -2248,6 +2427,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeleteUser = async (uid: string, name: string) => {
+    if (!hasPermission('users_delete')) {
+      alert("You do not have permission to delete users.");
+      return;
+    }
     if (uid === currentUserUid || uid === superAdminUid) {
       alert("You cannot delete the currently logged in administrator or super admin.");
       return;
@@ -2427,7 +2610,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>Dashboard</span>
           </button>
           
-          {hasPermission('manageOrders') && (
+          {hasPermission('orders_view') && (
             <button 
               type="button"
               className={`wp-admin-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
@@ -2438,29 +2621,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           )}
           
-          {hasPermission('manageProducts') && (
-            <>
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'products' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/products')}
-              >
-                <PackageCheck size={18} />
-                <span>Products ({products.length})</span>
-              </button>
-
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'inventory' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/inventory')}
-              >
-                <Boxes size={18} />
-                <span>Inventory</span>
-              </button>
-            </>
+          {hasPermission('products_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'products' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/products')}
+            >
+              <PackageCheck size={18} />
+              <span>Products ({products.length})</span>
+            </button>
           )}
 
-          {hasPermission('manageUsers') && (
+          {hasPermission('inventory_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'inventory' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/inventory')}
+            >
+              <Boxes size={18} />
+              <span>Inventory</span>
+            </button>
+          )}
+
+          {hasPermission('users_view') && (
             <button 
               type="button"
               className={`wp-admin-menu-item ${activeTab === 'customers' ? 'active' : ''}`}
@@ -2471,7 +2654,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           )}
 
-          {hasPermission('viewReports') && (
+          {hasPermission('reports_view') && (
             <button 
               type="button"
               className={`wp-admin-menu-item ${activeTab === 'reports' ? 'active' : ''}`}
@@ -2482,94 +2665,110 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           )}
 
-          {hasPermission('manageProducts') && (
-            <>
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'categories' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/categories')}
-              >
-                <Layers size={18} />
-                <span>Categories</span>
-              </button>
-
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'promos' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/promos')}
-              >
-                <Tag size={18} />
-                <span>Promos</span>
-              </button>
-              
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'media' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/media')}
-              >
-                <ImageIcon size={18} />
-                <span>Media Library</span>
-              </button>
-
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'slides' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/slides')}
-              >
-                <Sliders size={18} />
-                <span>Home Slides</span>
-              </button>
-
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'reviews' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/reviews')}
-              >
-                <MessageSquare size={18} />
-                <span>Reviews ({adminReviews.length})</span>
-              </button>
-            </>
+          {hasPermission('categories_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'categories' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/categories')}
+            >
+              <Layers size={18} />
+              <span>Categories</span>
+            </button>
           )}
 
-          {hasPermission('manageSettings') && (
-            <>
-              <button 
-                type="button" 
-                className={`wp-admin-menu-item ${activeTab === 'cms' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/cms')}
-              >
-                <Globe size={18} />
-                <span>CMS Content</span>
-              </button>
+          {hasPermission('promos_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'promos' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/promos')}
+            >
+              <Tag size={18} />
+              <span>Promos</span>
+            </button>
+          )}
+          
+          {hasPermission('media_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'media' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/media')}
+            >
+              <ImageIcon size={18} />
+              <span>Media Library</span>
+            </button>
+          )}
 
-              <button 
-                type="button" 
-                className={`wp-admin-menu-item ${activeTab === 'newsletter' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/newsletter')}
-              >
-                <Mail size={18} />
-                <span>Newsletter</span>
-              </button>
+          {hasPermission('slides_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'slides' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/slides')}
+            >
+              <Sliders size={18} />
+              <span>Home Slides</span>
+            </button>
+          )}
 
-              <button 
-                type="button"
-                className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
-                onClick={() => navigate('/dashboard/settings')}
-              >
-                <Settings size={18} />
-                <span>Settings</span>
-              </button>
-            </>
+          {hasPermission('reviews_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'reviews' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/reviews')}
+            >
+              <MessageSquare size={18} />
+              <span>Reviews ({adminReviews.length})</span>
+            </button>
+          )}
+
+          {hasPermission('cms_view') && (
+            <button 
+              type="button" 
+              className={`wp-admin-menu-item ${activeTab === 'cms' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/cms')}
+            >
+              <Globe size={18} />
+              <span>CMS Content</span>
+            </button>
+          )}
+
+          {hasPermission('newsletter_view') && (
+            <button 
+              type="button" 
+              className={`wp-admin-menu-item ${activeTab === 'newsletter' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/newsletter')}
+            >
+              <Mail size={18} />
+              <span>Newsletter</span>
+            </button>
+          )}
+
+          {hasPermission('settings_view') && (
+            <button 
+              type="button"
+              className={`wp-admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
+              onClick={() => navigate('/dashboard/settings')}
+            >
+              <Settings size={18} />
+              <span>Settings</span>
+            </button>
           )}
         </aside>
 
         {/* Content Panel */}
         <main className="wp-admin-main-content">
-          {((activeTab === 'orders' && !hasPermission('manageOrders')) ||
-            (['products', 'categories', 'promos', 'media', 'slides', 'reviews'].includes(activeTab) && !hasPermission('manageProducts')) ||
-            (activeTab === 'customers' && !hasPermission('manageUsers')) ||
-            (activeTab === 'reports' && !hasPermission('viewReports')) ||
-            ((activeTab === 'settings' || activeTab === 'cms' || activeTab === 'newsletter') && !hasPermission('manageSettings'))) ? (
+          {((activeTab === 'orders' && !hasPermission('orders_view')) ||
+            (activeTab === 'products' && !hasPermission('products_view')) ||
+            (activeTab === 'inventory' && !hasPermission('inventory_view')) ||
+            (activeTab === 'categories' && !hasPermission('categories_view')) ||
+            (activeTab === 'promos' && !hasPermission('promos_view')) ||
+            (activeTab === 'media' && !hasPermission('media_view')) ||
+            (activeTab === 'slides' && !hasPermission('slides_view')) ||
+            (activeTab === 'reviews' && !hasPermission('reviews_view')) ||
+            (activeTab === 'customers' && !hasPermission('users_view')) ||
+            (activeTab === 'reports' && !hasPermission('reports_view')) ||
+            (activeTab === 'cms' && !hasPermission('cms_view')) ||
+            (activeTab === 'newsletter' && !hasPermission('newsletter_view')) ||
+            (activeTab === 'settings' && !hasPermission('settings_view'))) ? (
             <div style={{ padding: '24px', background: '#fff', border: '1px solid #d30005', marginTop: '20px' }}>
               <h1 style={{ fontSize: '20px', color: '#d30005', fontWeight: 600, margin: '0 0 10px' }}>Access Denied</h1>
               <p style={{ fontSize: '13px', margin: 0 }}>You do not have the required permissions to view this administrative page. Please contact your system administrator.</p>
@@ -4664,121 +4863,416 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     {/* SUB-TAB: Roles & Permissions (RBAC) */}
                     {settingsSubTab === 'rbac' && (
-                      <form onSubmit={handleSaveSettingsSubmit}>
-                        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 8px', textTransform: 'uppercase' }}>Role-Based Access Control (RBAC)</h2>
-                        <p style={{ fontSize: '13px', color: '#646970', margin: '0 0 20px' }}>
-                          Configure what each user role is permitted to manage inside the store management dashboard.
-                        </p>
-                        
-                        <table className="wp-list-table" style={{ width: '100%', fontSize: '13px', border: '1px solid #c3c4c7' }}>
-                          <thead>
-                            <tr style={{ background: '#f6f7f7' }}>
-                              <th style={{ padding: '12px 10px', textAlign: 'left', fontWeight: 600 }}>Role</th>
-                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Products</th>
-                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Orders</th>
-                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Users</th>
-                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>Manage Settings</th>
-                              <th style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600 }}>View Reports</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {['shop_manager', 'contributor', 'customer'].map(role => {
-                              // Retrieve permissions for this role or fall back to defaults
-                              const getRolePerm = (perm: string): boolean => {
-                                if (localSettings.rolesConfig?.[role]) {
-                                  return localSettings.rolesConfig[role][perm] === true;
-                                }
-                                // Defaults
-                                const defaults: Record<string, Record<string, boolean>> = {
-                                  shop_manager: { manageProducts: true, manageOrders: true, manageUsers: false, manageSettings: false, viewReports: true },
-                                  contributor: { manageProducts: true, manageOrders: false, manageUsers: false, manageSettings: false, viewReports: true },
-                                  customer: { manageProducts: false, manageOrders: false, manageUsers: false, manageSettings: false, viewReports: false }
-                                };
-                                return defaults[role]?.[perm] === true;
-                              };
-
-                              const handleTogglePerm = (perm: string, checked: boolean) => {
-                                const currentRolesConfig = localSettings.rolesConfig || {};
-                                const currentRolePerms = currentRolesConfig[role] || {
-                                  manageProducts: role === 'shop_manager' || role === 'contributor',
-                                  manageOrders: role === 'shop_manager',
-                                  manageUsers: false,
-                                  manageSettings: false,
-                                  viewReports: role === 'shop_manager' || role === 'contributor'
-                                };
-                                
-                                const updatedRolesConfig = {
-                                  ...currentRolesConfig,
-                                  [role]: {
-                                    ...currentRolePerms,
-                                    [perm]: checked
-                                  }
-                                };
-                                
-                                setLocalSettings({
-                                  ...localSettings,
-                                  rolesConfig: updatedRolesConfig
-                                });
-                              };
-
-                              const getRoleLabel = (r: string) => {
-                                if (r === 'shop_manager') return 'Shop Manager';
-                                if (r === 'contributor') return 'Contributor';
-                                if (r === 'customer') return 'Customer (Subscriber)';
-                                return r;
-                              };
-
-                              return (
-                                <tr key={role} style={{ borderBottom: '1px solid #f0f1f1' }}>
-                                  <td style={{ padding: '15px 10px', fontWeight: 600 }}>{getRoleLabel(role)}</td>
-                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={getRolePerm('manageProducts')} 
-                                      onChange={e => handleTogglePerm('manageProducts', e.target.checked)}
-                                    />
-                                  </td>
-                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={getRolePerm('manageOrders')} 
-                                      onChange={e => handleTogglePerm('manageOrders', e.target.checked)}
-                                    />
-                                  </td>
-                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={getRolePerm('manageUsers')} 
-                                      onChange={e => handleTogglePerm('manageUsers', e.target.checked)}
-                                    />
-                                  </td>
-                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={getRolePerm('manageSettings')} 
-                                      onChange={e => handleTogglePerm('manageSettings', e.target.checked)}
-                                    />
-                                  </td>
-                                  <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                    <input 
-                                      type="checkbox" 
-                                      checked={getRolePerm('viewReports')} 
-                                      onChange={e => handleTogglePerm('viewReports', e.target.checked)}
-                                    />
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                        
-                        <div style={{ marginTop: '20px', padding: '12px', background: '#fafafa', borderLeft: '4px solid #72aee6', fontSize: '12px', color: '#50575e' }}>
-                          <strong>Note:</strong> Super Administrators (`admin` role or user matching superAdminUid) always bypass access checks and have all capabilities enabled.
+                      <div className="rbac-settings-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* HEADER */}
+                        <div>
+                          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 4px', color: '#1d2327' }}>Roles & Permissions Settings (RBAC)</h2>
+                          <p style={{ fontSize: '13px', color: '#646970', margin: 0 }}>
+                            Configure granular user permissions and custom administrative roles for your store dashboard.
+                          </p>
                         </div>
 
-                        <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
-                        <button type="submit" className="wp-button-primary">Save Permissions Settings</button>
-                      </form>
+                        {/* SECTION 1: CUSTOM ROLES MANAGEMENT */}
+                        <div style={{ background: '#fff', border: '1px solid #c3c4c7', borderRadius: '4px', padding: '16px 20px' }}>
+                          <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 16px', borderBottom: '1px solid #f0f1f1', paddingBottom: '8px', color: '#1d2327' }}>
+                            Custom Roles Registry
+                          </h3>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            {/* Role List */}
+                            <div>
+                              <p style={{ fontSize: '12px', fontWeight: 600, color: '#50575e', margin: '0 0 8px' }}>Active Roles</p>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f6f7f7', borderRadius: '3px', fontSize: '12px' }}>
+                                  <span>Administrator <strong style={{ color: '#2271b1' }}>(Preset)</strong></span>
+                                  <span style={{ fontSize: '11px', color: '#646970' }}>Bypasses all checks</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f6f7f7', borderRadius: '3px', fontSize: '12px' }}>
+                                  <span>Shop Manager <strong style={{ color: '#2271b1' }}>(Preset)</strong></span>
+                                  <span style={{ fontSize: '11px', color: '#646970' }}>Standard Manager</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f6f7f7', borderRadius: '3px', fontSize: '12px' }}>
+                                  <span>Contributor <strong style={{ color: '#2271b1' }}>(Preset)</strong></span>
+                                  <span style={{ fontSize: '11px', color: '#646970' }}>Limited Content Editor</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#f6f7f7', borderRadius: '3px', fontSize: '12px' }}>
+                                  <span>Customer / Subscriber <strong style={{ color: '#2271b1' }}>(Preset)</strong></span>
+                                  <span style={{ fontSize: '11px', color: '#646970' }}>Store buyer account</span>
+                                </div>
+                                
+                                {/* Custom Roles */}
+                                {localSettings.customRoles && Object.entries(localSettings.customRoles).map(([roleId, roleName]) => (
+                                  <div key={roleId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#f0f6fc', borderLeft: '3px solid #2271b1', borderRadius: '3px', fontSize: '12px' }}>
+                                    <span>{roleName} (<code>{roleId}</code>)</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (window.confirm(`Are you sure you want to delete the custom role "${roleName}"? All users assigned to this role will default back to Customer permissions.`)) {
+                                          const nextCustom = { ...localSettings.customRoles };
+                                          delete nextCustom[roleId];
+                                          const nextConfig = { ...localSettings.rolesConfig };
+                                          delete nextConfig[roleId];
+                                          setLocalSettings({
+                                            ...localSettings,
+                                            customRoles: nextCustom,
+                                            rolesConfig: nextConfig
+                                          });
+                                          if (selectedRbacRole === roleId) {
+                                            setSelectedRbacRole('shop_manager');
+                                          }
+                                        }
+                                      }}
+                                      style={{ border: 'none', background: 'none', color: '#d30005', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Add Custom Role form */}
+                            <div style={{ background: '#f6f7f7', padding: '12px 16px', borderRadius: '4px', border: '1px solid #dcdcde' }}>
+                              <p style={{ fontSize: '12px', fontWeight: 600, color: '#1d2327', margin: '0 0 8px' }}>Create Custom Role</p>
+                              
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#50575e', marginBottom: '4px' }}>Role ID (lowercase, underscores, e.g. content_editor)</label>
+                                  <input 
+                                    type="text" 
+                                    placeholder="content_editor"
+                                    value={newCustomRoleId}
+                                    onChange={e => setNewCustomRoleId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                                    style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid #c3c4c7', borderRadius: '3px' }}
+                                  />
+                                </div>
+
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#50575e', marginBottom: '4px' }}>Role Display Name (e.g. Content Editor)</label>
+                                  <input 
+                                    type="text" 
+                                    placeholder="Content Editor"
+                                    value={newCustomRoleName}
+                                    onChange={e => setNewCustomRoleName(e.target.value)}
+                                    style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid #c3c4c7', borderRadius: '3px' }}
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const roleId = newCustomRoleId.trim();
+                                    const roleName = newCustomRoleName.trim();
+                                    if (!roleId || !roleName) {
+                                      alert("Please enter both a Role ID and a Display Name.");
+                                      return;
+                                    }
+                                    if (['admin', 'shop_manager', 'contributor', 'customer'].includes(roleId)) {
+                                      alert("This Role ID conflicts with a preset system role.");
+                                      return;
+                                    }
+                                    if (localSettings.customRoles && localSettings.customRoles[roleId]) {
+                                      alert("A custom role with this ID already exists.");
+                                      return;
+                                    }
+                                    const nextCustom = {
+                                      ...(localSettings.customRoles || {}),
+                                      [roleId]: roleName
+                                    };
+                                    // Copy default contributor permissions as starter
+                                    const contributorPerms = localSettings.rolesConfig?.['contributor'] || {
+                                      products_view: true,
+                                      inventory_view: true,
+                                      categories_view: true
+                                    };
+                                    const nextConfig = {
+                                      ...(localSettings.rolesConfig || {}),
+                                      [roleId]: { ...contributorPerms }
+                                    };
+                                    setLocalSettings({
+                                      ...localSettings,
+                                      customRoles: nextCustom,
+                                      rolesConfig: nextConfig
+                                    });
+                                    setSelectedRbacRole(roleId);
+                                    setNewCustomRoleId('');
+                                    setNewCustomRoleName('');
+                                  }}
+                                  style={{ marginTop: '5px', padding: '6px 12px', fontSize: '12px', background: '#2271b1', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 600 }}
+                                >
+                                  Register Role
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SECTION 2: PERMISSIONS CONFIGURATION */}
+                        <div style={{ background: '#fff', border: '1px solid #c3c4c7', borderRadius: '4px', padding: '16px 20px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f1f1', paddingBottom: '12px', marginBottom: '16px' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: '#1d2327' }}>
+                              Grant Granular Permissions
+                            </h3>
+
+                            {/* Select Active Role */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 600, color: '#50575e' }}>Select Role to Edit:</span>
+                              <select
+                                value={selectedRbacRole}
+                                onChange={e => setSelectedRbacRole(e.target.value)}
+                                style={{ padding: '6px 10px', fontSize: '13px', border: '1px solid #c3c4c7', borderRadius: '3px', fontWeight: 600, color: '#1d2327', background: '#f6f7f7' }}
+                              >
+                                <option value="shop_manager">Shop Manager</option>
+                                <option value="contributor">Contributor</option>
+                                <option value="customer">Customer / Subscriber</option>
+                                {localSettings.customRoles && Object.entries(localSettings.customRoles).map(([roleId, roleName]) => (
+                                  <option key={roleId} value={roleId}>{roleName}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <form onSubmit={handleSaveSettingsSubmit}>
+                            {/* Permission Helper controls */}
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Grant all
+                                  const currentRolesConfig = localSettings.rolesConfig || {};
+                                  const allPerms: Record<string, boolean> = {};
+                                  [
+                                    'products_view', 'products_create', 'products_edit', 'products_delete',
+                                    'inventory_view', 'inventory_edit', 'categories_view', 'categories_create', 'categories_edit', 'categories_delete',
+                                    'orders_view', 'orders_edit', 'orders_delete', 'reviews_view', 'reviews_approve', 'reviews_delete',
+                                    'promos_view', 'promos_create', 'promos_edit', 'promos_delete', 'media_view', 'media_upload', 'media_delete',
+                                    'users_view', 'users_create', 'users_edit', 'users_delete', 'reports_view',
+                                    'slides_view', 'slides_manage', 'cms_view', 'cms_edit', 'newsletter_view', 'newsletter_send',
+                                    'settings_view', 'settings_edit', 'settings_rbac'
+                                  ].forEach(p => { allPerms[p] = true; });
+
+                                  setLocalSettings({
+                                    ...localSettings,
+                                    rolesConfig: {
+                                      ...currentRolesConfig,
+                                      [selectedRbacRole]: allPerms
+                                    }
+                                  });
+                                }}
+                                style={{ background: '#f6f7f7', border: '1px solid #c3c4c7', padding: '4px 8px', fontSize: '11px', borderRadius: '3px', cursor: 'pointer' }}
+                              >
+                                Select All Permissions
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Clear all
+                                  const currentRolesConfig = localSettings.rolesConfig || {};
+                                  setLocalSettings({
+                                    ...localSettings,
+                                    rolesConfig: {
+                                      ...currentRolesConfig,
+                                      [selectedRbacRole]: {}
+                                    }
+                                  });
+                                }}
+                                style={{ background: '#f6f7f7', border: '1px solid #c3c4c7', padding: '4px 8px', fontSize: '11px', borderRadius: '3px', cursor: 'pointer' }}
+                              >
+                                Clear All Permissions
+                              </button>
+                            </div>
+
+                            {/* PERMISSIONS MATRIX BY CATEGORIES */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                              {[
+                                {
+                                  title: 'Products & Category Catalog',
+                                  color: '#3858e9',
+                                  perms: [
+                                    { key: 'products_view', label: 'View Products', desc: 'Allows viewing product list and product details.' },
+                                    { key: 'products_create', label: 'Create Products', desc: 'Allows creating new products in the store catalog.' },
+                                    { key: 'products_edit', label: 'Edit Products', desc: 'Allows editing product information, tags, and variants.' },
+                                    { key: 'products_delete', label: 'Delete Products', desc: 'Allows deleting products from the store.' },
+                                    { key: 'categories_view', label: 'View Categories', desc: 'Allows viewing store categories.' },
+                                    { key: 'categories_create', label: 'Create Categories', desc: 'Allows creating new product categories.' },
+                                    { key: 'categories_edit', label: 'Edit Categories', desc: 'Allows modifying category details.' },
+                                    { key: 'categories_delete', label: 'Delete Categories', desc: 'Allows deleting product categories.' },
+                                  ]
+                                },
+                                {
+                                  title: 'Inventory & Procurement',
+                                  color: '#e5a50a',
+                                  perms: [
+                                    { key: 'inventory_view', label: 'View Inventory', desc: 'Allows viewing stock levels, adjustments, and supplier records.' },
+                                    { key: 'inventory_edit', label: 'Adjust Inventory', desc: 'Allows saving procurement details and stock adjustments.' },
+                                  ]
+                                },
+                                {
+                                  title: 'Orders, Reviews & Customers',
+                                  color: '#00a32a',
+                                  perms: [
+                                    { key: 'orders_view', label: 'View Orders', desc: 'Allows viewing order list, customer invoices, and analytics.' },
+                                    { key: 'orders_edit', label: 'Edit Orders', desc: 'Allows changing order statuses, modifying buyer details, etc.' },
+                                    { key: 'orders_delete', label: 'Cancel Orders', desc: 'Allows cancelling orders or updating status to Cancelled.' },
+                                    { key: 'reviews_view', label: 'View Reviews', desc: 'Allows viewing product reviews.' },
+                                    { key: 'reviews_approve', label: 'Approve Reviews', desc: 'Allows approving or hiding product reviews.' },
+                                    { key: 'reviews_delete', label: 'Delete Reviews', desc: 'Allows deleting reviews permanently.' },
+                                    { key: 'users_view', label: 'View Users', desc: 'Allows viewing registered customers, administrators, and guest accounts.' },
+                                    { key: 'users_create', label: 'Create Users', desc: 'Allows adding new administrators or customers manually.' },
+                                    { key: 'users_edit', label: 'Edit Users', desc: 'Allows updating profiles, changing user roles, or resetting profiles.' },
+                                    { key: 'users_delete', label: 'Delete Users', desc: 'Allows deleting user profiles permanently.' },
+                                  ]
+                                },
+                                {
+                                  title: 'Promotions, Media & Creative CMS',
+                                  color: '#00bcd4',
+                                  perms: [
+                                    { key: 'promos_view', label: 'View Promos', desc: 'Allows viewing promo/coupon codes.' },
+                                    { key: 'promos_create', label: 'Create Promos', desc: 'Allows adding new promotional coupon codes.' },
+                                    { key: 'promos_edit', label: 'Edit Promos', desc: 'Allows modifying discount values and promo limits.' },
+                                    { key: 'promos_delete', label: 'Delete Promos', desc: 'Allows deleting coupon codes.' },
+                                    { key: 'media_view', label: 'View Media', desc: 'Allows browsing the Media Library.' },
+                                    { key: 'media_upload', label: 'Upload Media', desc: 'Allows uploading image and video assets.' },
+                                    { key: 'media_delete', label: 'Delete Media', desc: 'Allows deleting media assets permanently.' },
+                                    { key: 'slides_view', label: 'View Hero Slides', desc: 'Allows viewing background slides.' },
+                                    { key: 'slides_manage', label: 'Manage Hero Slides', desc: 'Allows adding, editing, or deleting home hero banner slides.' },
+                                    { key: 'cms_view', label: 'View CMS Pages', desc: 'Allows viewing custom static pages.' },
+                                    { key: 'cms_edit', label: 'Edit CMS Pages', desc: 'Allows designing, modifying, or updating static pages.' },
+                                    { key: 'newsletter_view', label: 'View Newsletter Subscribers', desc: 'Allows viewing subscriber lists.' },
+                                    { key: 'newsletter_send', label: 'Manage Newsletter Campaigns', desc: 'Allows deleting subscribers and managing campaigns.' },
+                                  ]
+                                },
+                                {
+                                  title: 'System & Reports Administration',
+                                  color: '#9c27b0',
+                                  perms: [
+                                    { key: 'reports_view', label: 'View Analytics & Reports', desc: 'Allows viewing store sales reports and graphs.' },
+                                    { key: 'settings_view', label: 'View Store Settings', desc: 'Allows viewing payment gateways, WhatsApp configuration, tax classes, etc.' },
+                                    { key: 'settings_edit', label: 'Edit Store Settings', desc: 'Allows updating core store settings, payment credentials, etc.' },
+                                    { key: 'settings_rbac', label: 'Manage Roles & Permissions (RBAC)', desc: 'Allows modifying role configurations and granular permissions.' },
+                                  ]
+                                }
+                              ].map(group => {
+                                return (
+                                  <div key={group.title} style={{ border: '1px solid #dcdcde', borderRadius: '4px' }}>
+                                    <div style={{ background: '#f6f7f7', padding: '10px 14px', borderBottom: '1px solid #dcdcde', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#1d2327' }}>
+                                      <span style={{ display: 'inline-block', width: '4px', height: '14px', background: group.color, borderRadius: '2px' }} />
+                                      {group.title}
+                                    </div>
+                                    
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '14px' }}>
+                                      {group.perms.map(p => {
+                                        const getRbacPerm = (permKey: string): boolean => {
+                                          if (localSettings.rolesConfig?.[selectedRbacRole]) {
+                                            return localSettings.rolesConfig[selectedRbacRole][permKey] === true;
+                                          }
+                                          // Defaults fallback
+                                          const defaults: Record<string, Record<string, boolean>> = {
+                                            shop_manager: {
+                                              products_view: true, products_create: true, products_edit: true,
+                                              inventory_view: true, inventory_edit: true,
+                                              categories_view: true, categories_create: true, categories_edit: true,
+                                              orders_view: true, orders_edit: true,
+                                              reviews_view: true, reviews_approve: true,
+                                              promos_view: true, promos_create: true, promos_edit: true,
+                                              media_view: true, media_upload: true,
+                                              slides_view: true, slides_manage: true,
+                                              cms_view: true, newsletter_view: true,
+                                              reports_view: true, settings_view: true
+                                            },
+                                            contributor: {
+                                              products_view: true, products_create: true, products_edit: true,
+                                              inventory_view: true,
+                                              categories_view: true,
+                                              media_view: true, media_upload: true,
+                                              slides_view: true,
+                                              cms_view: true, newsletter_view: true,
+                                              reports_view: true, settings_view: true
+                                            },
+                                            customer: {}
+                                          };
+                                          return defaults[selectedRbacRole]?.[permKey] === true;
+                                        };
+
+                                        const handleToggleRbacPerm = (permKey: string, checked: boolean) => {
+                                          const currentRolesConfig = localSettings.rolesConfig || {};
+                                          // Fetch active permissions or generate defaults if not in db
+                                          const defaults: Record<string, Record<string, boolean>> = {
+                                            shop_manager: {
+                                              products_view: true, products_create: true, products_edit: true,
+                                              inventory_view: true, inventory_edit: true,
+                                              categories_view: true, categories_create: true, categories_edit: true,
+                                              orders_view: true, orders_edit: true,
+                                              reviews_view: true, reviews_approve: true,
+                                              promos_view: true, promos_create: true, promos_edit: true,
+                                              media_view: true, media_upload: true,
+                                              slides_view: true, slides_manage: true,
+                                              cms_view: true, newsletter_view: true,
+                                              reports_view: true, settings_view: true
+                                            },
+                                            contributor: {
+                                              products_view: true, products_create: true, products_edit: true,
+                                              inventory_view: true,
+                                              categories_view: true,
+                                              media_view: true, media_upload: true,
+                                              slides_view: true,
+                                              cms_view: true, newsletter_view: true,
+                                              reports_view: true, settings_view: true
+                                            },
+                                            customer: {}
+                                          };
+                                          const basePerms = currentRolesConfig[selectedRbacRole] || defaults[selectedRbacRole] || {};
+                                          
+                                          setLocalSettings({
+                                            ...localSettings,
+                                            rolesConfig: {
+                                              ...currentRolesConfig,
+                                              [selectedRbacRole]: {
+                                                ...basePerms,
+                                                [permKey]: checked
+                                              }
+                                            }
+                                          });
+                                        };
+
+                                        return (
+                                          <div key={p.key} style={{ display: 'flex', gap: '8px', padding: '8px 10px', background: '#fafafa', border: '1px solid #f0f0f1', borderRadius: '3px' }}>
+                                            <div style={{ marginTop: '2px' }}>
+                                              <input
+                                                type="checkbox"
+                                                id={`rbac-${selectedRbacRole}-${p.key}`}
+                                                checked={getRbacPerm(p.key)}
+                                                onChange={e => handleToggleRbacPerm(p.key, e.target.checked)}
+                                                style={{ cursor: 'pointer' }}
+                                              />
+                                            </div>
+                                            <div>
+                                              <label htmlFor={`rbac-${selectedRbacRole}-${p.key}`} style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#1d2327', cursor: 'pointer' }}>
+                                                {p.label}
+                                              </label>
+                                              <span style={{ display: 'block', fontSize: '11px', color: '#646970', lineHeight: 1.3, marginTop: '2px' }}>
+                                                {p.desc}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* WARNING FOOTER */}
+                            <div style={{ marginTop: '20px', padding: '12px 15px', background: '#fff8e5', borderLeft: '4px solid #dba617', borderRadius: '3px', fontSize: '12px', color: '#50575e', lineHeight: 1.4 }}>
+                              <strong>Note:</strong> Super Administrators (`admin` role or user matching superAdminUid) bypass all permissions checks and always have complete access to the store.
+                            </div>
+
+                            <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '20px 0' }} />
+                            <button type="submit" className="wp-button-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>Save Permissions Configuration</button>
+                          </form>
+                        </div>
+                      </div>
                     )}
 
                     {/* SUB-TAB: Audit Logs */}
@@ -5283,6 +5777,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   <option value="contributor">Contributor</option>
                                   <option value="shop_manager">Shop Manager</option>
                                   <option value="admin">Administrator</option>
+                                  {localSettings.customRoles && Object.entries(localSettings.customRoles).map(([roleId, roleName]) => (
+                                    <option key={roleId} value={roleId}>{roleName}</option>
+                                  ))}
                                 </select>
                               </td>
                             </tr>
@@ -5522,13 +6019,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       if (r === 'shop_manager') return 'Shop Manager';
                       if (r === 'contributor') return 'Contributor';
                       if (r === 'customer') return 'Customer';
+                      if (localSettings.customRoles && localSettings.customRoles[r]) {
+                        return localSettings.customRoles[r];
+                      }
                       return r;
                     };
 
                     return (
                       <>
                         {/* WP-like Role filters tabs */}
-                        <div className="subsubsub" style={{ display: 'flex', gap: '8px', fontSize: '13px', margin: '0 0 16px 0', borderBottom: '1px solid #dcdcde', paddingBottom: '8px' }}>
+                        <div className="subsubsub" style={{ display: 'flex', gap: '8px', fontSize: '13px', margin: '0 0 16px 0', borderBottom: '1px solid #dcdcde', paddingBottom: '8px', flexWrap: 'wrap' }}>
                           <span style={{ color: '#646970' }}>
                             <a 
                               onClick={() => setUserRoleFilter('all')} 
@@ -5569,6 +6069,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               Customers ({getRoleCount('customer')})
                             </a>
                           </span>
+                          {localSettings.customRoles && Object.entries(localSettings.customRoles).map(([roleId, roleName]) => (
+                            <span key={roleId} style={{ color: '#646970' }}>
+                              {" | "}
+                              <a 
+                                onClick={() => setUserRoleFilter(roleId)} 
+                                style={{ color: userRoleFilter === roleId ? '#000' : '#2271b1', fontWeight: userRoleFilter === roleId ? '600' : 'normal', cursor: 'pointer' }}
+                              >
+                                {roleName}s ({getRoleCount(roleId)})
+                              </a>
+                            </span>
+                          ))}
                         </div>
 
                         {/* List Users Grid Table */}
