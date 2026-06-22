@@ -1,8 +1,13 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { navigate } from '../Router';
+import { ShopSettings } from '../types';
 
-export const AboutPage: React.FC = () => {
+interface AboutPageProps {
+  settings: ShopSettings;
+}
+
+export const AboutPage: React.FC<AboutPageProps> = ({ settings }) => {
   return (
     <div style={{ backgroundColor: 'var(--color-canvas)', color: 'var(--color-ink)' }}>
       {/* Editorial Hero */}
@@ -20,7 +25,7 @@ export const AboutPage: React.FC = () => {
               Our Mission & Legacy
             </span>
             <h1 className="font-display-campaign about-hero-title" style={{ marginBottom: '8px' }}>
-              ABOUT GOLDENCARE
+              ABOUT {(settings.shopName || 'GoldenCare').toUpperCase()}
             </h1>
             <p className="font-body-md" style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '16px', maxWidth: '600px', marginBottom: '0' }}>
               We design recover-tech objects for athletic support. Zero decorative details, pure material engineering, and invisible digital utility.
@@ -28,7 +33,7 @@ export const AboutPage: React.FC = () => {
           </div>
         </div>
       </section>
-
+ 
       {/* Main Content */}
       <section className="container section-block" style={{ paddingBottom: '80px' }}>
         <div className="responsive-grid-main" style={{ marginBottom: '64px' }}>
@@ -37,7 +42,7 @@ export const AboutPage: React.FC = () => {
               Functional Recovery Architecture
             </h2>
             <p className="font-body-lg" style={{ lineHeight: 1.7, marginBottom: '20px', fontWeight: 500 }}>
-              GoldenCare was founded on a singular premise: support equipment shouldn't look like medical waste. It should look, feel, and perform like premium athletic gear.
+              {settings.shopName || 'GoldenCare'} was founded on a singular premise: support equipment shouldn't look like medical waste. It should look, feel, and perform like premium athletic gear.
             </p>
             <p className="font-body-md" style={{ color: 'var(--text-charcoal)', lineHeight: 1.6, marginBottom: '20px' }}>
               Every product in our collection undergoes rigorous laboratory testing. We select high-strength 3K carbon fibers, aerospace aluminum, and medical-grade thermal insulation to construct daily wellness and mobility objects that align with active lifestyles.

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { Plus, Minus, ShoppingCart, Star, Heart, ChevronDown, ChevronUp, X, Zap, Share2, Phone, Home, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
-import { Product, ProductVariant, CartItem, ProductReview } from '../types';
+import { Product, ProductVariant, CartItem, ProductReview, ShopSettings } from '../types';
 import { getProductReviews, addProductReview, checkIfUserPurchasedProduct } from '../db';
 import { Link, navigate } from '../Router';
 
@@ -15,6 +15,7 @@ interface ProductDetailProps {
   isWishlisted: boolean;
   onToggleWishlist: (productId: string, e: React.MouseEvent) => void;
   onReviewSubmitted?: () => void;
+  settings?: ShopSettings;
 }
 
 export const ProductDetail: React.FC<ProductDetailProps> = ({
@@ -27,6 +28,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
   isWishlisted,
   onToggleWishlist,
   onReviewSubmitted,
+  settings,
 }) => {
   // Video URL helpers
   const isVideoUrl = (url: string): boolean => {
@@ -361,7 +363,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
       if (brandKey) return product.specifications[brandKey];
     }
     const firstWord = product.name.trim().split(/\s+/)[0];
-    return firstWord || 'GoldenCare';
+    return firstWord || (settings?.shopName || 'GoldenCare');
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {

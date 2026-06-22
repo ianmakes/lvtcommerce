@@ -119,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-mute)', pointerEvents: 'none' }} />
                 <input
                   type="text"
-                  placeholder="Search GoldenCare..."
+                  placeholder={`Search ${settings.shopName || 'GoldenCare'}...`}
                   value={searchQuery}
                   onChange={e => onSearchChange(e.target.value)}
                   className="mobile-app-header-search-input"

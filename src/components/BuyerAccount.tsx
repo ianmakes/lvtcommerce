@@ -180,12 +180,14 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
   };
 
   const handleDownloadRecoveryCodes = () => {
-    const content = `GoldenCare Market Shopper MFA Recovery Codes\n=========================================\n\nSave these codes securely. Each code is ONE-TIME use.\n\n${generatedCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n`;
+    const shopNameVal = settings.shopName || 'GoldenCare Market';
+    const content = `${shopNameVal} Shopper MFA Recovery Codes\n=========================================\n\nSave these codes securely. Each code is ONE-TIME use.\n\n${generatedCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n`;
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    const cleanShopName = shopNameVal.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     link.href = url;
-    link.download = `goldencare_shopper_mfa_recovery_codes_${currentUser.uid}.txt`;
+    link.download = `${cleanShopName}_shopper_mfa_recovery_codes_${currentUser.uid}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -243,7 +245,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       const secret = await TotpMultiFactorGenerator.generateSecret(session);
       setTotpSecret(secret);
       
-      const qrUrl = secret.generateQrCodeUrl(currentUser.email, "GoldenCare Market");
+      const qrUrl = secret.generateQrCodeUrl(currentUser.email, settings.shopName || "GoldenCare Market");
       setTotpQrUrl(qrUrl);
 
       const codes = generateRecoveryCodes();
@@ -613,7 +615,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
               to="/about"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', textDecoration: 'none', color: 'var(--color-ink)', borderBottom: '1px solid #f3f4f6' }}
             >
-              <span style={{ fontSize: '13px', fontWeight: 500 }}>About GoldenCare</span>
+              <span style={{ fontSize: '13px', fontWeight: 500 }}>About {settings.shopName || 'GoldenCare'}</span>
               <ChevronRight size={16} style={{ color: 'var(--text-stone)' }} />
             </Link>
             <Link 
@@ -1154,7 +1156,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
               className="admin-nav-item"
               style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
             >
-              <span>About GoldenCare</span>
+              <span>About {settings.shopName || 'GoldenCare'}</span>
             </Link>
             <Link 
               to="/policy"

@@ -1188,6 +1188,7 @@ function App() {
               isWishlisted={wishlist.includes(matchedProduct.id)}
               onToggleWishlist={handleToggleWishlist}
               onReviewSubmitted={handleRefreshProducts}
+              settings={settings}
             />
           ) : isAppLoading ? (
             <div className="container" style={{ padding: '30px 0' }}>
@@ -1327,7 +1328,7 @@ function App() {
         {/* VIEW H: Buyer Authentication */}
         {path === '/auth' && (
           <div className="container" style={{ padding: '40px 0' }}>
-            <BuyerAuth onSuccess={(isNewUser) => {
+            <BuyerAuth settings={settings} onSuccess={(isNewUser) => {
               if (isNewUser) {
                 navigate('/account/profile');
                 setTimeout(() => {
@@ -1342,7 +1343,7 @@ function App() {
 
         {/* VIEW I: About Page */}
         {path === '/about' && (
-          <AboutPage />
+          <AboutPage settings={settings} />
         )}
 
         {/* VIEW J: Policy Page */}
@@ -1464,7 +1465,7 @@ function App() {
 
         {/* VIEW M: Coming Soon / Placeholder Page */}
         {comingSoonTitles[path] && (
-          <ComingSoonPage title={comingSoonTitles[path]} />
+          <ComingSoonPage title={comingSoonTitles[path]} settings={settings} />
         )}
 
       </main>
@@ -1490,7 +1491,7 @@ function App() {
               </div>
               <div className="footer-links">
                 <h4 className="footer-col-header">Company</h4>
-                <Link to="/about" className="footer-link">About GoldenCare</Link>
+                <Link to="/about" className="footer-link">About {settings.shopName || 'GoldenCare'}</Link>
                 <Link to="/news" className="footer-link">News</Link>
                 <Link to="/careers" className="footer-link">Careers</Link>
                 <Link to="/sustainability" className="footer-link">Sustainability</Link>
@@ -1503,7 +1504,7 @@ function App() {
             </div>
             <hr className="footer-divider" />
             <div className="footer-fineprint">
-              <span className="font-utility-xs">&copy; 2026 GoldenCare Market, Inc. All Rights Reserved</span>
+              <span className="font-utility-xs">&copy; 2026 {settings.shopName || 'GoldenCare Market'}, Inc. All Rights Reserved</span>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <Link to="/guides" className="font-utility-xs">Guides</Link>
                 <Link to="/terms-of-sale" className="font-utility-xs">Terms of Sale</Link>

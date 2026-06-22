@@ -100,7 +100,7 @@ export const PaystackPayment: React.FC<PaystackPaymentProps> = ({
         const paystack = new window.PaystackPop();
         paystack.newTransaction({
           key: settings.paystackPublicKey,
-          email: `${customerPhone.replace(/[^\d]/g, '') || 'customer'}@goldencare.com`, // Paystack requires email format
+          email: `${customerPhone.replace(/[^\d]/g, '') || 'customer'}@${(settings.shopName || 'goldencare').replace(/[^a-z0-9]/gi, '').toLowerCase()}.com`, // Paystack requires email format
           amount: totalCents,
           currency: 'KES', // Kenya Shillings
           ref: refCode,

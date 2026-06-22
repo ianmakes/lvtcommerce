@@ -19,6 +19,7 @@ import { Mail, Lock, User, AlertCircle, Loader2, CheckCircle2, ArrowRight, Phone
 import * as OTPAuth from 'otpauth';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { subscribeToNewsletter, saveBuyerProfile, getBuyerProfile } from '../db';
+import { ShopSettings } from '../types';
 
 declare global {
   interface Window {
@@ -28,6 +29,7 @@ declare global {
 
 interface BuyerAuthProps {
   onSuccess: (isNewUser?: boolean) => void;
+  settings: ShopSettings;
 }
 
 const hashRecoveryCode = async (code: string) => {
@@ -37,7 +39,7 @@ const hashRecoveryCode = async (code: string) => {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
+export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess, settings }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -752,10 +754,10 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
       {/* Brand Column (Left) */}
       <div className="auth-brand-column">
         <div>
-          <span className="auth-brand-badge">GoldenCare Co.</span>
+          <span className="auth-brand-badge">{settings.shopName || 'GoldenCare'}</span>
           <h2 className="auth-brand-title" style={{ color: '#ffffff' }}>EVERYTHING YOU NEED TO RECOVER.</h2>
           <p className="auth-brand-subtitle">
-            Join the GoldenCare membership to unlock a smarter recovery and mobility shopping experience.
+            Join the {settings.shopName || 'GoldenCare'} membership to unlock a smarter recovery and mobility shopping experience.
           </p>
           
           <div className="auth-benefits-list">
@@ -951,8 +953,8 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
                   </h3>
                   <p className="auth-form-subtitle">
                     {isSignUp 
-                      ? "Join GoldenCare Co. to unlock express checkouts, live tracking, and more." 
-                      : "Sign in to your GoldenCare account to manage orders."}
+                      ? `Join ${settings.shopName || 'GoldenCare'} to unlock express checkouts, live tracking, and more.` 
+                      : `Sign in to your ${settings.shopName || 'GoldenCare'} account to manage orders.`}
                   </p>
 
                   {errorMsg && (
@@ -1015,7 +1017,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onSuccess }) => {
 
                   <div style={{ textAlign: 'center', marginTop: '24px', borderTop: '1px solid var(--color-hairline-soft)', paddingTop: '16px' }}>
                     <span style={{ fontSize: '13px', color: 'var(--text-mute)' }}>
-                      {isSignUp ? "Already a member? " : "New to GoldenCare? "}
+                      {isSignUp ? "Already a member? " : `New to ${settings.shopName || 'GoldenCare'}? `}
                     </span>
                     <button
                       type="button"

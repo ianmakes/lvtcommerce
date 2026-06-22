@@ -369,7 +369,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
             const refCode = generateDemoRef();
             paystack.newTransaction({
               key: settings.paystackPublicKey || '',
-              email: `${phone.replace(/[^\d]/g, '') || 'customer'}@goldencare.com`,
+              email: `${phone.replace(/[^\d]/g, '') || 'customer'}@${(settings.shopName || 'goldencare').replace(/[^a-z0-9]/gi, '').toLowerCase()}.com`,
               amount: grandTotal * 100, // In cents
               currency: 'KES',
               ref: refCode,
@@ -741,7 +741,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
                 Delivery estimated between {new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })} and {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
               </span>
               <span style={{ color: 'var(--text-mute)', fontSize: '12px', marginTop: '4px' }}>
-                Fulfilled by GoldenCare Express
+                Fulfilled by {settings.shopName || 'GoldenCare'} Express
               </span>
             </div>
           </div>

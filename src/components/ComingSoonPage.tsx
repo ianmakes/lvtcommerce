@@ -4,9 +4,10 @@ import { navigate } from '../Router';
 
 interface ComingSoonPageProps {
   title: string;
+  settings?: any;
 }
 
-export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ title }) => {
+export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ title, settings }) => {
   return (
     <div className="container" style={{ padding: '80px 0 120px', maxWidth: '600px', textAlign: 'center', color: 'var(--color-ink)' }}>
       <div 
@@ -26,7 +27,7 @@ export const ComingSoonPage: React.FC<ComingSoonPageProps> = ({ title }) => {
       </div>
 
       <span className="font-caption-md" style={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: '1.5px', color: 'var(--text-mute)' }}>
-        GoldenCare GC System &bull; Expansion
+        {(settings?.shopName || 'GoldenCare')} System &bull; Expansion
       </span>
       
       <h1 className="font-heading-xl" style={{ marginTop: '12px', marginBottom: '16px', textTransform: 'uppercase' }}>

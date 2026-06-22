@@ -146,6 +146,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [quickDrafts, setQuickDrafts] = useState<{ id: string; title: string; content: string; date: string }[]>([]);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
+
+  // Widget drag and drop state
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('wp_widget_order');
+    return saved ? JSON.parse(saved) : ['glance', 'draft', 'activity', 'insights'];
+  });
+  const [draggedWidgetIndex, setDraggedWidgetIndex] = useState<number | null>(null);
   
   const [selectedTemplateTab, setSelectedTemplateTab] = useState<'order_customer' | 'order_admin' | 'order_status'>('order_customer');
 
@@ -174,6 +181,199 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [totpVerificationCode, setTotpVerificationCode] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState('');
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedWidgetIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    const sourceIndexStr = e.dataTransfer.getData('text/plain');
+    const sourceIndex = sourceIndexStr !== '' ? parseInt(sourceIndexStr, 10) : draggedWidgetIndex;
+    
+    if (sourceIndex === null || sourceIndex === undefined || sourceIndex === targetIndex) return;
+
+    const newOrder = [...widgetOrder];
+    const [removed] = newOrder.splice(sourceIndex, 1);
+    newOrder.splice(targetIndex, 0, removed);
+    setWidgetOrder(newOrder);
+    localStorage.setItem('wp_widget_order', JSON.stringify(newOrder));
+    setDraggedWidgetIndex(null);
+  };
+
+  const renderWidget = (key: string, index: number) => {
+    const commonProps = {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => handleDragStart(e, index),
+      onDragOver: handleDragOver,
+      onDrop: (e: React.DragEvent) => handleDrop(e, index),
+      onDragEnd: () => setDraggedWidgetIndex(null),
+      className: "wp-postbox",
+      style: {
+        cursor: 'grab',
+        opacity: draggedWidgetIndex === index ? 0.4 : 1,
+        border: draggedWidgetIndex === index ? '2px dashed #2271b1' : '1px solid #c3c4c7',
+        transition: 'all 0.2s ease',
+      }
+    };
+
+    switch (key) {
+      case 'glance':
+        return (
+          <div key="glance" {...commonProps}>
+            <h2 className="wp-postbox-title" style={{ margin: 0, padding: '12px 15px', borderBottom: '1px solid #c3c4c7', background: '#f6f7f7', fontSize: '14px', fontWeight: 600, userSelect: 'none', cursor: 'grab' }}>At a Glance</h2>
+            <div className="wp-postbox-inside">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '13px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <PackageCheck size={16} style={{ color: '#646970' }} />
+                  <span><strong>{activeProductsCount}</strong> Products</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShoppingBag size={16} style={{ color: '#646970' }} />
+                  <span><strong>{orders.length}</strong> Orders</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={16} style={{ color: '#646970' }} />
+                  <span><strong>{Array.from(new Set(orders.map(o => o.buyerEmail))).length}</strong> Customers</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BarChart3 size={16} style={{ color: '#646970' }} />
+                  <span><strong>KSh {totalRevenue.toLocaleString()}</strong> Revenue</span>
+                </div>
+              </div>
+              <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '15px 0' }} />
+              <p style={{ margin: 0, fontSize: '12px', color: '#646970' }}>{localSettings.shopName || 'GoldenCare'} is running on Stark Minimal theme.</p>
+            </div>
+          </div>
+        );
+      case 'draft':
+        return (
+          <div key="draft" {...commonProps}>
+            <h2 className="wp-postbox-title" style={{ margin: 0, padding: '12px 15px', borderBottom: '1px solid #c3c4c7', background: '#f6f7f7', fontSize: '14px', fontWeight: 600, userSelect: 'none', cursor: 'grab' }}>Quick Draft</h2>
+            <div className="wp-postbox-inside">
+              <form onSubmit={handleSaveQuickDraft} onClick={(e) => e.stopPropagation()}>
+                <div style={{ marginBottom: '10px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Title" 
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
+                    required
+                  />
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <textarea 
+                    placeholder="What's on your mind?" 
+                    rows={3} 
+                    value={draftContent}
+                    onChange={(e) => setDraftContent(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }} 
+                    required
+                  />
+                </div>
+                <button type="submit" className="wp-button-primary">Save Draft</button>
+              </form>
+
+              {quickDrafts.length > 0 && (
+                <div style={{ marginTop: '20px', borderTop: '1px solid #c3c4c7', paddingTop: '15px' }} onClick={(e) => e.stopPropagation()}>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>Your Recent Drafts</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '240px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {quickDrafts.map((draft) => (
+                      <div key={draft.id} style={{ fontSize: '12px', borderBottom: '1px solid #f0f1f1', paddingBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                          <strong style={{ color: '#1d2327' }}>{draft.title || 'Untitled Draft'}</strong>
+                          <span style={{ color: '#646970', fontSize: '11px' }}>{draft.date}</span>
+                        </div>
+                        <p style={{ margin: '0 0 8px 0', color: '#50575e', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                          {draft.content}
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleEditDraft(draft)}
+                            style={{ background: 'none', border: 'none', padding: 0, color: '#2271b1', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleConvertDraftToPage(draft)}
+                            style={{ background: 'none', border: 'none', padding: 0, color: '#2271b1', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                          >
+                            Convert to Page
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteDraft(draft.id, e)}
+                            style={{ background: 'none', border: 'none', padding: 0, color: '#b32d2e', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      case 'activity':
+        return (
+          <div key="activity" {...commonProps}>
+            <h2 className="wp-postbox-title" style={{ margin: 0, padding: '12px 15px', borderBottom: '1px solid #c3c4c7', background: '#f6f7f7', fontSize: '14px', fontWeight: 600, userSelect: 'none', cursor: 'grab' }}>Activity</h2>
+            <div className="wp-postbox-inside">
+              <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 600 }}>Recent Orders</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                {orders.slice(0, 5).map(o => (
+                  <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f1f1', paddingBottom: '6px' }}>
+                    <div>
+                      <span style={{ color: '#646970', marginRight: '8px' }}>{new Date(o.createdAt).toLocaleDateString()}</span>
+                      <a 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/dashboard/orders');
+                          setActiveOrderDetails(o);
+                        }} 
+                        style={{ color: '#2271b1', cursor: 'pointer', fontWeight: 500 }}
+                      >
+                        Order #{o.id.substring(6, 12)}
+                      </a>
+                      <span style={{ color: '#2c3338', marginLeft: '6px' }}>by {o.customerName}</span>
+                    </div>
+                    <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      case 'insights':
+        return (
+          <div key="insights" {...commonProps}>
+            <h2 className="wp-postbox-title" style={{ margin: 0, padding: '12px 15px', borderBottom: '1px solid #c3c4c7', background: '#f6f7f7', fontSize: '14px', fontWeight: 600, userSelect: 'none', cursor: 'grab' }}>{localSettings.shopName || 'GoldenCare'} Insights</h2>
+            <div className="wp-postbox-inside" style={{ fontSize: '13px', lineHeight: 1.5 }}>
+              <p style={{ marginTop: 0 }}>Welcome to your specialized wellness logistics system. We have successfully modularized the store settings:</p>
+              <ul style={{ paddingLeft: '20px', margin: '10px 0' }}>
+                <li>Ensure Cloudinary keys are active for seamless asset pipelines.</li>
+                <li>Review the orders pipeline regularly to coordinate shipping dispatch.</li>
+                <li>Adjust coupons in the Promo Tags tab to coordinate promotional drops.</li>
+              </ul>
+              <p style={{ margin: 0 }} onClick={(e) => e.stopPropagation()}><a href="/about" target="_blank" style={{ color: '#2271b1', textDecoration: 'none' }}>Learn more about {localSettings.shopName || 'GoldenCare'} Philosophy &rarr;</a></p>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   useEffect(() => {
     if (auth.currentUser) {
@@ -266,12 +466,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDownloadRecoveryCodes = () => {
-    const content = `GoldenCare Market Admin MFA Recovery Codes\n=========================================\n\nSave these codes securely. Each code is ONE-TIME use.\n\n${generatedCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n`;
+    const shopNameVal = localSettings.shopName || 'GoldenCare Market';
+    const content = `${shopNameVal} Admin MFA Recovery Codes\n=========================================\n\nSave these codes securely. Each code is ONE-TIME use.\n\n${generatedCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n`;
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    const cleanShopName = shopNameVal.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     link.href = url;
-    link.download = `goldencare_mfa_recovery_codes_${currentUserUid}.txt`;
+    link.download = `${cleanShopName}_mfa_recovery_codes_${currentUserUid}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -334,7 +536,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const secret = await TotpMultiFactorGenerator.generateSecret(session);
       setTotpSecret(secret);
       
-      const qrUrl = secret.generateQrCodeUrl(user.email, settings.shopName || "GoldenCare Market");
+      const qrUrl = secret.generateQrCodeUrl(user.email, localSettings.shopName || "GoldenCare Market");
       setTotpQrUrl(qrUrl);
 
       const codes = generateRecoveryCodes();
@@ -2850,148 +3052,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <h1 className="wp-admin-page-title">Dashboard</h1>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-                
-                {/* At a Glance Widget */}
-                <div className="wp-postbox">
-                  <h2 className="wp-postbox-title">At a Glance</h2>
-                  <div className="wp-postbox-inside">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '13px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <PackageCheck size={16} style={{ color: '#646970' }} />
-                        <span><strong>{activeProductsCount}</strong> Products</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ShoppingBag size={16} style={{ color: '#646970' }} />
-                        <span><strong>{orders.length}</strong> Orders</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Users size={16} style={{ color: '#646970' }} />
-                        <span><strong>{Array.from(new Set(orders.map(o => o.buyerEmail))).length}</strong> Customers</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <BarChart3 size={16} style={{ color: '#646970' }} />
-                        <span><strong>KSh {totalRevenue.toLocaleString()}</strong> Revenue</span>
-                      </div>
-                    </div>
-                    <hr style={{ border: '0', borderTop: '1px solid #c3c4c7', margin: '15px 0' }} />
-                    <p style={{ margin: 0, fontSize: '12px', color: '#646970' }}>GoldenCare Market is running on Stark Minimal theme.</p>
-                  </div>
-                </div>
-
-                {/* Quick Draft Widget */}
-                <div className="wp-postbox">
-                  <h2 className="wp-postbox-title">Quick Draft</h2>
-                  <div className="wp-postbox-inside">
-                    <form onSubmit={handleSaveQuickDraft}>
-                      <div style={{ marginBottom: '10px' }}>
-                        <input 
-                          type="text" 
-                          placeholder="Title" 
-                          value={draftTitle}
-                          onChange={(e) => setDraftTitle(e.target.value)}
-                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
-                          required
-                        />
-                      </div>
-                      <div style={{ marginBottom: '10px' }}>
-                        <textarea 
-                          placeholder="What's on your mind?" 
-                          rows={3} 
-                          value={draftContent}
-                          onChange={(e) => setDraftContent(e.target.value)}
-                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }} 
-                          required
-                        />
-                      </div>
-                      <button type="submit" className="wp-button-primary">Save Draft</button>
-                    </form>
-
-                    {quickDrafts.length > 0 && (
-                      <div style={{ marginTop: '20px', borderTop: '1px solid #c3c4c7', paddingTop: '15px' }}>
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>Your Recent Drafts</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '240px', overflowY: 'auto', paddingRight: '4px' }}>
-                          {quickDrafts.map((draft) => (
-                            <div key={draft.id} style={{ fontSize: '12px', borderBottom: '1px solid #f0f1f1', paddingBottom: '8px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                                <strong style={{ color: '#1d2327' }}>{draft.title || 'Untitled Draft'}</strong>
-                                <span style={{ color: '#646970', fontSize: '11px' }}>{draft.date}</span>
-                              </div>
-                              <p style={{ margin: '0 0 8px 0', color: '#50575e', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', lineHeight: '1.4' }}>
-                                {draft.content}
-                              </p>
-                              <div style={{ display: 'flex', gap: '10px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditDraft(draft)}
-                                  style={{ background: 'none', border: 'none', padding: 0, color: '#2271b1', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleConvertDraftToPage(draft)}
-                                  style={{ background: 'none', border: 'none', padding: 0, color: '#2271b1', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
-                                >
-                                  Convert to Page
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteDraft(draft.id, e)}
-                                  style={{ background: 'none', border: 'none', padding: 0, color: '#b32d2e', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Recent Activity Widget */}
-                <div className="wp-postbox">
-                  <h2 className="wp-postbox-title">Activity</h2>
-                  <div className="wp-postbox-inside">
-                    <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 600 }}>Recent Orders</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-                      {orders.slice(0, 5).map(o => (
-                        <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f1f1', paddingBottom: '6px' }}>
-                          <div>
-                            <span style={{ color: '#646970', marginRight: '8px' }}>{new Date(o.createdAt).toLocaleDateString()}</span>
-                            <a 
-                              onClick={() => {
-                                navigate('/dashboard/orders');
-                                setActiveOrderDetails(o);
-                              }} 
-                              style={{ color: '#2271b1', cursor: 'pointer', fontWeight: 500 }}
-                            >
-                              Order #{o.id.substring(6, 12)}
-                            </a>
-                            <span style={{ color: '#2c3338', marginLeft: '6px' }}>by {o.customerName}</span>
-                          </div>
-                          <span className={`wp-badge-status ${o.orderStatus.toLowerCase()}`}>{o.orderStatus}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* GoldenCare Insights Widget */}
-                <div className="wp-postbox">
-                  <h2 className="wp-postbox-title">GoldenCare Insights</h2>
-                  <div className="wp-postbox-inside" style={{ fontSize: '13px', lineHeight: 1.5 }}>
-                    <p style={{ marginTop: 0 }}>Welcome to your specialized wellness logistics system. We have successfully modularized the store settings:</p>
-                    <ul style={{ paddingLeft: '20px', margin: '10px 0' }}>
-                      <li>Ensure Cloudinary keys are active for seamless asset pipelines.</li>
-                      <li>Review the orders pipeline regularly to coordinate shipping dispatch.</li>
-                      <li>Adjust coupons in the Promo Tags tab to coordinate promotional drops.</li>
-                    </ul>
-                    <p style={{ margin: 0 }}><a href="/about" target="_blank" style={{ color: '#2271b1', textDecoration: 'none' }}>Learn more about GoldenCare Philosophy &rarr;</a></p>
-                  </div>
-                </div>
-
+                {widgetOrder.map((key, idx) => renderWidget(key, idx))}
               </div>
             </div>
           )}
@@ -4737,7 +4798,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       type="text"
                                       className="form-input"
                                       style={{ width: '100%', padding: '8px', border: '1px solid #c3c4c7', fontSize: '13px', borderRadius: 0 }}
-                                      placeholder="e.g. Welcome to GoldenCare Market!"
+                                      placeholder={`e.g. Welcome to ${localSettings.shopName || 'GoldenCare Market'}!`}
                                       value={localSettings.receiptHeaderMessage || ''}
                                       onChange={e => setLocalSettings({ ...localSettings, receiptHeaderMessage: e.target.value })}
                                     />
@@ -6445,7 +6506,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', textTransform: 'uppercase' }} 
                         value={couponCode}
                         onChange={e => setCouponCode(e.target.value)}
-                        placeholder="e.g. GOLDENCARE"
+                        placeholder={`e.g. ${(localSettings.shopName || 'GOLDENCARE').replace(/[^a-z0-9]/gi, '').toUpperCase()}`}
                         required
                         disabled={!!editingCoupon}
                       />
@@ -8572,7 +8633,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         value={localSettings.cmsShopMetaTitle || ''} 
                         onChange={e => setLocalSettings(prev => ({ ...prev, cmsShopMetaTitle: e.target.value }))}
                         style={{ width: '100%', boxSizing: 'border-box' }}
-                        placeholder="e.g. Shop Engineered Wellness - GoldenCare Market"
+                        placeholder={`e.g. Shop Engineered Wellness - ${localSettings.shopName || 'GoldenCare Market'}`}
                       />
                       <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#646970' }}>The page title shown in the browser tab when viewing the shop catalog (excellent for SEO).</p>
                     </div>
