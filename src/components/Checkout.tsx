@@ -138,7 +138,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         <p className="font-body-md text-center" style={{ color: 'var(--text-mute)', marginBottom: '32px' }}>
           Please sign in or create an account to proceed with your order.
         </p>
-        <BuyerAuth onSuccess={() => {}} />
+        <BuyerAuth settings={settings} onSuccess={() => {}} />
       </div>
     );
   }
