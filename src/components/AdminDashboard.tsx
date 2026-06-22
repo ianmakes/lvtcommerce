@@ -143,6 +143,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pageTitle, setPageTitle] = useState('');
   const [pageHtml, setPageHtml] = useState('');
   
+  const [quickDrafts, setQuickDrafts] = useState<{ id: string; title: string; content: string; date: string }[]>([]);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftContent, setDraftContent] = useState('');
+  
   const [selectedTemplateTab, setSelectedTemplateTab] = useState<'order_customer' | 'order_admin' | 'order_status'>('order_customer');
 
   const [productsSubTab, setProductsSubTab] = useState<'all' | 'bulk'>('all');
@@ -175,7 +179,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (auth.currentUser) {
       setIs2FAEnabled(multiFactor(auth.currentUser).enrolledFactors.length > 0);
     }
+    try {
+      const saved = localStorage.getItem('wp_quick_drafts');
+      if (saved) {
+        setQuickDrafts(JSON.parse(saved));
+      } else {
+        const legacy = localStorage.getItem('wp_quick_draft');
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          const legacyDraft = { id: `draft-${Date.now()}`, title: parsed.title || '', content: parsed.content || '', date: parsed.date || new Date().toLocaleDateString() };
+          setQuickDrafts([legacyDraft]);
+          localStorage.setItem('wp_quick_drafts', JSON.stringify([legacyDraft]));
+          localStorage.removeItem('wp_quick_draft');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
+
+  const handleSaveQuickDraft = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draftTitle.trim() && !draftContent.trim()) return;
+
+    const newDraft = {
+      id: `draft-${Date.now()}`,
+      title: draftTitle.trim(),
+      content: draftContent.trim(),
+      date: new Date().toLocaleDateString()
+    };
+
+    const updated = [newDraft, ...quickDrafts];
+    setQuickDrafts(updated);
+    localStorage.setItem('wp_quick_drafts', JSON.stringify(updated));
+    setDraftTitle('');
+    setDraftContent('');
+    showToast('Draft saved successfully!', 'success');
+  };
+
+  const handleDeleteDraft = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this draft?")) return;
+    const updated = quickDrafts.filter(d => d.id !== id);
+    setQuickDrafts(updated);
+    localStorage.setItem('wp_quick_drafts', JSON.stringify(updated));
+    showToast('Draft deleted successfully!', 'success');
+  };
+
+  const handleEditDraft = (draft: { id: string; title: string; content: string }) => {
+    setDraftTitle(draft.title);
+    setDraftContent(draft.content);
+    // Remove it from the list so when they save it acts as an update
+    const updated = quickDrafts.filter(d => d.id !== draft.id);
+    setQuickDrafts(updated);
+    localStorage.setItem('wp_quick_drafts', JSON.stringify(updated));
+  };
+
+  const handleConvertDraftToPage = (draft: { title: string; content: string }) => {
+    navigate('/dashboard/cms');
+    setEditingCustomPage(null);
+    setPageTitle(draft.title);
+    setPageSlug(draft.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''));
+    setPageHtml(`<p>${draft.content.replace(/\n/g, '<br/>')}</p>`);
+    setIsPageEditorOpen(true);
+    showToast('Loaded draft into custom page editor!', 'success');
+  };
 
   const generateRecoveryCodes = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -2814,35 +2882,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="wp-postbox">
                   <h2 className="wp-postbox-title">Quick Draft</h2>
                   <div className="wp-postbox-inside">
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      const form = e.target as HTMLFormElement;
-                      const title = (form.elements.namedItem('draftTitle') as HTMLInputElement).value;
-                      const content = (form.elements.namedItem('draftContent') as HTMLTextAreaElement).value;
-                      localStorage.setItem('wp_quick_draft', JSON.stringify({ title, content, date: new Date().toLocaleDateString() }));
-                      alert("Draft saved locally!");
-                      form.reset();
-                    }}>
+                    <form onSubmit={handleSaveQuickDraft}>
                       <div style={{ marginBottom: '10px' }}>
                         <input 
                           type="text" 
-                          name="draftTitle" 
                           placeholder="Title" 
+                          value={draftTitle}
+                          onChange={(e) => setDraftTitle(e.target.value)}
                           style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px' }} 
                           required
                         />
                       </div>
                       <div style={{ marginBottom: '10px' }}>
                         <textarea 
-                          name="draftContent" 
                           placeholder="What's on your mind?" 
                           rows={3} 
+                          value={draftContent}
+                          onChange={(e) => setDraftContent(e.target.value)}
                           style={{ width: '100%', padding: '6px 8px', border: '1px solid #c3c4c7', boxSizing: 'border-box', fontSize: '13px', fontFamily: 'inherit', resize: 'vertical' }} 
                           required
                         />
                       </div>
                       <button type="submit" className="wp-button-primary">Save Draft</button>
                     </form>
+
+                    {quickDrafts.length > 0 && (
+                      <div style={{ marginTop: '20px', borderTop: '1px solid #c3c4c7', paddingTop: '15px' }}>
+                        <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: 600, color: '#1d2327' }}>Your Recent Drafts</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '240px', overflowY: 'auto', paddingRight: '4px' }}>
+                          {quickDrafts.map((draft) => (
+                            <div key={draft.id} style={{ fontSize: '12px', borderBottom: '1px solid #f0f1f1', paddingBottom: '8px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                                <strong style={{ color: '#1d2327' }}>{draft.title || 'Untitled Draft'}</strong>
+                                <span style={{ color: '#646970', fontSize: '11px' }}>{draft.date}</span>
+                              </div>
+                              <p style={{ margin: '0 0 8px 0', color: '#50575e', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', lineHeight: '1.4' }}>
+                                {draft.content}
+                              </p>
+                              <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditDraft(draft)}
+                                  style={{ background: 'none', border: 'none', padding: 0, color: '#2271b1', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleConvertDraftToPage(draft)}
+                                  style={{ background: 'none', border: 'none', padding: 0, color: '#2271b1', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                                >
+                                  Convert to Page
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteDraft(draft.id, e)}
+                                  style={{ background: 'none', border: 'none', padding: 0, color: '#b32d2e', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
