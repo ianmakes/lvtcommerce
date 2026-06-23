@@ -480,7 +480,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   // ─── MOBILE CHECKOUT VIEW ─────────────────────────────────────────
   if (isMobile) {
     return (
-      <div className="mobile-checkout-container" style={{ padding: '16px 12px 160px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+      <div className="mobile-checkout-container mobile-page-container-with-bar" style={{ padding: '16px 12px', backgroundColor: '#f5f5f5', minHeight: 'calc(100vh - (56px + env(safe-area-inset-top, 0px)))', boxSizing: 'border-box', color: 'var(--color-ink)' }}>
         
         {/* Mobile Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
@@ -958,20 +958,17 @@ export const Checkout: React.FC<CheckoutProps> = ({
           </div>
         )}
 
-        {/* Sticky Bottom Confirm Order Button */}
-        <div style={{
-          position: 'fixed',
-          bottom: 64,
-          left: 0,
-          right: 0,
-          height: '76px',
-          backgroundColor: '#ffffff',
-          borderTop: '1px solid #e5e7eb',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
-          zIndex: 1400
-        }}>
+        <div 
+          className="mobile-sticky-bottom-bar"
+          style={{
+            backgroundColor: '#ffffff',
+            borderTop: '1px solid #e5e7eb',
+            display: 'flex',
+            alignItems: 'center',
+            paddingLeft: '16px',
+            paddingRight: '16px'
+          }}
+        >
           <button 
             type="button" 
             onClick={handlePlaceOrder}

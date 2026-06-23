@@ -532,7 +532,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
     
     if (isLanding) {
       return (
-        <div className="mobile-account-menu-page" style={{ padding: '16px 12px 100px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+        <div className="mobile-account-menu-page mobile-page-container" style={{ padding: '16px 12px', backgroundColor: '#f5f5f5', minHeight: 'calc(100vh - (56px + env(safe-area-inset-top, 0px)))', boxSizing: 'border-box', color: 'var(--color-ink)' }}>
           {/* Top Banner */}
           <div style={{ backgroundColor: 'var(--color-ink)', padding: '24px 16px', borderRadius: '12px', color: '#ffffff', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -661,7 +661,7 @@ export const BuyerAccount: React.FC<BuyerAccountProps> = ({
       const pageTitle = tabMeta ? tabMeta.label.split(' (')[0] : 'Account';
 
       return (
-        <div className="mobile-account-subpage" style={{ padding: '16px 12px 100px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+        <div className="mobile-account-subpage mobile-page-container" style={{ padding: '16px 12px', backgroundColor: '#f5f5f5', minHeight: 'calc(100vh - (56px + env(safe-area-inset-top, 0px)))', boxSizing: 'border-box', color: 'var(--color-ink)' }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
             <button 

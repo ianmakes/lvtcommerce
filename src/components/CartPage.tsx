@@ -97,7 +97,7 @@ export const CartPage: React.FC<CartPageProps> = ({
 
   if (isMobile) {
     return (
-      <div className="mobile-cart-container" style={{ padding: '16px 12px 160px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+      <div className={`mobile-cart-container ${cart.length > 0 ? 'mobile-page-container-with-bar' : 'mobile-page-container'}`} style={{ padding: '16px 12px', backgroundColor: '#f5f5f5', minHeight: 'calc(100vh - (56px + env(safe-area-inset-top, 0px)))', boxSizing: 'border-box', color: 'var(--color-ink)' }}>
         {/* Cart Title Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <h1 className="font-heading-lg" style={{ margin: 0, fontWeight: 700, fontSize: '20px' }}>Cart</h1>
@@ -276,20 +276,18 @@ export const CartPage: React.FC<CartPageProps> = ({
 
         {/* Sticky Bottom Actions */}
         {cart.length > 0 && (
-          <div style={{
-            position: 'fixed',
-            bottom: 64,
-            left: 0,
-            right: 0,
-            height: '76px',
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid #e5e7eb',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 16px',
-            gap: '12px',
-            zIndex: 1400
-          }}>
+          <div 
+            className="mobile-sticky-bottom-bar"
+            style={{
+              backgroundColor: '#ffffff',
+              borderTop: '1px solid #e5e7eb',
+              display: 'flex',
+              alignItems: 'center',
+              paddingLeft: '16px',
+              paddingRight: '16px',
+              gap: '12px'
+            }}
+          >
             <a 
               href="tel:+254712345678" 
               style={{

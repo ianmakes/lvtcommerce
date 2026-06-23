@@ -377,7 +377,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
 
   if (isMobile) {
     return (
-      <div className="mobile-pdp-container" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', backgroundColor: '#f5f5f5' }}>
+      <div className="mobile-pdp-container" style={{ backgroundColor: '#f5f5f5' }}>
         {/* Gallery Carousel */}
         <div style={{ position: 'relative', backgroundColor: '#ffffff', borderBottom: '1px solid var(--color-hairline-soft)' }}>
           {product.badge && (
@@ -720,23 +720,19 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
         )}
 
-        {/* Bottom Sticky Action Bar */}
-        <div style={{ 
-          position: 'fixed', 
-          bottom: 0, 
-          left: 0, 
-          right: 0, 
-          height: '64px', 
-          backgroundColor: '#ffffff', 
-          borderTop: '1px solid var(--color-hairline-soft)', 
-          display: 'flex', 
-          alignItems: 'center', 
-          padding: '0 16px calc(env(safe-area-inset-bottom, 0px))', 
-          boxSizing: 'content-box',
-          gap: '12px',
-          zIndex: 2000,
-          boxShadow: '0 -4px 16px rgba(0,0,0,0.06)'
-        }}>
+        <div 
+          className="mobile-sticky-bottom-bar-pdp"
+          style={{ 
+            backgroundColor: '#ffffff', 
+            borderTop: '1px solid var(--color-hairline-soft)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            paddingLeft: '16px',
+            paddingRight: '16px',
+            gap: '12px',
+            boxShadow: '0 -4px 16px rgba(0,0,0,0.06)'
+          }}
+        >
           <button 
             type="button" 
             onClick={() => navigate('/')}

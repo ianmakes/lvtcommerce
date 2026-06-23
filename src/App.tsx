@@ -176,20 +176,28 @@ function App() {
 
   // Hide bottom nav on scroll down, show on scroll up
   useEffect(() => {
-    if (!isMobile) return;
+    if (!isMobile) {
+      document.body.classList.remove('bottom-nav-hidden');
+      return;
+    }
     const SCROLL_THRESHOLD = 10;
     const handleScroll = () => {
       const currentY = window.scrollY;
       const delta = currentY - lastScrollYRef.current;
       if (delta > SCROLL_THRESHOLD && currentY > 80) {
         setBottomNavVisible(false);
+        document.body.classList.add('bottom-nav-hidden');
       } else if (delta < -SCROLL_THRESHOLD) {
         setBottomNavVisible(true);
+        document.body.classList.remove('bottom-nav-hidden');
       }
       lastScrollYRef.current = currentY;
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.body.classList.remove('bottom-nav-hidden');
+    };
   }, [isMobile]);
 
   // Coupon states
@@ -1072,7 +1080,7 @@ function App() {
             )}
 
             {/* Grid Container */}
-            <section className="container section-block" id="products-section" style={{ paddingTop: isMobile && path === '/' ? '0' : undefined }}>
+            <section className="container section-block mobile-page-container" id="products-section" style={{ paddingTop: isMobile && path === '/' ? '0' : undefined }}>
               {/* Breadcrumb */}
               {!(isMobile && path === '/') && (
                 <nav className="shop-breadcrumb">
@@ -1383,7 +1391,7 @@ function App() {
 
         {/* VIEW: Categories Page */}
         {path === '/categories' && (
-          <div className="categories-page-container container" style={{ padding: '24px 16px', minHeight: '60vh' }}>
+          <div className="categories-page-container container mobile-page-container" style={{ padding: '24px 16px', minHeight: 'calc(100vh - (56px + env(safe-area-inset-top, 0px)))', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
               <LayoutGrid size={24} />
               <h1 style={{ fontSize: '22px', fontWeight: 800, textTransform: 'uppercase', margin: 0 }}>All Categories</h1>
