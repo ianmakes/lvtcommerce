@@ -157,6 +157,8 @@ function App() {
   const [sortBy, setSortBy] = useState('featured');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 767);
+  const [bottomNavVisible, setBottomNavVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
   const wishlistSyncRef = useRef(false);
   let accountTab: 'overview' | 'orders' | 'wishlist' | 'address' | 'profile' | 'security' = 'overview';
   if (path.startsWith('/account/')) {
@@ -171,6 +173,24 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Hide bottom nav on scroll down, show on scroll up
+  useEffect(() => {
+    if (!isMobile) return;
+    const SCROLL_THRESHOLD = 10;
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollYRef.current;
+      if (delta > SCROLL_THRESHOLD && currentY > 80) {
+        setBottomNavVisible(false);
+      } else if (delta < -SCROLL_THRESHOLD) {
+        setBottomNavVisible(true);
+      }
+      lastScrollYRef.current = currentY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobile]);
 
   // Coupon states
   const [promoCode, setPromoCode] = useState('');
@@ -1518,7 +1538,7 @@ function App() {
 
       {/* Mobile Bottom Navigation Bar */}
       {!isDashboardRoute && (
-        <nav className="mobile-bottom-nav" aria-label="Mobile bottom navigation">
+        <nav className={`mobile-bottom-nav ${!bottomNavVisible ? 'bottom-nav-hidden' : ''}`} aria-label="Mobile bottom navigation">
           <button
             type="button"
             className={`mobile-bottom-nav-item ${path === '/' ? 'active' : ''}`}

@@ -2476,6 +2476,13 @@ tr:hover .row-actions {
     justify-content: space-around;
     padding: 0 8px;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(0);
+    will-change: transform;
+  }
+
+  .mobile-bottom-nav.bottom-nav-hidden {
+    transform: translateY(100%);
   }
 
   .mobile-bottom-nav-item {
@@ -4732,7 +4739,7 @@ tr:hover .row-actions {
 
   /* Safe Area margins for general view containers */
   main {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   /* Premium mobile custom header components */

@@ -480,7 +480,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
   // ─── MOBILE CHECKOUT VIEW ─────────────────────────────────────────
   if (isMobile) {
     return (
-      <div className="mobile-checkout-container" style={{ padding: '16px 12px 100px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+      <div className="mobile-checkout-container" style={{ padding: '16px 12px 160px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
         
         {/* Mobile Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
@@ -961,7 +961,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
         {/* Sticky Bottom Confirm Order Button */}
         <div style={{
           position: 'fixed',
-          bottom: 0,
+          bottom: 64,
           left: 0,
           right: 0,
           height: '76px',
@@ -970,7 +970,7 @@ export const Checkout: React.FC<CheckoutProps> = ({
           display: 'flex',
           alignItems: 'center',
           padding: '0 16px',
-          zIndex: 999
+          zIndex: 1400
         }}>
           <button 
             type="button" 

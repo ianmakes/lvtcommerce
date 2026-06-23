@@ -97,7 +97,7 @@ export const CartPage: React.FC<CartPageProps> = ({
 
   if (isMobile) {
     return (
-      <div className="mobile-cart-container" style={{ padding: '16px 12px 100px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
+      <div className="mobile-cart-container" style={{ padding: '16px 12px 160px', backgroundColor: '#f5f5f5', minHeight: '100vh', color: 'var(--color-ink)' }}>
         {/* Cart Title Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <h1 className="font-heading-lg" style={{ margin: 0, fontWeight: 700, fontSize: '20px' }}>Cart</h1>
@@ -278,7 +278,7 @@ export const CartPage: React.FC<CartPageProps> = ({
         {cart.length > 0 && (
           <div style={{
             position: 'fixed',
-            bottom: 0,
+            bottom: 64,
             left: 0,
             right: 0,
             height: '76px',
@@ -288,7 +288,7 @@ export const CartPage: React.FC<CartPageProps> = ({
             alignItems: 'center',
             padding: '0 16px',
             gap: '12px',
-            zIndex: 999
+            zIndex: 1400
           }}>
             <a 
               href="tel:+254712345678" 
